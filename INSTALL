@@ -1,0 +1,4 @@
+
+in vendor/libmicrohttpd-0.9.5:
+  ./configure --disable-https
+  make
