@@ -6,6 +6,7 @@
 #define HTTP_PORT 1138
 #define HTTP_TIMEOUT 60
 #define POST_BUFFER_SIZE 65536
+#define MAX_PATH_LENGTH 256
 #define EXTRA_DAEMON_FLAGS MHD_USE_DEBUG
 
 #define ROOT "/var/lib/verm"
@@ -20,11 +21,15 @@
 
 #include "platform.h"
 #include "microhttpd.h"
+#include <openssl/sha.h>
 
 struct Upload {
-	char tempfile_fs_path[256];
+	char tempfile_fs_path[MAX_PATH_LENGTH];
 	int tempfile_fd;
+	size_t size;
 	struct MHD_PostProcessor* pp;
+	SHA256_CTX hasher;
+	char final_fs_path[MAX_PATH_LENGTH];
 };
 
 int send_static_page_response(struct MHD_Connection* connection, unsigned int status_code, char* page) {
@@ -60,7 +65,7 @@ int handle_get_request(
 	struct stat st;
 	struct MHD_Response* response;
 	int ret;
-	char fs_path[256];
+	char fs_path[MAX_PATH_LENGTH];
 
 	if (strcmp(path, "/") == 0) {
 		return send_static_page_response(connection, MHD_HTTP_OK, UPLOAD_PAGE);
@@ -115,6 +120,8 @@ int handle_post_data(
 	
 	if (strcmp(key, "uploaded_file") == 0) {
 		fprintf(stderr, "uploading into %s: %s, %s, %s, %s (%llu, %ld)\n", upload->tempfile_fs_path, key, filename, content_type, transfer_encoding, off, size);
+		SHA256_Update(&upload->hasher, (unsigned char*)data, size);
+		upload->size += size;
 		while (size > 0) {
 			ssize_t written = write(upload->tempfile_fd, data, size);
 			if (written < 0 && errno == EINTR) continue;
@@ -160,7 +167,11 @@ struct Upload* create_upload(struct MHD_Connection* connection) {
 	}
 	upload->tempfile_fs_path[0] = 0;
 	upload->tempfile_fd = -1;
+	upload->size = 0;
 	upload->pp = NULL;
+	upload->final_fs_path[0] = 0;
+	
+	SHA256_Init(&upload->hasher);
 	
 	upload->pp = MHD_create_post_processor(connection, POST_BUFFER_SIZE, &handle_post_data, upload);
 	if (!upload->pp) { // presumably out of memory
@@ -186,9 +197,90 @@ int process_upload_data(struct Upload* upload, const char *upload_data, size_t *
 	return MHD_YES;
 }
 
-void complete_upload(struct Upload* upload) {
-	// TODO: complete hashing the file
-	// TODO: link into hashed name
+int same_file_contents(int fd1, int fd2, size_t size) {
+	char buf1[16384], buf2[16384];
+	int ret1, ret2;
+
+	off_t offset = 0;
+	while (offset < size) {
+		do { ret1 = pread(fd1, buf1, sizeof(buf1), offset); } while (ret1 == -1 && errno == EINTR);
+		do { ret2 = pread(fd2, buf2, sizeof(buf2), offset); } while (ret2 == -1 && errno == EINTR);
+		if (ret1 != ret2 || memcmp(buf1, buf2, ret1) != 0) return 0;
+		offset += ret1;
+	}
+
+	return 1;
+}
+
+int link_file(struct Upload* upload, char* encoded, char* extension) {
+	int ret;
+	int attempt = 1;
+	const char* template = "%s/%s.%s";
+	struct stat st;
+	
+	ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s%s", ROOT, encoded, extension);
+
+	while (1) {
+		if (ret >= sizeof(upload->final_fs_path)) { // shouldn't happen
+			fprintf(stderr, "Couldn't generate filename for %s under %s within limits\n", upload->tempfile_fs_path, ROOT);
+			return -1;
+		}
+		
+		do { ret = link(upload->tempfile_fs_path, upload->final_fs_path); } while (ret < 0 && errno == EINTR);
+		if (ret == 0) break; // successfully linked
+		
+		if (errno != EEXIST) {
+			fprintf(stderr, "Couldn't link %s to %s: %s (%d)\n", upload->final_fs_path, upload->tempfile_fs_path, strerror(errno), errno);
+			return -1;
+		}
+		
+		// so the file already exists; is it exactly the same file?
+		if (stat(upload->final_fs_path, &st) < 0) {
+			fprintf(stderr, "Couldn't stat pre-existing file %s: %s (%d)\n", upload->final_fs_path, strerror(errno), errno);
+			return -1;
+		}
+				
+		if (st.st_size == upload->size) {
+			int fd2, same;
+			do { fd2 = open(upload->final_fs_path, O_RDONLY); } while (fd2 == -1 && errno == EINTR);
+			same = same_file_contents(upload->tempfile_fd, fd2, upload->size);
+			do { ret = close(fd2); } while (ret == -1 && errno == EINTR);
+			
+			if (same) break; // same file size and contents
+		}
+		
+		// no, different file; loop around and try again, this time with an attempt number appended to the end
+		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d%s", ROOT, encoded, ++attempt, extension);
+	}
+	
+	return 0;
+}
+
+int complete_upload(struct Upload* upload) {
+	static const char encode_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+	unsigned char md[SHA256_DIGEST_LENGTH];
+	unsigned char* src = md;
+	unsigned char* end = md + SHA256_DIGEST_LENGTH;
+
+	char encoded[45]; // for 32 input bytes, we need 45 output bytes (ceil(32/3.0)*4 rounded up, plus a null terminator byte)
+	char* dest = encoded;
+	
+	SHA256_Final(md, &upload->hasher);
+
+	while (src < end) {
+		unsigned char s0 = *src++;
+		unsigned char s1 = (src == end) ? 0 : *src++;
+		unsigned char s2 = (src == end) ? 0 : *src++;
+		*dest++ = encode_chars[(s0 & 0xfc) >> 2];
+		*dest++ = encode_chars[((s0 & 0x03) << 4) + ((s1 & 0xf0) >> 4)];
+		*dest++ = encode_chars[((s1 & 0x0f) << 2) + ((s2 & 0xc0) >> 6)];
+		*dest++ = encode_chars[s2 & 0x3f];
+	}
+	*dest = 0;
+
+	fprintf(stderr, "hashed, encoded filename is %s\n", encoded);
+	return link_file(upload, encoded, "");
 }
 
 int handle_post_request(
@@ -204,12 +296,19 @@ int handle_post_request(
 		return *request_data ? MHD_YES : MHD_NO;
 	}
 	
+	struct Upload* upload = (struct Upload*) *request_data;
 	if (*upload_data_size > 0) { // TODO: is is true that upload_data_size is always set?
-	 	return process_upload_data((struct Upload*) *request_data, upload_data, upload_data_size);
+	 	return process_upload_data(upload, upload_data, upload_data_size);
 	} else {
 		fprintf(stderr, "completing upload\n");
-		complete_upload((struct Upload*) *request_data);
-		return send_redirect(connection, MHD_HTTP_CREATED, "/success");
+		if (complete_upload(upload) < 0) {
+			fprintf(stderr, "completing failed\n");
+			return MHD_NO;
+		} else {
+			char* final_relative_path = upload->final_fs_path + strlen(ROOT);
+			fprintf(stderr, "redirecting to %s\n", final_relative_path);
+			return send_redirect(connection, /*MHD_HTTP_CREATED*/MHD_HTTP_MOVED_PERMANENTLY, final_relative_path);
+		}
 	}
 }
 		
