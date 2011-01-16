@@ -22,8 +22,8 @@
 #include "microhttpd.h"
 
 struct Upload {
-	char fs_path[256];
-	int fd;
+	char tempfile_fs_path[256];
+	int tempfile_fd;
 	struct MHD_PostProcessor* pp;
 };
 
@@ -114,12 +114,12 @@ int handle_post_data(
 	struct Upload* upload = (struct Upload*) post_data;
 	
 	if (strcmp(key, "uploaded_file") == 0) {
-		fprintf(stderr, "uploading into %s: %s, %s, %s, %s (%llu, %ld)\n", upload->fs_path, key, filename, content_type, transfer_encoding, off, size);
+		fprintf(stderr, "uploading into %s: %s, %s, %s, %s (%llu, %ld)\n", upload->tempfile_fs_path, key, filename, content_type, transfer_encoding, off, size);
 		while (size > 0) {
-			ssize_t written = write(upload->fd, data, size);
+			ssize_t written = write(upload->tempfile_fd, data, size);
 			if (written < 0 && errno == EINTR) continue;
 			if (written < 0) {
-				fprintf(stderr, "Couldn't write to %s tempfile: %s (%d)\n", upload->fs_path, strerror(errno), errno);
+				fprintf(stderr, "Couldn't write to %s tempfile: %s (%d)\n", upload->tempfile_fs_path, strerror(errno), errno);
 				return MHD_NO;
 			}
 			size -= (size_t)written;
@@ -136,15 +136,15 @@ void free_upload(struct Upload* upload) {
 	
 	if (upload->pp) MHD_destroy_post_processor(upload->pp); // returns MHD_NO if the processor wasn't finished, but it's freed the memory anyway
 	
-	if (upload->fd >= 0) {
-		do { ret = close(upload->fd); } while (ret < 0 && ret == EINTR);
+	if (upload->tempfile_fd >= 0) {
+		do { ret = close(upload->tempfile_fd); } while (ret < 0 && ret == EINTR);
 		if (ret < 0) { // should never happen
 			fprintf(stderr, "Failed to close upload tempfile!: %s (%d)\n", strerror(errno), errno);
 		}
 		
-		do { ret = unlink(upload->fs_path); } while (ret < 0 && ret == EINTR);
+		do { ret = unlink(upload->tempfile_fs_path); } while (ret < 0 && ret == EINTR);
 		if (ret < 0) { // should never happen
-			fprintf(stderr, "Failed to unlink upload tempfile %s!: %s (%d)\n", upload->fs_path, strerror(errno), errno);
+			fprintf(stderr, "Failed to unlink upload tempfile %s!: %s (%d)\n", upload->tempfile_fs_path, strerror(errno), errno);
 		}
 	}
 
@@ -158,8 +158,8 @@ struct Upload* create_upload(struct MHD_Connection* connection) {
 		fprintf(stderr, "Couldn't allocate an Upload record! (out of memory?)\n");
 		return NULL;
 	}
-	upload->fs_path[0] = 0;
-	upload->fd = -1;
+	upload->tempfile_fs_path[0] = 0;
+	upload->tempfile_fd = -1;
 	upload->pp = NULL;
 	
 	upload->pp = MHD_create_post_processor(connection, POST_BUFFER_SIZE, &handle_post_data, upload);
@@ -169,10 +169,10 @@ struct Upload* create_upload(struct MHD_Connection* connection) {
 		return NULL;
 	}
 	
-	snprintf(upload->fs_path, sizeof(upload->fs_path), "%s/upload.XXXXXXXX", ROOT);
-	do { upload->fd = mkstemp(upload->fs_path); } while (upload->fd == -1 && errno == EINTR);
-	if (upload->fd < 0) {
-		fprintf(stderr, "Couldn't create a %s tempfile: %s (%d)\n", upload->fs_path, strerror(errno), errno);
+	snprintf(upload->tempfile_fs_path, sizeof(upload->tempfile_fs_path), "%s/upload.XXXXXXXX", ROOT);
+	do { upload->tempfile_fd = mkstemp(upload->tempfile_fs_path); } while (upload->tempfile_fd == -1 && errno == EINTR);
+	if (upload->tempfile_fd < 0) {
+		fprintf(stderr, "Couldn't create a %s tempfile: %s (%d)\n", upload->tempfile_fs_path, strerror(errno), errno);
 		free_upload(upload);
 		return NULL;
 	}
