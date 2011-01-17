@@ -46,6 +46,17 @@ int send_file_not_found_response(struct MHD_Connection* connection) {
 	return send_static_page_response(connection, MHD_HTTP_NOT_FOUND, HTTP_404_PAGE);
 }
 
+int send_not_modified_response(struct MHD_Connection* connection, const char* etag) {
+	struct MHD_Response* response;
+	int ret;
+	
+	response = MHD_create_response_from_buffer(0, "", MHD_RESPMEM_PERSISTENT);
+	ret = MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etag) &&
+	      MHD_queue_response(connection, MHD_HTTP_NOT_MODIFIED, response); // cleanly returns MHD_NO if response was NULL for any reason
+	MHD_destroy_response(response); // does nothing if response was NULL for any reason
+	return ret;
+}
+
 int send_redirect(struct MHD_Connection* connection, unsigned int status_code, char* location) {
 	struct MHD_Response* response;
 	int ret;
@@ -57,6 +68,20 @@ int send_redirect(struct MHD_Connection* connection, unsigned int status_code, c
 	return ret;
 }
 
+int add_content_length(struct MHD_Response* response, size_t content_length) {
+	char buf[32];
+	snprintf(buf, sizeof(buf), "%lu", content_length);
+	return MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_LENGTH, buf);
+}
+
+int add_last_modified(struct MHD_Response* response, time_t last_modified) {
+	char buf[64];
+	struct tm t;
+	gmtime_r(&last_modified, &t);
+	strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S GMT", &t);
+	return MHD_add_response_header(response, MHD_HTTP_HEADER_LAST_MODIFIED, buf);
+}
+
 int handle_get_request(
 	void* _daemon_data, struct MHD_Connection* connection,
     const char* path, void** _request_data) {
@@ -66,6 +91,7 @@ int handle_get_request(
 	struct MHD_Response* response;
 	int ret;
 	char fs_path[MAX_PATH_LENGTH];
+	const char* request_value;
 
 	if (strcmp(path, "/") == 0) {
 		return send_static_page_response(connection, MHD_HTTP_OK, UPLOAD_PAGE);
@@ -97,16 +123,25 @@ int handle_get_request(
 		return MHD_NO;
 	}
 	
+	if ((request_value = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH)) &&
+	    strcmp(request_value, path + 1) == 0) {
+		fprintf(stderr, "%s not modified\n", path);
+		return send_not_modified_response(connection, path + 1); // to match the ETag we issue below
+	}
+	
 	// FUTURE: support range requests
 	// TODO: set content-type
 	// TODO: set transfer-encoding
-	// TODO: add caching headers
 	response = MHD_create_response_from_fd_at_offset(st.st_size, fd, 0); // fd will be closed by MHD when the response is destroyed
 	if (!response) { // presumably out of memory
 		fprintf(stderr, "Couldn't create response from file %s! (out of memory?)\n", fs_path);
 		close(fd);
 	}
-	ret = MHD_queue_response(connection, MHD_HTTP_OK, response); // does nothing and returns our desired MHD_NO if response is NULL
+	ret = add_content_length(response, st.st_size) &&
+	      add_last_modified(response, st.st_mtime) &&
+	      MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, path + 1) && // since the path includes the hash, it's a perfect ETag
+	      MHD_add_response_header(response, MHD_HTTP_HEADER_EXPIRES, "Tue, 19 Jan 2038 00:00:00"), // essentially never expires
+	      MHD_queue_response(connection, MHD_HTTP_OK, response); // does nothing and returns our desired MHD_NO if response is NULL
 	MHD_destroy_response(response); // does nothing if response is NULL
 	return ret;
 }
