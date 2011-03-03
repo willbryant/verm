@@ -7,6 +7,7 @@
 #define HTTP_TIMEOUT 60
 #define POST_BUFFER_SIZE 65536
 #define MAX_PATH_LENGTH 256
+#define DIRECTORY_PERMISSION 0777
 #define EXTRA_DAEMON_FLAGS MHD_USE_DEBUG
 
 #define ROOT "/var/lib/verm"
@@ -250,13 +251,23 @@ int same_file_contents(int fd1, int fd2, size_t size) {
 int link_file(struct Upload* upload, char* encoded, char* extension) {
 	int ret;
 	int attempt = 1;
-	const char* template = "%s/%s.%s";
 	struct stat st;
+	char directory[MAX_PATH_LENGTH];
+	int created_directory = 0;
 	
-	ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s%s", ROOT, encoded, extension);
+	// we put each file in a subdirectory off the main root, whose name is the first two characters of the hash.
+	// we don't repeat those characters in the filename.
+	ret = snprintf(directory, sizeof(directory), "%s/%.2s", ROOT, encoded);
+	if (ret >= sizeof(directory)) { // shouldn't be possible unless misconfigured
+		fprintf(stderr, "Couldn't generate directory for %s under %s within limits\n", encoded, ROOT);
+		return -1;
+	}
+	encoded += 2;
+	
+	ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s%s", directory, encoded, extension);
 
 	while (1) {
-		if (ret >= sizeof(upload->final_fs_path)) { // shouldn't happen
+		if (ret >= sizeof(upload->final_fs_path)) { // shouldn't possible unless misconfigured
 			fprintf(stderr, "Couldn't generate filename for %s under %s within limits\n", upload->tempfile_fs_path, ROOT);
 			return -1;
 		}
@@ -265,6 +276,16 @@ int link_file(struct Upload* upload, char* encoded, char* extension) {
 		if (ret == 0) break; // successfully linked
 		
 		if (errno != EEXIST) {
+			if (errno == ENOENT && !created_directory) {
+				do { ret = mkdir(directory, DIRECTORY_PERMISSION); } while (ret < 0 && errno == EINTR);
+				if (ret != 0 && errno != EEXIST) {
+					fprintf(stderr, "Couldn't create %s: %s (%d)\n", directory, strerror(errno), errno);
+					return -1;
+				}
+				created_directory = 1;
+				continue;
+			}
+			
 			fprintf(stderr, "Couldn't link %s to %s: %s (%d)\n", upload->final_fs_path, upload->tempfile_fs_path, strerror(errno), errno);
 			return -1;
 		}
@@ -285,7 +306,7 @@ int link_file(struct Upload* upload, char* encoded, char* extension) {
 		}
 		
 		// no, different file; loop around and try again, this time with an attempt number appended to the end
-		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d%s", ROOT, encoded, ++attempt, extension);
+		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d%s", directory, encoded, ++attempt, extension);
 	}
 	
 	return 0;
