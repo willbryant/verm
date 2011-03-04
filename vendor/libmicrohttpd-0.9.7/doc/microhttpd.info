@@ -1,8 +1,8 @@
 This is microhttpd.info, produced by makeinfo version 4.13 from
 microhttpd.texi.
 
-This manual documents GNU libmicrohttpd version 0.9.5, last updated
-4 January 2011. It is built upon the documentation in the header file
+This manual documents GNU libmicrohttpd version 0.9.7, last updated
+7 February 2011. It is built upon the documentation in the header file
 `microhttpd.h'.
 
 Copyright (C) 2007, 2008, 2009, 2010 Christian Grothoff
@@ -26,8 +26,8 @@ File: microhttpd.info,  Node: Top,  Next: microhttpd-intro,  Up: (dir)
 The GNU libmicrohttpd Library
 *****************************
 
-This manual documents GNU libmicrohttpd version 0.9.5, last updated
-4 January 2011. It is built upon the documentation in the header file
+This manual documents GNU libmicrohttpd version 0.9.7, last updated
+7 February 2011. It is built upon the documentation in the header file
 `microhttpd.h'.
 
 Copyright (C) 2007, 2008, 2009, 2010 Christian Grothoff
@@ -193,7 +193,7 @@ File: microhttpd.info,  Node: microhttpd-const,  Next: microhttpd-struct,  Prev:
      Options for the MHD daemon.
 
      Note that if neither `MHD_USER_THREAD_PER_CONNECTION' nor
-     `MHD_USE_SELECT_INTERNALLY' are used, the client wants control over
+     `MHD_USE_SELECT_INTERNALLY' is used, the client wants control over
      the process and will call the appropriate microhttpd callbacks.
 
      Starting the daemon may also fail if a particular option is not
@@ -258,7 +258,7 @@ File: microhttpd.info,  Node: microhttpd-const,  Next: microhttpd-struct,  Prev:
           internal constant `MHD_POOL_SIZE_DEFAULT'.
 
     `MHD_OPTION_CONNECTION_LIMIT'
-          Maximum number of concurrenct connections to accept (followed
+          Maximum number of concurrent connections to accept (followed
           by an `unsigned int').  The default is `FD_SETSIZE - 4' (the
           maximum number of file descriptors supported by `select' minus
           four for `stdin', `stdout', `stderr' and the server socket).
@@ -318,7 +318,7 @@ File: microhttpd.info,  Node: microhttpd-const,  Next: microhttpd-struct,  Prev:
           `MHD_USE_IPv6' is specified, the `struct sockaddr*' should
           point to a `struct sockaddr_in6', otherwise to a `struct
           sockaddr_in'.  If this option is not specified, the daemon
-          will listen to incomming connections from anywhere.
+          will listen to incoming connections from anywhere.
 
     `MHD_OPTION_URI_LOG_CALLBACK'
           Specify a function that should be called before parsing the
@@ -356,7 +356,7 @@ File: microhttpd.info,  Node: microhttpd-const,  Next: microhttpd-struct,  Prev:
           option should be followed by an "const char*" argument.  The
           presence of this option activates the request of certificate
           to the client. The request to the client is marked optional,
-          and it is the responsability of the server to check the
+          and it is the responsibility of the server to check the
           presence of the certificate if needed.  Note that most
           browsers will only present a client certificate only if they
           have one matching the specified CA, not sending any
@@ -369,9 +369,9 @@ File: microhttpd.info,  Node: microhttpd-const,  Next: microhttpd-struct,  Prev:
 
     `MHD_OPTION_HTTPS_PRIORITIES'
           SSL/TLS protocol version and ciphers.  This option must be
-          followwed by an "const char *" argument specifying the
-          SSL/TLS protocol versions and ciphers that are acceptable for
-          the application.  The string is passed unchanged to
+          followed by an "const char *" argument specifying the SSL/TLS
+          protocol versions and ciphers that are acceptable for the
+          application.  The string is passed unchanged to
           gnutls_priority_init.  If this option is not specified,
           "NORMAL" is used.
 
@@ -382,7 +382,7 @@ File: microhttpd.info,  Node: microhttpd-const,  Next: microhttpd-struct,  Prev:
           integer of type "size_t" which specifies the size of the
           buffer pointed to by the second argument in bytes.  Note that
           the application must ensure that the buffer of the second
-          argument remains allocated and unmodified while the deamon is
+          argument remains allocated and unmodified while the daemon is
           running.  For security, you SHOULD provide a fresh random
           nonce when using MHD with Digest Authentication.
 
@@ -568,23 +568,37 @@ File: microhttpd.info,  Node: microhttpd-const,  Next: microhttpd-struct,  Prev:
      connection is desired.
 
     `MHD_CONNECTION_INFO_CIPHER_ALGO'
-          What cipher algorithm is being used.  Takes no extra
-          arguments.
+          What cipher algorithm is being used (HTTPS connections only).
+          Takes no extra arguments.  NULL is returned for non-HTTPS
+          connections.
 
     `MHD_CONNECTION_INFO_PROTOCOL,'
           Takes no extra arguments.   Allows finding out the TLS/SSL
-          protocol used (HTTPS connections only).
+          protocol used (HTTPS connections only).  NULL is returned for
+          non-HTTPS connections.
+
+    `MHD_CONNECTION_INFO_CLIENT_ADDRESS'
+          Returns information about the address of the client.  Returns
+          essentially a `struct sockaddr **' (since the API returns a
+          `union MHD_ConnectionInfo *' and that union contains a
+          `struct sockaddr *').
 
     `MHD_CONNECTION_INFO_GNUTLS_SESSION,'
           Takes no extra arguments.  Allows access to the underlying
           GNUtls session, including access to the underlying GNUtls
           client certificate (HTTPS connections only).  Takes no extra
+          arguments.  NULL is returned for non-HTTPS connections.
+
+    `MHD_CONNECTION_INFO_GNUTLS_CLIENT_CERT,'
+          Takes no extra arguments.  Allows access to the client
+          certificate including access to the underlying GNUtls client
+          certificate (HTTPS connections only).  Takes no extra
           arguments.
 
 
  -- Enumeration: MHD_DaemonInfoType
      Values of this enum are used to specify what information about a
-     deamon is desired.
+     daemon is desired.
     `MHD_DAEMON_INFO_KEY_SIZE'
           Request information about the key size for a particular cipher
           algorithm.  The cipher algorithm should be passed as an extra
@@ -852,7 +866,7 @@ File: microhttpd.info,  Node: microhttpd-init,  Next: microhttpd-inspect,  Prev:
      Set a handler for fatal errors.
 
     CB
-          function to call if MHD encounteres a fatal internal error.
+          function to call if MHD encounters a fatal internal error.
           If no handler was set explicitly, MHD will call `abort'.
 
     CLS
@@ -1011,7 +1025,7 @@ each response, we use it once and finally we destroy it.
    MHD allows more efficient resources usages.
 
    Example: we allocate a new `MHD_Response' structure for each
-response *kind*, we use it every time we have to give that responce and
+response *kind*, we use it every time we have to give that response and
 we finally destroy it only when the daemon shuts down.
 
 * Menu:
@@ -1054,7 +1068,7 @@ File: microhttpd.info,  Node: microhttpd-response enqueue,  Next: microhttpd-res
      Destroy a response object and associated resources (decrement the
      reference counter).  Note that MHD may keep some of the resources
      around if the response is still in the queue for some clients, so
-     the memory may not necessarily be freed immediatley.
+     the memory may not necessarily be freed immediately.
 
    An explanation of reference counting(1):
 
@@ -1295,7 +1309,7 @@ BASE64 algorithm. Username and password are exchanged in clear between
 the client and the server, so this method must only be used for
 non-sensitive content or when the session is protected with https.
 When using basic authentication MHD will have access to the clear
-password, possibily allowing to create a chained authentication toward
+password, possibly allowing to create a chained authentication toward
 an external authentication server.
 
    Digest authentication uses a one-way authentication method based on
@@ -1475,8 +1489,8 @@ File: microhttpd.info,  Node: microhttpd-post,  Next: microhttpd-info,  Prev: mi
 * microhttpd-post api::         Programming interface for the
                                 `POST' processor.
 
-MHD provides the post procesor API to make it easier for applications to
-parse the data of a client's `POST' request: the
+MHD provides the post processor API to make it easier for applications
+to parse the data of a client's `POST' request: the
 `MHD_AccessHandlerCallback' will be invoked multiple times to process
 data as it arrives; at each invocation a new chunk of data must be
 processed. The arguments UPLOAD_DATA and UPLOAD_DATA_SIZE are used to
@@ -1489,7 +1503,7 @@ to per-connection data.  The fact that the pointer was initially `NULL'
 can be used to detect that this is a new request.
 
    One method to detect that a new connection was established is to set
-`*con_cls' to anunused integer:
+`*con_cls' to an unused integer:
 
      int
      access_handler (void *cls,
@@ -3096,7 +3110,7 @@ Concept Index
 * license <2>:                           GNU GPL with eCos Extension.
                                                               (line   6)
 * license:                               GNU-LGPL.            (line   6)
-* listen:                                microhttpd-const.    (line 413)
+* listen:                                microhttpd-const.    (line 427)
 * logging:                               microhttpd-const.    (line 138)
 * long long:                             microhttpd-intro.    (line 107)
 * memory, limiting memory utilization:   microhttpd-const.    (line  70)
@@ -3204,7 +3218,7 @@ Type Index
 * MHD_ConnectionInfoType:                microhttpd-const.    (line 381)
 * MHD_Daemon:                            microhttpd-struct.   (line   7)
 * MHD_DaemonInfo:                        microhttpd-struct.   (line  25)
-* MHD_DaemonInfoType:                    microhttpd-const.    (line 400)
+* MHD_DaemonInfoType:                    microhttpd-const.    (line 414)
 * MHD_FLAG:                              microhttpd-const.    (line   7)
 * MHD_OPTION:                            microhttpd-const.    (line  62)
 * MHD_OptionItem:                        microhttpd-const.    (line 297)
@@ -3217,33 +3231,33 @@ Type Index
 
 
 Tag Table:
-Node: Top867
-Node: microhttpd-intro3033
-Node: microhttpd-const7817
-Node: microhttpd-struct27300
-Node: microhttpd-cb28077
-Node: microhttpd-init36682
-Node: microhttpd-inspect38758
-Node: microhttpd-requests40338
-Node: microhttpd-responses42835
-Node: microhttpd-response enqueue43884
-Ref: microhttpd-response enqueue-Footnote-146153
-Node: microhttpd-response create46372
-Node: microhttpd-response headers51345
-Node: microhttpd-response inspect53170
-Node: microhttpd-dauth54338
-Node: microhttpd-dauth basic55885
-Node: microhttpd-dauth digest57071
-Node: microhttpd-post61712
-Node: microhttpd-post api64652
-Node: microhttpd-info67170
-Node: microhttpd-info daemon67490
-Node: microhttpd-info conn68370
-Node: GNU-LGPL69230
-Node: GNU GPL with eCos Extension97340
-Node: GNU-FDL117198
-Node: Concept Index142300
-Node: Function and Data Index146030
-Node: Type Index150274
+Node: Top868
+Node: microhttpd-intro3035
+Node: microhttpd-const7819
+Node: microhttpd-struct28026
+Node: microhttpd-cb28803
+Node: microhttpd-init37408
+Node: microhttpd-inspect39483
+Node: microhttpd-requests41063
+Node: microhttpd-responses43560
+Node: microhttpd-response enqueue44609
+Ref: microhttpd-response enqueue-Footnote-146878
+Node: microhttpd-response create47097
+Node: microhttpd-response headers52070
+Node: microhttpd-response inspect53895
+Node: microhttpd-dauth55063
+Node: microhttpd-dauth basic56609
+Node: microhttpd-dauth digest57795
+Node: microhttpd-post62436
+Node: microhttpd-post api65378
+Node: microhttpd-info67896
+Node: microhttpd-info daemon68216
+Node: microhttpd-info conn69096
+Node: GNU-LGPL69956
+Node: GNU GPL with eCos Extension98066
+Node: GNU-FDL117924
+Node: Concept Index143026
+Node: Function and Data Index146756
+Node: Type Index151000
 
 End Tag Table

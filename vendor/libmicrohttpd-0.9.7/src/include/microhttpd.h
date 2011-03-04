@@ -1,6 +1,6 @@
 /*
      This file is part of libmicrohttpd
-     (C) 2006, 2007, 2008, 2009, 2010 Christian Grothoff (and other contributing authors)
+     (C) 2006, 2007, 2008, 2009, 2010, 2011 Christian Grothoff (and other contributing authors)
 
      This library is free software; you can redistribute it and/or
      modify it under the terms of the GNU Lesser General Public
@@ -106,7 +106,7 @@ extern "C"
 /**
  * Current version of the library.
  */
-#define MHD_VERSION 0x00090500
+#define MHD_VERSION 0x00090700
 
 /**
  * MHD-internal return code for "YES".
@@ -306,7 +306,7 @@ extern "C"
 
 /**
  * Options for the MHD daemon.  Note that if neither
- * MHD_USER_THREAD_PER_CONNECTION nor MHD_USE_SELECT_INTERNALLY are
+ * MHD_USER_THREAD_PER_CONNECTION nor MHD_USE_SELECT_INTERNALLY is
  * used, the client wants control over the process and will call the
  * appropriate microhttpd callbacks.<p>
  *
@@ -717,7 +717,9 @@ enum MHD_ConnectionInfoType
 
   /**
    * Obtain IP address of the client.
-   * Takes no extra arguments.
+   * Takes no extra arguments.  Returns a
+   * 'struct sockaddr_in **' by accident; obsolete,
+   * use MHD_CONNECTION_INFO_CLIENT_SOCK_ADDR.
    */
   MHD_CONNECTION_INFO_CLIENT_ADDRESS,
 
@@ -730,6 +732,7 @@ enum MHD_ConnectionInfoType
    * Get the GNUTLS client certificate handle.
    */
   MHD_CONNECTION_INFO_GNUTLS_CLIENT_CERT
+
 };
 
 /**
@@ -1545,7 +1548,7 @@ union MHD_ConnectionInfo
   /**
    * Address information for the client.
    */
-  struct sockaddr_in * client_addr;
+  struct sockaddr *client_addr;
 };
 
 /**

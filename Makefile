@@ -1,4 +1,4 @@
-MHD_VERSION = 0.9.5
+MHD_VERSION = 0.9.7
 MHD = vendor/libmicrohttpd-$(MHD_VERSION)
 
 CFLAGS += -D_GNU_SOURCE -pthread

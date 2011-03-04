@@ -310,7 +310,7 @@ check_nonce_nc (struct MHD_Connection *connection,
   np = nonce;
   while (*np != '\0')
     {
-      off = (off << 8) | (*np & (off >> 24));
+      off = (off << 8) | (*np ^ (off >> 24));
       np++;
     }
   off = off % mod;
@@ -690,6 +690,11 @@ MHD_basic_auth_get_username_password(struct MHD_Connection *connection,
       return NULL;
     }
   user = strdup(decode);
+  if (NULL == user)
+    {
+      free (decode);
+      return NULL;
+    }
   user[separator - decode] = '\0'; /* cut off at ':' */
   if (password != NULL) 
     {
@@ -726,15 +731,10 @@ MHD_queue_basic_auth_fail_response(struct MHD_Connection *connection,
   size_t hlen = strlen(realm) + strlen("Basic realm=\"\"") + 1;
   char header[hlen];
 
-  if (hlen !=
-      snprintf(header, 
-	       sizeof(header), 
-	       "Basic realm=\"%s\"", 
-	       realm))
-    {
-      EXTRA_CHECK (0);
-      return MHD_NO;
-    }
+  snprintf(header, 
+           sizeof (header), 
+	   "Basic realm=\"%s\"", 
+	   realm);
   ret = MHD_add_response_header(response,
 				MHD_HTTP_HEADER_WWW_AUTHENTICATE,
 				header);

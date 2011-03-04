@@ -27,33 +27,6 @@ static const char base64_digits[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-char* BASE64Encode(const char* src) {
-	unsigned int in_len = strlen(src);
-	char* dest = (char*)malloc((in_len + 2 - ((in_len + 2) % 3)) / 3 * 4 + 1);
-	char* result = dest;
-
-	while (*src) {
-		dest[0] = base64_chars[(src[0] & 0xfc) >> 2];
-		dest[1] = base64_chars[((src[0] & 0x03) << 4) + ((src[1] & 0xf0) >> 4)];
-		dest[2] = base64_chars[((src[1] & 0x0f) << 2) + ((src[2] & 0xc0) >> 6)];
-		dest[3] = base64_chars[src[2] & 0x3f];
-		if (!*(++src)) {
-			dest[2] = dest[3] = '=';
-			dest[4] = 0;
-			return result;
-		}
-		if (!*(++src)) {
-			dest[3] = '=';
-			dest[4] = 0;
-			return result;
-		}
-		src++;
-		dest += 4;
-	}
-	*dest = 0;
-	return result;
-
-}
 
 char* BASE64Decode(const char* src) {
 	unsigned int in_len = strlen(src);
@@ -64,8 +37,9 @@ char* BASE64Decode(const char* src) {
 		/* Wrong base64 string length */
 		return NULL;
 	}
-	result = dest = (char*) malloc(in_len / 4 * 3 + 1);
-
+	result = dest = malloc(in_len / 4 * 3 + 1);
+	if (result == NULL)
+	   return NULL; /* out of memory */
 	while (*src) {
 		char a = base64_digits[(unsigned char)*(src++)];
 		char b = base64_digits[(unsigned char)*(src++)];
