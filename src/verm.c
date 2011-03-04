@@ -15,9 +15,12 @@
 #define HTTP_404_PAGE "<!DOCTYPE html><html><head><title>Verm - File not found</title></head><body>File not found</body></html>"
 #define UPLOAD_PAGE "<!DOCTYPE html><html><head><title>Verm - Upload</title></head><body>" \
                     "<form method='post' enctype='multipart/form-data'>" \
-                    "<input name='uploaded_file' type='file'><input type='submit' value='Upload'>" \
+                    "<input type='hidden' name='redirect' value='1'/>" /* redirect instead of returning 201, as APIs should */ \
+                    "<input type='file' name='uploaded_file'/>" \
+                    "<input type='submit' value='Upload'/>" \
                     "</form>" \
                     "</body></html>"
+#define CREATED_PAGE "Resource created"
 #define REDIRECT_PAGE "You are being redirected"
 
 #include "platform.h"
@@ -31,6 +34,7 @@ struct Upload {
 	struct MHD_PostProcessor* pp;
 	SHA256_CTX hasher;
 	char final_fs_path[MAX_PATH_LENGTH];
+	int redirect_afterwards;
 };
 
 int send_static_page_response(struct MHD_Connection* connection, unsigned int status_code, char* page) {
@@ -58,11 +62,11 @@ int send_not_modified_response(struct MHD_Connection* connection, const char* et
 	return ret;
 }
 
-int send_redirect(struct MHD_Connection* connection, unsigned int status_code, char* location) {
+int send_redirect(struct MHD_Connection* connection, unsigned int status_code, char* location, char* page) {
 	struct MHD_Response* response;
 	int ret;
 	
-	response = MHD_create_response_from_buffer(strlen(REDIRECT_PAGE), REDIRECT_PAGE, MHD_RESPMEM_PERSISTENT);
+	response = MHD_create_response_from_buffer(strlen(page), page, MHD_RESPMEM_PERSISTENT);
 	ret = MHD_add_response_header(response, "Location", location) &&
 	      MHD_queue_response(connection, status_code, response); // cleanly returns MHD_NO if response was NULL for any reason
 	MHD_destroy_response(response); // does nothing if response was NULL for any reason
@@ -147,6 +151,12 @@ int handle_get_request(
 	return ret;
 }
 
+int boolean(const char *data, size_t size) {
+	return (strncmp("0", data, size) != 0 &&
+			strncasecmp("f", data, size) != 0 &&
+			strncasecmp("false", data, size) != 0);
+}
+
 int handle_post_data(
 	void *post_data, enum MHD_ValueKind kind, const char *key, const char *filename,
 	const char *content_type, const char *transfer_encoding,
@@ -167,6 +177,11 @@ int handle_post_data(
 			}
 			size -= (size_t)written;
 			data += written;
+		}
+	
+	} else if (strcmp(key, "redirect") == 0) {
+		if (off == 0) {
+			upload->redirect_afterwards = boolean(data, size);
 		}
 	}
 	
@@ -206,6 +221,7 @@ struct Upload* create_upload(struct MHD_Connection* connection) {
 	upload->size = 0;
 	upload->pp = NULL;
 	upload->final_fs_path[0] = 0;
+	upload->redirect_afterwards = 0;
 	
 	SHA256_Init(&upload->hasher);
 	
@@ -362,8 +378,13 @@ int handle_post_request(
 			return MHD_NO;
 		} else {
 			char* final_relative_path = upload->final_fs_path + strlen(ROOT);
-			fprintf(stderr, "redirecting to %s\n", final_relative_path);
-			return send_redirect(connection, /*MHD_HTTP_CREATED*/MHD_HTTP_MOVED_PERMANENTLY, final_relative_path);
+			if (upload->redirect_afterwards) {
+				fprintf(stderr, "redirecting to %s\n", final_relative_path);
+				return send_redirect(connection, MHD_HTTP_SEE_OTHER, final_relative_path, REDIRECT_PAGE);
+			} else {
+				fprintf(stderr, "created %s\n", final_relative_path);
+				return send_redirect(connection, MHD_HTTP_CREATED, final_relative_path, CREATED_PAGE);
+			}
 		}
 	}
 }
