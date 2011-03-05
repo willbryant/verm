@@ -123,7 +123,6 @@ void load_mime_types() {
 
 	load_builtin_mime_types();
 	load_mime_types_from_file("/etc/mime.types");
-	load_mime_types_from_file("/private/etc/apache2/mime.types");
 }
 
 const char *extension_for_mime_type(const char *mime_type) {
