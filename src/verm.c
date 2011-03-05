@@ -115,9 +115,9 @@ int add_content_type(struct MHD_Response* response, const char* filename) {
 	return MHD_YES;
 }
 
-int handle_get_request(
+int handle_get_or_head_request(
 	void* _daemon_data, struct MHD_Connection* connection,
-    const char* path, void** _request_data) {
+    const char* path, void** _request_data, int send_data) {
 
 	int fd;
 	struct stat st;
@@ -164,7 +164,15 @@ int handle_get_request(
 	
 	// FUTURE: support range requests
 	// TODO: set transfer-encoding
-	response = MHD_create_response_from_fd_at_offset(st.st_size, fd, 0); // fd will be closed by MHD when the response is destroyed
+	if (send_data) {
+		// ie. a GET request
+		response = MHD_create_response_from_fd_at_offset(st.st_size, fd, 0); // fd will be closed by MHD when the response is destroyed
+	} else {
+		// ie. a HEAD request
+		response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
+		if (response) close(fd);
+	}
+	
 	if (!response) { // presumably out of memory
 		fprintf(stderr, "Couldn't create response from file %s! (out of memory?)\n", fs_path);
 		close(fd);
@@ -438,8 +446,11 @@ int handle_request(
     const char* upload_data, size_t* upload_data_size,
 	void** request_data) {
 	
-	if (strcmp(method, "GET") == 0 || strcmp(method, "HEAD") == 0) {
-		return handle_get_request(_daemon_data, connection, path, request_data);
+	if (strcmp(method, "GET") == 0) {
+		return handle_get_or_head_request(_daemon_data, connection, path, request_data, 1);
+		
+	} else if (strcmp(method, "HEAD") == 0) {
+		return handle_get_or_head_request(_daemon_data, connection, path, request_data, 0);
 		
 	} else if (strcmp(method, "POST") == 0) {
 		return handle_post_request(request_data, connection, path, upload_data, upload_data_size, request_data);
