@@ -19,9 +19,9 @@
                     "<input type='file' name='uploaded_file'/>" \
                     "<input type='submit' value='Upload'/>" \
                     "</form>" \
-                    "</body></html>"
-#define CREATED_PAGE "Resource created"
-#define REDIRECT_PAGE "You are being redirected"
+                    "</body></html>\n"
+#define CREATED_PAGE "Resource created\n"
+#define REDIRECT_PAGE "You are being redirected\n"
 
 #include "platform.h"
 #include "microhttpd.h"
