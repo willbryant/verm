@@ -6,11 +6,15 @@ CFLAGS += -I$(MHD) -I$(MHD)/src/include -I$(MHD)/src/include/plibc
 
 default: verm
 
-$(MHD)/src/daemon/.libs/libmicrohttpd.a:
-	cd $(MHD) && ./configure && make
+install: verm
+	install $^ /usr/local/bin
 
-verm: src/verm.o $(MHD)/src/daemon/.libs/libmicrohttpd.a
-	cc -o $@ $^ $(MHD)/src/daemon/.libs/libmicrohttpd.a -lcrypto
+$(MHD)/src/daemon/.libs/libmicrohttpd.a:
+	cd $(MHD) && ./configure --disable-https && make
+
+verm: $(MHD)/src/daemon/.libs/libmicrohttpd.a src/verm.o
+	cc -o $@ $^ -lcrypto
 
 clean:
 	rm -f src/verm.o verm
+	cd $(MHD) && make distclean
