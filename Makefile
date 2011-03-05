@@ -3,7 +3,7 @@ MHD = vendor/libmicrohttpd-$(MHD_VERSION)
 MHD_LIBRARY = $(MHD)/src/daemon/.libs/libmicrohttpd.a
 
 CFLAGS += -D_GNU_SOURCE
-CFLAGS += -I$(MHD) -I$(MHD)/src/include -I$(MHD)/src/include/plibc
+CFLAGS += -I$(MHD) -I$(MHD)/src/include -I$(MHD)/src/include/plibc -Ivendor/khash
 LDFLAGS += -lpthread -lcrypto
 
 PLATFORM := $(shell uname -s)
@@ -25,7 +25,7 @@ $(MHD_LIBRARY):
 
 $(MHD)/MHD_config.h: $(MHD_LIBRARY)
 
-verm: $(MHD)/MHD_config.h src/verm.o $(MHD_LIBRARY)
+verm: $(MHD)/MHD_config.h src/verm.o src/mime_types.o $(MHD_LIBRARY)
 	cc $(LDFLAGS) -o $@ $^
 
 clean:

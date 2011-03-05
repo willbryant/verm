@@ -8,7 +8,7 @@
 #define POST_BUFFER_SIZE 65536
 #define MAX_PATH_LENGTH 256
 #define DIRECTORY_PERMISSION 0777
-#define EXTRA_DAEMON_FLAGS MHD_USE_DEBUG
+#define DEBUG
 
 #define ROOT "/var/lib/verm"
 
@@ -26,6 +26,13 @@
 #include "platform.h"
 #include "microhttpd.h"
 #include <openssl/sha.h>
+#include "mime_types.h"
+
+#ifdef DEBUG
+	#define EXTRA_DAEMON_FLAGS MHD_USE_DEBUG
+#else
+	#define EXTRA_DAEMON_FLAGS 0
+#endif
 
 struct Upload {
 	char tempfile_fs_path[MAX_PATH_LENGTH];
@@ -33,6 +40,7 @@ struct Upload {
 	size_t size;
 	struct MHD_PostProcessor* pp;
 	SHA256_CTX hasher;
+	const char* extension;
 	char final_fs_path[MAX_PATH_LENGTH];
 	int redirect_afterwards;
 };
@@ -87,6 +95,26 @@ int add_last_modified(struct MHD_Response* response, time_t last_modified) {
 	return MHD_add_response_header(response, MHD_HTTP_HEADER_LAST_MODIFIED, buf);
 }
 
+int add_content_type(struct MHD_Response* response, const char* filename) {
+	const char* found;
+	
+	// ignore the directory path part
+	found = strrchr(filename, '/');
+	if (found) filename = found + 1;
+
+	// find the extension separator
+	found = strchr(filename, '.');
+	
+	// and if an extension is indeed present, lookup and add the mime type for that extension (if any)
+	if (found) {
+		found = mime_type_for_extension(found + 1);
+		return MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, found);
+	}
+
+	// no extension or no corresponding mime type definition, don't add a content-type header but carry on
+	return MHD_YES;
+}
+
 int handle_get_request(
 	void* _daemon_data, struct MHD_Connection* connection,
     const char* path, void** _request_data) {
@@ -135,7 +163,6 @@ int handle_get_request(
 	}
 	
 	// FUTURE: support range requests
-	// TODO: set content-type
 	// TODO: set transfer-encoding
 	response = MHD_create_response_from_fd_at_offset(st.st_size, fd, 0); // fd will be closed by MHD when the response is destroyed
 	if (!response) { // presumably out of memory
@@ -144,6 +171,7 @@ int handle_get_request(
 	}
 	ret = add_content_length(response, st.st_size) &&
 	      add_last_modified(response, st.st_mtime) &&
+	      add_content_type(response, path) &&
 	      MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, path + 1) && // since the path includes the hash, it's a perfect ETag
 	      MHD_add_response_header(response, MHD_HTTP_HEADER_EXPIRES, "Tue, 19 Jan 2038 00:00:00"), // essentially never expires
 	      MHD_queue_response(connection, MHD_HTTP_OK, response); // does nothing and returns our desired MHD_NO if response is NULL
@@ -160,12 +188,12 @@ int boolean(const char *data, size_t size) {
 int handle_post_data(
 	void *post_data, enum MHD_ValueKind kind, const char *key, const char *filename,
 	const char *content_type, const char *transfer_encoding,
-	const char *data, uint64_t off, size_t size) {
+	const char *data, uint64_t offset, size_t size) {
 
 	struct Upload* upload = (struct Upload*) post_data;
 	
 	if (strcmp(key, "uploaded_file") == 0) {
-		fprintf(stderr, "uploading into %s: %s, %s, %s, %s (%llu, %ld)\n", upload->tempfile_fs_path, key, filename, content_type, transfer_encoding, off, size);
+		fprintf(stderr, "uploading into %s: %s, %s, %s, %s (%llu, %ld)\n", upload->tempfile_fs_path, key, filename, content_type, transfer_encoding, offset, size);
 		SHA256_Update(&upload->hasher, (unsigned char*)data, size);
 		upload->size += size;
 		while (size > 0) {
@@ -178,9 +206,14 @@ int handle_post_data(
 			size -= (size_t)written;
 			data += written;
 		}
+		
+		if (offset == 0 && content_type) {
+			fprintf(stderr, "Looking up extension for %s\n", content_type);
+			upload->extension = extension_for_mime_type(content_type);
+		}
 	
 	} else if (strcmp(key, "redirect") == 0) {
-		if (off == 0) {
+		if (offset == 0) {
 			upload->redirect_afterwards = boolean(data, size);
 		}
 	}
@@ -220,6 +253,7 @@ struct Upload* create_upload(struct MHD_Connection* connection) {
 	upload->tempfile_fd = -1;
 	upload->size = 0;
 	upload->pp = NULL;
+	upload->extension = NULL;
 	upload->final_fs_path[0] = 0;
 	upload->redirect_afterwards = 0;
 	
@@ -264,7 +298,7 @@ int same_file_contents(int fd1, int fd2, size_t size) {
 	return 1;
 }
 
-int link_file(struct Upload* upload, char* encoded, char* extension) {
+int link_file(struct Upload* upload, char* encoded) {
 	int ret;
 	int attempt = 1;
 	struct stat st;
@@ -280,7 +314,11 @@ int link_file(struct Upload* upload, char* encoded, char* extension) {
 	}
 	encoded += 2;
 	
-	ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s%s", directory, encoded, extension);
+	if (upload->extension) {
+		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s.%s", directory, encoded, upload->extension);
+	} else {
+		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s",    directory, encoded);
+	}
 
 	while (1) {
 		if (ret >= sizeof(upload->final_fs_path)) { // shouldn't possible unless misconfigured
@@ -288,6 +326,7 @@ int link_file(struct Upload* upload, char* encoded, char* extension) {
 			return -1;
 		}
 		
+		fprintf(stderr, "trying to link as %s\n", upload->final_fs_path);
 		do { ret = link(upload->tempfile_fs_path, upload->final_fs_path); } while (ret < 0 && errno == EINTR);
 		if (ret == 0) break; // successfully linked
 		
@@ -322,7 +361,11 @@ int link_file(struct Upload* upload, char* encoded, char* extension) {
 		}
 		
 		// no, different file; loop around and try again, this time with an attempt number appended to the end
-		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d%s", directory, encoded, ++attempt, extension);
+		if (upload->extension) {
+			ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d.%s", directory, encoded, ++attempt, upload->extension);
+		} else {
+			ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d",    directory, encoded, ++attempt);
+		}
 	}
 	
 	return 0;
@@ -352,7 +395,7 @@ int complete_upload(struct Upload* upload) {
 	*dest = 0;
 
 	fprintf(stderr, "hashed, encoded filename is %s\n", encoded);
-	return link_file(upload, encoded, "");
+	return link_file(upload, encoded);
 }
 
 int handle_post_request(
@@ -395,7 +438,7 @@ int handle_request(
     const char* upload_data, size_t* upload_data_size,
 	void** request_data) {
 	
-	if (strcmp(method, "GET") == 0) {
+	if (strcmp(method, "GET") == 0 || strcmp(method, "HEAD") == 0) {
 		return handle_get_request(_daemon_data, connection, path, request_data);
 		
 	} else if (strcmp(method, "POST") == 0) {
@@ -422,6 +465,11 @@ int handle_request_completed(
 
 int main(int argc, const char* argv[]) {
 	struct MHD_Daemon* daemon;
+	
+	load_mime_types();
+	#ifdef DEBUG
+	dump_mime_types();
+	#endif
 	
 	daemon = MHD_start_daemon(
 		MHD_USE_THREAD_PER_CONNECTION | EXTRA_DAEMON_FLAGS,
