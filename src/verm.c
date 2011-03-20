@@ -108,7 +108,7 @@ int add_content_type(struct MHD_Response* response, const char* filename) {
 	// and if an extension is indeed present, lookup and add the mime type for that extension (if any)
 	if (found) {
 		found = mime_type_for_extension(found + 1);
-		return MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, found);
+		if (found) return MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, found);
 	}
 
 	// no extension or no corresponding mime type definition, don't add a content-type header but carry on
