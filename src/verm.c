@@ -303,6 +303,25 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char *path
 	
 	snprintf(upload->tempfile_fs_path, sizeof(upload->tempfile_fs_path), "%s%s/upload.XXXXXXXX", ROOT, upload->directory);
 	do { upload->tempfile_fd = mkstemp(upload->tempfile_fs_path); } while (upload->tempfile_fd == -1 && errno == EINTR);
+	
+	if (upload->tempfile_fd < 0 && errno == ENOENT) {
+		// create the directory (or directories, if nested)
+		char* sep;
+		int ret;
+		for (sep = upload->tempfile_fs_path + strlen(ROOT); sep; sep = strchr(sep + 1, '/')) {
+			*sep = 0;
+			do { ret = mkdir(upload->tempfile_fs_path, DIRECTORY_PERMISSION); } while (ret < 0 && errno == EINTR);
+			if (ret != 0 && errno != EEXIST) { // EEXIST would just mean another process beat us to it
+				fprintf(stderr, "Couldn't create %s: %s (%d)\n", upload->tempfile_fs_path, strerror(errno), errno);
+				return NULL;
+			}
+			*sep = '/';
+		}
+
+		// try again
+		do { upload->tempfile_fd = mkstemp(upload->tempfile_fs_path); } while (upload->tempfile_fd == -1 && errno == EINTR);
+	}
+	
 	if (upload->tempfile_fd < 0) {
 		fprintf(stderr, "Couldn't create a %s tempfile: %s (%d)\n", upload->tempfile_fs_path, strerror(errno), errno);
 		free_upload(upload);
@@ -368,7 +387,7 @@ int link_file(struct Upload* upload, char* encoded) {
 		if (errno != EEXIST) {
 			if (errno == ENOENT && !created_directory) {
 				do { ret = mkdir(final_directory, DIRECTORY_PERMISSION); } while (ret < 0 && errno == EINTR);
-				if (ret != 0 && errno != EEXIST) {
+				if (ret != 0 && errno != EEXIST) { // EEXIST would just mean another process beat us to it
 					fprintf(stderr, "Couldn't create %s: %s (%d)\n", final_directory, strerror(errno), errno);
 					return -1;
 				}
