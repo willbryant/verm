@@ -6,16 +6,18 @@
 #define HTTP_PORT 1138
 #define HTTP_TIMEOUT 60
 #define POST_BUFFER_SIZE 65536
-#define MAX_PATH_LENGTH 256
+#define MAX_DIRECTORY_LENGTH 256
+#define MAX_PATH_LENGTH 512 // checked; enough for /data root directory:200/client-requested directory:256/hashed filename:44.extension:8
 #define DIRECTORY_PERMISSION 0777
 #define DEBUG
 
 #define ROOT "/var/lib/verm"
+#define DEFAULT_DIRECTORY "/default" // rather than letting people upload directly into the root directory, which in practice is a PITA to administer
 
 #define HTTP_404_PAGE "<!DOCTYPE html><html><head><title>Verm - File not found</title></head><body>File not found</body></html>"
 #define UPLOAD_PAGE "<!DOCTYPE html><html><head><title>Verm - Upload</title></head><body>" \
                     "<form method='post' enctype='multipart/form-data'>" \
-                    "<input type='hidden' name='redirect' value='1'/>" /* redirect instead of returning 201, as APIs should */ \
+                    "<input type='hidden' name='redirect' value='1'/>" /* redirect instead of returning 201 (as APIs want) */ \
                     "<input type='file' name='uploaded_file'/>" \
                     "<input type='submit' value='Upload'/>" \
                     "</form>" \
@@ -35,6 +37,7 @@
 #endif
 
 struct Upload {
+	char directory[MAX_DIRECTORY_LENGTH];
 	char tempfile_fs_path[MAX_PATH_LENGTH];
 	int tempfile_fd;
 	size_t size;
@@ -156,6 +159,11 @@ int handle_get_or_head_request(
 		return MHD_NO;
 	}
 	
+	if (st.st_mode & S_IFDIR) {
+		close(fd);
+		return send_static_page_response(connection, MHD_HTTP_OK, UPLOAD_PAGE);
+	}
+	
 	if ((request_value = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH)) &&
 	    strcmp(request_value, path + 1) == 0) {
 		fprintf(stderr, "%s not modified\n", path);
@@ -250,7 +258,14 @@ void free_upload(struct Upload* upload) {
 	free(upload);
 }
 
-struct Upload* create_upload(struct MHD_Connection* connection) {
+struct Upload* create_upload(struct MHD_Connection *connection, const char *path) {
+	char* s;
+	
+	if (path[0] != '/' || strstr(path, "/..") || strlen(path) >= MAX_DIRECTORY_LENGTH) {
+		fprintf(stderr, "Refusing post to a suspicious path: '%s'\n", path);
+		return NULL;
+	}
+	
 	fprintf(stderr, "creating upload object\n");
 	struct Upload* upload = malloc(sizeof(struct Upload));
 	if (!upload) {
@@ -265,6 +280,18 @@ struct Upload* create_upload(struct MHD_Connection* connection) {
 	upload->final_fs_path[0] = 0;
 	upload->redirect_afterwards = 0;
 	
+	strncpy(upload->directory, path, sizeof(upload->directory)); // length was checked above, but easier to audit if we never call strcpy!
+	while (s = strstr(upload->directory, "//")) memmove(s, s + 1, strlen(s)); // replace a//b with a/b
+
+	if (upload->directory[1]) {
+		// path given
+		s = upload->directory + strlen(upload->directory) - 1;
+		if (s != upload->directory && *s == '/') *s = 0; // normalise /foo/ to /foo, but don't touch /foo or /
+	} else {
+		// path not given; use the default
+		strncpy(upload->directory, DEFAULT_DIRECTORY, sizeof(upload->directory));
+	}
+	
 	SHA256_Init(&upload->hasher);
 	
 	upload->pp = MHD_create_post_processor(connection, POST_BUFFER_SIZE, &handle_post_data, upload);
@@ -274,7 +301,7 @@ struct Upload* create_upload(struct MHD_Connection* connection) {
 		return NULL;
 	}
 	
-	snprintf(upload->tempfile_fs_path, sizeof(upload->tempfile_fs_path), "%s/upload.XXXXXXXX", ROOT);
+	snprintf(upload->tempfile_fs_path, sizeof(upload->tempfile_fs_path), "%s%s/upload.XXXXXXXX", ROOT, upload->directory);
 	do { upload->tempfile_fd = mkstemp(upload->tempfile_fs_path); } while (upload->tempfile_fd == -1 && errno == EINTR);
 	if (upload->tempfile_fd < 0) {
 		fprintf(stderr, "Couldn't create a %s tempfile: %s (%d)\n", upload->tempfile_fs_path, strerror(errno), errno);
@@ -310,22 +337,22 @@ int link_file(struct Upload* upload, char* encoded) {
 	int ret;
 	int attempt = 1;
 	struct stat st;
-	char directory[MAX_PATH_LENGTH];
+	char final_directory[MAX_PATH_LENGTH];
 	int created_directory = 0;
 	
 	// we put each file in a subdirectory off the main root, whose name is the first two characters of the hash.
 	// we don't repeat those characters in the filename.
-	ret = snprintf(directory, sizeof(directory), "%s/%.2s", ROOT, encoded);
-	if (ret >= sizeof(directory)) { // shouldn't be possible unless misconfigured
-		fprintf(stderr, "Couldn't generate directory for %s under %s within limits\n", encoded, ROOT);
+	ret = snprintf(final_directory, sizeof(final_directory), "%s%s/%.2s", ROOT, upload->directory, encoded);
+	if (ret >= sizeof(final_directory)) { // shouldn't be possible unless misconfigured
+		fprintf(stderr, "Couldn't generate directory for %s under %s%s within limits\n", encoded, ROOT, upload->directory);
 		return -1;
 	}
 	encoded += 2;
 	
 	if (upload->extension) {
-		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s.%s", directory, encoded, upload->extension);
+		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s.%s", final_directory, encoded, upload->extension);
 	} else {
-		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s",    directory, encoded);
+		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s",    final_directory, encoded);
 	}
 
 	while (1) {
@@ -340,9 +367,9 @@ int link_file(struct Upload* upload, char* encoded) {
 		
 		if (errno != EEXIST) {
 			if (errno == ENOENT && !created_directory) {
-				do { ret = mkdir(directory, DIRECTORY_PERMISSION); } while (ret < 0 && errno == EINTR);
+				do { ret = mkdir(final_directory, DIRECTORY_PERMISSION); } while (ret < 0 && errno == EINTR);
 				if (ret != 0 && errno != EEXIST) {
-					fprintf(stderr, "Couldn't create %s: %s (%d)\n", directory, strerror(errno), errno);
+					fprintf(stderr, "Couldn't create %s: %s (%d)\n", final_directory, strerror(errno), errno);
 					return -1;
 				}
 				created_directory = 1;
@@ -370,9 +397,9 @@ int link_file(struct Upload* upload, char* encoded) {
 		
 		// no, different file; loop around and try again, this time with an attempt number appended to the end
 		if (upload->extension) {
-			ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d.%s", directory, encoded, ++attempt, upload->extension);
+			ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d.%s", final_directory, encoded, ++attempt, upload->extension);
 		} else {
-			ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d",    directory, encoded, ++attempt);
+			ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d",    final_directory, encoded, ++attempt);
 		}
 	}
 	
@@ -412,10 +439,10 @@ int handle_post_request(
     const char *upload_data, size_t *upload_data_size,
 	void **request_data) {
 	
-	fprintf(stderr, "handle_post_request with %ld bytes, request_data set %d, upload_data set %d\n", *upload_data_size, (*request_data ? 1 : 0), (upload_data ? 1 : 0));
+	fprintf(stderr, "handle_post_request to %s with %ld bytes, request_data set %d, upload_data set %d\n", path, *upload_data_size, (*request_data ? 1 : 0), (upload_data ? 1 : 0));
 
 	if (!*request_data) { // new connection
-		*request_data = create_upload(connection);
+		*request_data = create_upload(connection, path);
 		return *request_data ? MHD_YES : MHD_NO;
 	}
 	
