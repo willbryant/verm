@@ -28,6 +28,7 @@
 #include "platform.h"
 #include "microhttpd.h"
 #include <openssl/sha.h>
+#include "str.h"
 #include "mime_types.h"
 
 #ifdef DEBUG
@@ -195,12 +196,6 @@ int handle_get_or_head_request(
 	return ret;
 }
 
-int boolean(const char *data, size_t size) {
-	return (strncmp("0", data, size) != 0 &&
-			strncasecmp("f", data, size) != 0 &&
-			strncasecmp("false", data, size) != 0);
-}
-
 int handle_post_data(
 	void *post_data, enum MHD_ValueKind kind, const char *key, const char *filename,
 	const char *content_type, const char *transfer_encoding,
@@ -306,7 +301,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char *path
 	
 	if (upload->tempfile_fd < 0 && errno == ENOENT) {
 		// create the directory (or directories, if nested)
-		char* sep;
+		char *sep;
 		int ret;
 		for (sep = upload->tempfile_fs_path + strlen(ROOT); sep; sep = strchr(sep + 1, '/')) {
 			*sep = 0;
