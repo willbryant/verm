@@ -12,7 +12,7 @@
 #define DEBUG
 
 #define ROOT "/var/lib/verm"
-#define DEFAULT_DIRECTORY "/default" // rather than letting people upload directly into the root directory, which in practice is a PITA to administer
+#define DIRECTORY_IF_NOT_GIVEN_BY_CLIENT "/default" // rather than letting people upload directly into the root directory, which in practice is a PITA to administer.  no command-line option for this because it should be provided by the client, so letting admins change it implies mis-use by the client which would be a problem down the track.
 
 #define HTTP_404_PAGE "<!DOCTYPE html><html><head><title>Verm - File not found</title></head><body>File not found</body></html>"
 #define UPLOAD_PAGE "<!DOCTYPE html><html><head><title>Verm - Upload</title></head><body>" \
@@ -284,7 +284,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char *path
 		if (s != upload->directory && *s == '/') *s = 0; // normalise /foo/ to /foo, but don't touch /foo or /
 	} else {
 		// path not given; use the default
-		strncpy(upload->directory, DEFAULT_DIRECTORY, sizeof(upload->directory));
+		strncpy(upload->directory, DIRECTORY_IF_NOT_GIVEN_BY_CLIENT, sizeof(upload->directory));
 	}
 	
 	SHA256_Init(&upload->hasher);
