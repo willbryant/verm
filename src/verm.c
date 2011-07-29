@@ -11,7 +11,7 @@
 #define DIRECTORY_PERMISSION 0777
 #define DEBUG
 
-#define ROOT "/var/lib/verm"
+#define DEFAULT_ROOT "/var/lib/verm"
 #define DIRECTORY_IF_NOT_GIVEN_BY_CLIENT "/default" // rather than letting people upload directly into the root directory, which in practice is a PITA to administer.  no command-line option for this because it should be provided by the client, so letting admins change it implies mis-use by the client which would be a problem down the track.
 
 #define HTTP_404_PAGE "<!DOCTYPE html><html><head><title>Verm - File not found</title></head><body>File not found</body></html>"
@@ -36,6 +36,10 @@
 #else
 	#define EXTRA_DAEMON_FLAGS 0
 #endif
+
+struct Options {
+	char* root_data_directory;
+};
 
 struct Upload {
 	char directory[MAX_DIRECTORY_LENGTH];
@@ -120,7 +124,7 @@ int add_content_type(struct MHD_Response* response, const char* filename) {
 }
 
 int handle_get_or_head_request(
-	void* _daemon_data, struct MHD_Connection* connection,
+	struct Options* daemon_options, struct MHD_Connection* connection,
     const char* path, void** _request_data, int send_data) {
 
 	int fd;
@@ -136,7 +140,7 @@ int handle_get_or_head_request(
 	
 	// check and expand the path (although the MHD docs use 'url' as the name for this parameter, it's actually the path - it does not include the scheme/hostname/query, and has been URL-decoded)
 	if (path[0] != '/' || strstr(path, "/..") ||
-	    snprintf(fs_path, sizeof(fs_path), "%s%s", ROOT, path) >= sizeof(fs_path)) {
+	    snprintf(fs_path, sizeof(fs_path), "%s%s", daemon_options->root_data_directory, path) >= sizeof(fs_path)) {
 		return send_file_not_found_response(connection);
 	}
 	
@@ -253,7 +257,7 @@ void free_upload(struct Upload* upload) {
 	free(upload);
 }
 
-struct Upload* create_upload(struct MHD_Connection *connection, const char *path) {
+struct Upload* create_upload(struct MHD_Connection *connection, const char* root_data_directory, const char *path) {
 	char* s;
 	
 	if (path[0] != '/' || strstr(path, "/..") || strlen(path) >= MAX_DIRECTORY_LENGTH) {
@@ -296,14 +300,14 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char *path
 		return NULL;
 	}
 	
-	snprintf(upload->tempfile_fs_path, sizeof(upload->tempfile_fs_path), "%s%s/upload.XXXXXXXX", ROOT, upload->directory);
+	snprintf(upload->tempfile_fs_path, sizeof(upload->tempfile_fs_path), "%s%s/upload.XXXXXXXX", root_data_directory, upload->directory);
 	do { upload->tempfile_fd = mkstemp(upload->tempfile_fs_path); } while (upload->tempfile_fd == -1 && errno == EINTR);
 	
 	if (upload->tempfile_fd < 0 && errno == ENOENT) {
 		// create the directory (or directories, if nested)
 		char *sep;
 		int ret;
-		for (sep = upload->tempfile_fs_path + strlen(ROOT); sep; sep = strchr(sep + 1, '/')) {
+		for (sep = upload->tempfile_fs_path + strlen(root_data_directory); sep; sep = strchr(sep + 1, '/')) {
 			*sep = 0;
 			do { ret = mkdir(upload->tempfile_fs_path, DIRECTORY_PERMISSION); } while (ret < 0 && errno == EINTR);
 			if (ret != 0 && errno != EEXIST) { // EEXIST would just mean another process beat us to it
@@ -347,7 +351,7 @@ int same_file_contents(int fd1, int fd2, size_t size) {
 	return 1;
 }
 
-int link_file(struct Upload* upload, char* encoded) {
+int link_file(struct Upload* upload, const char* root_data_directory, char* encoded) {
 	int ret;
 	int attempt = 1;
 	struct stat st;
@@ -356,9 +360,9 @@ int link_file(struct Upload* upload, char* encoded) {
 	
 	// we put each file in a subdirectory off the main root, whose name is the first two characters of the hash.
 	// we don't repeat those characters in the filename.
-	ret = snprintf(final_directory, sizeof(final_directory), "%s%s/%.2s", ROOT, upload->directory, encoded);
+	ret = snprintf(final_directory, sizeof(final_directory), "%s%s/%.2s", root_data_directory, upload->directory, encoded);
 	if (ret >= sizeof(final_directory)) { // shouldn't be possible unless misconfigured
-		fprintf(stderr, "Couldn't generate directory for %s under %s%s within limits\n", encoded, ROOT, upload->directory);
+		fprintf(stderr, "Couldn't generate directory for %s under %s%s within limits\n", encoded, root_data_directory, upload->directory);
 		return -1;
 	}
 	encoded += 2;
@@ -371,7 +375,7 @@ int link_file(struct Upload* upload, char* encoded) {
 
 	while (1) {
 		if (ret >= sizeof(upload->final_fs_path)) { // shouldn't possible unless misconfigured
-			fprintf(stderr, "Couldn't generate filename for %s under %s within limits\n", upload->tempfile_fs_path, ROOT);
+			fprintf(stderr, "Couldn't generate filename for %s under %s within limits\n", upload->tempfile_fs_path, root_data_directory);
 			return -1;
 		}
 		
@@ -420,7 +424,7 @@ int link_file(struct Upload* upload, char* encoded) {
 	return 0;
 }
 
-int complete_upload(struct Upload* upload) {
+int complete_upload(struct Upload* upload, const char* root_data_directory) {
 	static const char encode_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 	unsigned char md[SHA256_DIGEST_LENGTH];
@@ -444,11 +448,11 @@ int complete_upload(struct Upload* upload) {
 	*dest = 0;
 
 	fprintf(stderr, "hashed, encoded filename is %s\n", encoded);
-	return link_file(upload, encoded);
+	return link_file(upload, root_data_directory, encoded);
 }
 
 int handle_post_request(
-	void *_daemon_data, struct MHD_Connection* connection,
+	struct Options* daemon_options, struct MHD_Connection* connection,
     const char *path,
     const char *upload_data, size_t *upload_data_size,
 	void **request_data) {
@@ -456,7 +460,7 @@ int handle_post_request(
 	fprintf(stderr, "handle_post_request to %s with %ld bytes, request_data set %d, upload_data set %d\n", path, *upload_data_size, (*request_data ? 1 : 0), (upload_data ? 1 : 0));
 
 	if (!*request_data) { // new connection
-		*request_data = create_upload(connection, path);
+		*request_data = create_upload(connection, daemon_options->root_data_directory, path);
 		return *request_data ? MHD_YES : MHD_NO;
 	}
 	
@@ -465,11 +469,11 @@ int handle_post_request(
 	 	return process_upload_data(upload, upload_data, upload_data_size);
 	} else {
 		fprintf(stderr, "completing upload\n");
-		if (complete_upload(upload) < 0) {
+		if (complete_upload(upload, daemon_options->root_data_directory) < 0) {
 			fprintf(stderr, "completing failed\n");
 			return MHD_NO;
 		} else {
-			char* final_relative_path = upload->final_fs_path + strlen(ROOT);
+			char* final_relative_path = upload->final_fs_path + strlen(daemon_options->root_data_directory);
 			if (upload->redirect_afterwards) {
 				fprintf(stderr, "redirecting to %s\n", final_relative_path);
 				return send_redirect(connection, MHD_HTTP_SEE_OTHER, final_relative_path, REDIRECT_PAGE);
@@ -482,19 +486,20 @@ int handle_post_request(
 }
 		
 int handle_request(
-	void* _daemon_data, struct MHD_Connection* connection,
+	void* void_daemon_options, struct MHD_Connection* connection,
     const char* path, const char* method, const char* version,
     const char* upload_data, size_t* upload_data_size,
 	void** request_data) {
+	struct Options* daemon_options = (struct Options*) void_daemon_options;
 	
 	if (strcmp(method, "GET") == 0) {
-		return handle_get_or_head_request(_daemon_data, connection, path, request_data, 1);
+		return handle_get_or_head_request(daemon_options, connection, path, request_data, 1);
 		
 	} else if (strcmp(method, "HEAD") == 0) {
-		return handle_get_or_head_request(_daemon_data, connection, path, request_data, 0);
+		return handle_get_or_head_request(daemon_options, connection, path, request_data, 0);
 		
 	} else if (strcmp(method, "POST") == 0) {
-		return handle_post_request(request_data, connection, path, upload_data, upload_data_size, request_data);
+		return handle_post_request(daemon_options, connection, path, upload_data, upload_data_size, request_data);
 		
 	} else {
 		return MHD_NO;
@@ -524,19 +529,27 @@ int help() {
 		"            be run as the user you want to own the files.\n"
 		"            It can be run as root, but running your daemons as root is generally discouraged.\n"
 		"\n"
-		"Options: -l <port>         Listen on the given port.  Default: %d.\n",
-		DEFAULT_HTTP_PORT);
+		"Options: -d /foo           Changes the root data directory to /foo.  Must be fully-qualified (ie. it must"
+		"                           start with a /).  Default: %s.\n"
+		"         -l <port>         Listen on the given port.  Default: %d.\n",
+		DEFAULT_ROOT, DEFAULT_HTTP_PORT);
 	return 100;
 }
 
 int main(int argc, char* argv[]) {
-	int port = DEFAULT_HTTP_PORT;
-	
 	struct MHD_Daemon* daemon;
-
+	int port = DEFAULT_HTTP_PORT;
+	struct Options daemon_options;
+	daemon_options.root_data_directory = DEFAULT_ROOT;
+	
 	int c;
-	while ((c = getopt(argc, argv, "l:")) != -1) {
+	while ((c = getopt(argc, argv, "d:l:")) != -1) {
 		switch (c) {
+			case 'd':
+				if (strlen(optarg) <= 1 || *optarg != '/') return help();
+				daemon_options.root_data_directory = optarg;
+				break;
+			
 			case 'l':
 				port = atoi(optarg);
 				if (port <= 0) return help();
@@ -556,7 +569,7 @@ int main(int argc, char* argv[]) {
 		MHD_USE_THREAD_PER_CONNECTION | EXTRA_DAEMON_FLAGS,
 		port,
 		NULL, NULL, // no connection address check
-		&handle_request, NULL, // no extra argument to handle_request
+		&handle_request, &daemon_options,
 		MHD_OPTION_NOTIFY_COMPLETED, &handle_request_completed, NULL, // no extra argument to handle_request
 		MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int) HTTP_TIMEOUT,
 		MHD_OPTION_END);
@@ -567,7 +580,7 @@ int main(int argc, char* argv[]) {
 	}
 	
 	// TODO: write a proper daemon loop
-	fprintf(stdout, "Verm listening on http://localhost:%d/\n", port);
+	fprintf(stdout, "Verm listening on http://localhost:%d/, data in %s\n", port, daemon_options.root_data_directory);
 	(void) getc (stdin);
 
 	MHD_stop_daemon(daemon);
