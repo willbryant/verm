@@ -3,7 +3,7 @@
  * Copyright (c) Will Bryant, Sekuda Limited 2011
  */
 
-#define HTTP_PORT 1138
+#define DEFAULT_HTTP_PORT 1138
 #define HTTP_TIMEOUT 60
 #define POST_BUFFER_SIZE 65536
 #define MAX_DIRECTORY_LENGTH 256
@@ -515,8 +515,37 @@ int handle_request_completed(
 	return MHD_YES;
 }
 
-int main(int argc, const char* argv[]) {
+int help() {
+	fprintf(stderr, "%s",
+		"Usage: verm\n"
+		"          - Runs verm.\n"
+		"\n"
+		"            verm requires no privileges except read/write access to the data directory, and should\n"
+		"            be run as the user you want to own the files.\n"
+		"            It can be run as root, but running your daemons as root is generally discouraged.\n"
+		"\n"
+		"Options: -l <port>         Listen on the given port.  Default: %d.\n",
+		DEFAULT_HTTP_PORT);
+	return 100;
+}
+
+int main(int argc, char* argv[]) {
+	int port = DEFAULT_HTTP_PORT;
+	
 	struct MHD_Daemon* daemon;
+
+	int c;
+	while ((c = getopt(argc, argv, "l:")) != -1) {
+		switch (c) {
+			case 'l':
+				port = atoi(optarg);
+				if (port <= 0) return help();
+				break;
+			
+			case '?':
+				return help();
+		}
+	}
 	
 	load_mime_types();
 	#ifdef DEBUG
@@ -525,7 +554,7 @@ int main(int argc, const char* argv[]) {
 	
 	daemon = MHD_start_daemon(
 		MHD_USE_THREAD_PER_CONNECTION | EXTRA_DAEMON_FLAGS,
-		HTTP_PORT,
+		port,
 		NULL, NULL, // no connection address check
 		&handle_request, NULL, // no extra argument to handle_request
 		MHD_OPTION_NOTIFY_COMPLETED, &handle_request_completed, NULL, // no extra argument to handle_request
@@ -538,7 +567,7 @@ int main(int argc, const char* argv[]) {
 	}
 	
 	// TODO: write a proper daemon loop
-	fprintf(stdout, "Verm listening on http://localhost:%d/\n", HTTP_PORT);
+	fprintf(stdout, "Verm listening on http://localhost:%d/\n", port);
 	(void) getc (stdin);
 
 	MHD_stop_daemon(daemon);
