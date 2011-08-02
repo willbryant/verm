@@ -536,6 +536,21 @@ int help() {
 	return 100;
 }
 
+int wait_for_termination() {
+	sigset_t signals;
+	
+	if (sigemptyset(&signals) < 0 ||
+	    sigaddset(&signals, SIGQUIT) < 0 ||
+	    sigaddset(&signals, SIGTERM) < 0 ||
+	    sigaddset(&signals, SIGINT) < 0 ||
+		sigwait(&signals, NULL) < 0) {
+		perror("Couldn't wait on the termination signals");
+		return -1;
+	}
+	
+	return 0;
+}
+
 int main(int argc, char* argv[]) {
 	struct MHD_Daemon* daemon;
 	int port = DEFAULT_HTTP_PORT;
@@ -581,8 +596,9 @@ int main(int argc, char* argv[]) {
 	
 	// TODO: write a proper daemon loop
 	fprintf(stdout, "Verm listening on http://localhost:%d/, data in %s\n", port, daemon_options.root_data_directory);
-	(void) getc (stdin);
+	if (wait_for_termination() < 0) return 6;
 
 	MHD_stop_daemon(daemon);
+	fprintf(stdout, "Verm shutdown\n");
 	return 0;
 }
