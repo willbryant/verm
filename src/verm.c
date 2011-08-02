@@ -535,7 +535,8 @@ int help() {
 		"\n"
 		"Options: -d /foo           Changes the root data directory to /foo.  Must be fully-qualified (ie. it must"
 		"                           start with a /).  Default: %s.\n"
-		"         -l <port>         Listen on the given port.  Default: %d.\n",
+		"         -l <port>         Listen on the given port.  Default: %d.\n"
+		"         -q                Quiet mode.  Don't print startup and shutdown messages to stdout.\n",
 		DEFAULT_ROOT, DEFAULT_HTTP_PORT);
 	return 100;
 }
@@ -558,11 +559,12 @@ int wait_for_termination() {
 int main(int argc, char* argv[]) {
 	struct MHD_Daemon* daemon;
 	int port = DEFAULT_HTTP_PORT;
+	int quiet = 0;
 	struct Options daemon_options;
 	daemon_options.root_data_directory = DEFAULT_ROOT;
 	
 	int c;
-	while ((c = getopt(argc, argv, "d:l:")) != -1) {
+	while ((c = getopt(argc, argv, "d:l:q")) != -1) {
 		switch (c) {
 			case 'd':
 				if (strlen(optarg) <= 1 || *optarg != '/') return help();
@@ -572,6 +574,10 @@ int main(int argc, char* argv[]) {
 			case 'l':
 				port = atoi(optarg);
 				if (port <= 0) return help();
+				break;
+			
+			case 'q':
+				quiet = 1;
 				break;
 			
 			case '?':
@@ -594,15 +600,15 @@ int main(int argc, char* argv[]) {
 		MHD_OPTION_END);
 	
 	if (daemon == NULL) {
-		fprintf(stderr, "couldn't start daemon");
+		fprintf(stderr, "Couldn't start HTTP daemon");
 		return 1;
 	}
 	
 	// TODO: write a proper daemon loop
-	fprintf(stdout, "Verm listening on http://localhost:%d/, data in %s\n", port, daemon_options.root_data_directory);
+	if (!quiet) fprintf(stdout, "Verm listening on http://localhost:%d/, data in %s\n", port, daemon_options.root_data_directory);
 	if (wait_for_termination() < 0) return 6;
 
 	MHD_stop_daemon(daemon);
-	fprintf(stdout, "Verm shutdown\n");
+	if (!quiet) fprintf(stdout, "Verm shutdown\n");
 	return 0;
 }
