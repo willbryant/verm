@@ -10,6 +10,7 @@
 #define MAX_PATH_LENGTH 512 // checked; enough for /data root directory:200/client-requested directory:256/hashed filename:44.extension:8
 #define DIRECTORY_PERMISSION 0777
 #define DEBUG
+#undef  DUMP_MIME_TYPES
 
 #define DEFAULT_ROOT "/var/lib/verm"
 #define DIRECTORY_IF_NOT_GIVEN_BY_CLIENT "/default" // rather than letting people upload directly into the root directory, which in practice is a PITA to administer.  no command-line option for this because it should be provided by the client, so letting admins change it implies mis-use by the client which would be a problem down the track.
@@ -576,7 +577,7 @@ int main(int argc, char* argv[]) {
 	}
 	
 	load_mime_types();
-	#ifdef DEBUG
+	#ifdef DUMP_MIME_TYPES
 	dump_mime_types();
 	#endif
 	
