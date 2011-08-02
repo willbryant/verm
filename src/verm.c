@@ -469,7 +469,7 @@ int handle_post_request(
 	}
 	
 	struct Upload* upload = (struct Upload*) *request_data;
-	if (*upload_data_size > 0) { // TODO: is is true that upload_data_size is always set?
+	if (*upload_data_size > 0) {
 	 	return process_upload_data(upload, upload_data, upload_data_size);
 	} else {
 		DEBUG_PRINT("completing upload\n", NULL);
