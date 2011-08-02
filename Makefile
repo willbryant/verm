@@ -31,3 +31,6 @@ verm: $(MHD)/MHD_config.h src/verm.o src/str.o src/mime_types.o $(MHD_LIBRARY)
 clean:
 	rm -f src/verm.o verm
 	cd $(MHD) && make distclean
+
+test_verm: verm
+	test/create_files_test.rb
