@@ -9,7 +9,7 @@
 #define MAX_DIRECTORY_LENGTH 256
 #define MAX_PATH_LENGTH 512 // checked; enough for /data root directory:200/client-requested directory:256/hashed filename:44.extension:8
 #define DIRECTORY_PERMISSION 0777
-#define DEBUG
+#undef  DEBUG
 #undef  DUMP_MIME_TYPES
 
 #define DEFAULT_ROOT "/var/lib/verm"
@@ -34,8 +34,10 @@
 
 #ifdef DEBUG
 	#define EXTRA_DAEMON_FLAGS MHD_USE_DEBUG
+	#define DEBUG_PRINT(...) fprintf(stdout, __VA_ARGS__)
 #else
 	#define EXTRA_DAEMON_FLAGS 0
+	#define DEBUG_PRINT(...) 
 #endif
 
 struct Options {
@@ -145,7 +147,7 @@ int handle_get_or_head_request(
 		return send_file_not_found_response(connection);
 	}
 	
-	fprintf(stderr, "opening %s\n", fs_path);
+	DEBUG_PRINT("opening %s\n", fs_path);
 	do { fd = open(fs_path, O_RDONLY); } while (fd < 0 && errno == EINTR);
 	if (fd < 0) {
 		switch (errno) {
@@ -172,7 +174,7 @@ int handle_get_or_head_request(
 	
 	if ((request_value = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH)) &&
 	    strcmp(request_value, path + 1) == 0) {
-		fprintf(stderr, "%s not modified\n", path);
+		DEBUG_PRINT("%s not modified\n", path);
 		return send_not_modified_response(connection, path + 1); // to match the ETag we issue below
 	}
 	
@@ -209,7 +211,7 @@ int handle_post_data(
 	struct Upload* upload = (struct Upload*) post_data;
 	
 	if (strcmp(key, "uploaded_file") == 0) {
-		fprintf(stderr, "uploading into %s: %s, %s, %s, %s (%llu, %ld)\n", upload->tempfile_fs_path, key, filename, content_type, transfer_encoding, offset, size);
+		DEBUG_PRINT("uploading into %s: %s, %s, %s, %s (%llu, %ld)\n", upload->tempfile_fs_path, key, filename, content_type, transfer_encoding, offset, size);
 		SHA256_Update(&upload->hasher, (unsigned char*)data, size);
 		upload->size += size;
 		while (size > 0) {
@@ -224,7 +226,7 @@ int handle_post_data(
 		}
 		
 		if (offset == 0 && content_type) {
-			fprintf(stderr, "Looking up extension for %s\n", content_type);
+			DEBUG_PRINT("Looking up extension for %s\n", content_type);
 			upload->extension = extension_for_mime_type(content_type);
 		}
 	
@@ -238,7 +240,7 @@ int handle_post_data(
 }
 
 void free_upload(struct Upload* upload) {
-	fprintf(stderr, "freeing upload object\n");
+	DEBUG_PRINT("freeing upload object\n", NULL);
 	int ret;
 	
 	if (upload->pp) MHD_destroy_post_processor(upload->pp); // returns MHD_NO if the processor wasn't finished, but it's freed the memory anyway
@@ -266,7 +268,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 		return NULL;
 	}
 	
-	fprintf(stderr, "creating upload object\n");
+	DEBUG_PRINT("creating upload object\n", NULL);
 	struct Upload* upload = malloc(sizeof(struct Upload));
 	if (!upload) {
 		fprintf(stderr, "Couldn't allocate an Upload record! (out of memory?)\n");
@@ -380,12 +382,13 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 			return -1;
 		}
 		
-		fprintf(stderr, "trying to link as %s\n", upload->final_fs_path);
+		DEBUG_PRINT("trying to link as %s\n", upload->final_fs_path);
 		do { ret = link(upload->tempfile_fs_path, upload->final_fs_path); } while (ret < 0 && errno == EINTR);
 		if (ret == 0) break; // successfully linked
 		
 		if (errno != EEXIST) {
 			if (errno == ENOENT && !created_directory) {
+				DEBUG_PRINT("creating directory %s\n", final_directory);
 				do { ret = mkdir(final_directory, DIRECTORY_PERMISSION); } while (ret < 0 && errno == EINTR);
 				if (ret != 0 && errno != EEXIST) { // EEXIST would just mean another process beat us to it
 					fprintf(stderr, "Couldn't create %s: %s (%d)\n", final_directory, strerror(errno), errno);
@@ -448,7 +451,7 @@ int complete_upload(struct Upload* upload, const char* root_data_directory) {
 	}
 	*dest = 0;
 
-	fprintf(stderr, "hashed, encoded filename is %s\n", encoded);
+	DEBUG_PRINT("hashed, encoded filename is %s\n", encoded);
 	return link_file(upload, root_data_directory, encoded);
 }
 
@@ -458,7 +461,7 @@ int handle_post_request(
     const char *upload_data, size_t *upload_data_size,
 	void **request_data) {
 	
-	fprintf(stderr, "handle_post_request to %s with %ld bytes, request_data set %d, upload_data set %d\n", path, *upload_data_size, (*request_data ? 1 : 0), (upload_data ? 1 : 0));
+	DEBUG_PRINT("handle_post_request to %s with %ld bytes, request_data set %d, upload_data set %d\n", path, *upload_data_size, (*request_data ? 1 : 0), (upload_data ? 1 : 0));
 
 	if (!*request_data) { // new connection
 		*request_data = create_upload(connection, daemon_options->root_data_directory, path);
@@ -469,17 +472,17 @@ int handle_post_request(
 	if (*upload_data_size > 0) { // TODO: is is true that upload_data_size is always set?
 	 	return process_upload_data(upload, upload_data, upload_data_size);
 	} else {
-		fprintf(stderr, "completing upload\n");
+		DEBUG_PRINT("completing upload\n", NULL);
 		if (complete_upload(upload, daemon_options->root_data_directory) < 0) {
-			fprintf(stderr, "completing failed\n");
+			DEBUG_PRINT("completing failed\n", NULL);
 			return MHD_NO;
 		} else {
 			char* final_relative_path = upload->final_fs_path + strlen(daemon_options->root_data_directory);
 			if (upload->redirect_afterwards) {
-				fprintf(stderr, "redirecting to %s\n", final_relative_path);
+				DEBUG_PRINT("redirecting to %s\n", final_relative_path);
 				return send_redirect(connection, MHD_HTTP_SEE_OTHER, final_relative_path, REDIRECT_PAGE);
 			} else {
-				fprintf(stderr, "created %s\n", final_relative_path);
+				DEBUG_PRINT("created %s\n", final_relative_path);
 				return send_redirect(connection, MHD_HTTP_CREATED, final_relative_path, CREATED_PAGE);
 			}
 		}
