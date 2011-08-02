@@ -604,7 +604,6 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	
-	// TODO: write a proper daemon loop
 	if (!quiet) fprintf(stdout, "Verm listening on http://localhost:%d/, data in %s\n", port, daemon_options.root_data_directory);
 	if (wait_for_termination() < 0) return 6;
 
