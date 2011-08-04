@@ -23,13 +23,13 @@ class GetFilesTest < Verm::TestCase
   def test_serves_files_with_no_extension_without_content_type
     copy_file_to('somefiles', nil)
     get :path => "/somefiles/#{@filename}",
-        :expected_content_type => ""
+        :expected_content_type => nil
   end
   
   def test_serves_files_with_unknown_extension_without_content_type
     copy_file_to('somefiles', 'foobarext')
     get :path => "/somefiles/#{@filename}",
-        :expected_content_type => ""
+        :expected_content_type => nil
   end
   
   def test_serves_files_with_txt_extension_as_text_plain
@@ -65,5 +65,16 @@ class GetFilesTest < Verm::TestCase
           :expected_content_length => f.stat.size,
           :expected_content => f.read
     end
+  end
+  
+  def test_serves_files_with_etag_and_supports_if_none_match
+    copy_file_to('somefiles', nil)
+    response = get :path => "/somefiles/#{@filename}"
+    assert_not_nil response['etag']
+    
+    get :path => "/somefiles/#{@filename}",
+        :headers => {'if-none-match' => response['etag']},
+        :expected_response_code => 304, # HTTP not modified
+        :expected_content => nil # and body not sent
   end
 end

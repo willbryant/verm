@@ -58,12 +58,12 @@ module Verm
       http = Net::HTTP.new(VERM_SPAWNER.hostname, VERM_SPAWNER.port)
       http.read_timeout = timeout
       
-      response = http.get(options[:path])
+      response = http.get(options[:path], options[:headers])
       
       assert_equal options[:expected_response_code] || 200, response.code.to_i, "The response didn't have the expected code"
-      assert_equal options[:expected_content_type], response.content_type || '', "The response had an incorrect content-type" if options[:expected_content_type]
-      assert_equal options[:expected_content_length], response.content_length, "The response had an incorrect content-length" if options[:expected_content_length]
-      assert_equal options[:expected_content], response.body, "The response had incorrect content" if options[:expected_content]
+      assert_equal options[:expected_content_type], response.content_type, "The response had an incorrect content-type" if options.has_key?(:expected_content_type)
+      assert_equal options[:expected_content_length], response.content_length, "The response had an incorrect content-length" if options.has_key?(:expected_content_length)
+      assert_equal options[:expected_content], response.body, "The response had incorrect content" if options.has_key?(:expected_content)
       
       response
     end
