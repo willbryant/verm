@@ -7,7 +7,8 @@ require File.expand_path(File.join(File.dirname(__FILE__), 'verm_spawner'))
 
 verm_binary = File.join(File.dirname(__FILE__), '..', 'verm')
 verm_data   = File.join(File.dirname(__FILE__), 'data')
-VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data)
+mime_types_file = File.join(File.dirname(__FILE__), 'fixtures', 'mime.types')
+VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, mime_types_file)
 
 module Verm
   class TestCase < Test::Unit::TestCase
@@ -30,7 +31,7 @@ module Verm
     end
     
     def post_file(options)
-      orig_filename = File.expand_path(File.join(File.dirname(__FILE__), options[:file]))
+      orig_filename = File.join(File.dirname(__FILE__), 'fixtures', options[:file])
       file_data = File.read(orig_filename)
       
       request = Net::HTTP::MultipartPost.new(options[:path])
@@ -48,8 +49,23 @@ module Verm
       raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
       saved_data = File.read(dest_filename)
       raise "The data saved to verm doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
+      raise "The data was saved to #{location}, but it was supposed to be saved under #{options[:path]}/" if location[0..options[:path].length] != "#{options[:path]}/"
       raise "The data was saved to #{dest_filename}, but it was supposed to have a #{options[:expected_extension]} extension" if options[:expected_extension] && dest_filename[(-options[:expected_extension].length - 1)..-1] != ".#{options[:expected_extension]}"
       dest_filename
+    end
+    
+    def get(options)
+      http = Net::HTTP.new(VERM_SPAWNER.hostname, VERM_SPAWNER.port)
+      http.read_timeout = timeout
+      
+      response = http.get(options[:path])
+      
+      assert_equal options[:expected_response_code] || 200, response.code.to_i, "The response didn't have the expected code"
+      assert_equal options[:expected_content_type], response.content_type || '', "The response had an incorrect content-type" if options[:expected_content_type]
+      assert_equal options[:expected_content_length], response.content_length, "The response had an incorrect content-length" if options[:expected_content_length]
+      assert_equal options[:expected_content], response.body, "The response had incorrect content" if options[:expected_content]
+      
+      response
     end
   end
 end

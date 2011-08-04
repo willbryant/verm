@@ -4,11 +4,12 @@ require 'net/http'
 class VermSpawner
   STARTUP_TIMEOUT = 10 # seconds
   
-  attr_reader :verm_binary, :verm_data
+  attr_reader :verm_binary, :verm_data, :mime_types_file
   
-  def initialize(verm_binary, verm_data)
+  def initialize(verm_binary, verm_data, mime_types_file)
     @verm_binary = verm_binary
-    @verm_data   = verm_data
+    @verm_data = verm_data
+    @mime_types_file = mime_types_file
     raise "Can't see a verm binary at #{verm_binary}" unless File.executable?(verm_binary)
   end
   
@@ -35,12 +36,15 @@ class VermSpawner
   end
   
   def start_verm
-    @verm_child_pid = fork { exec @verm_binary, "-d", verm_data, "-l", port.to_s, "-q" }
+    @verm_child_pid = fork { exec @verm_binary, "-d", verm_data, "-l", port.to_s, "-m", mime_types_file, "-q" }
   end
   
   def server_available?
     !!Net::HTTP.get(server_uri)
-  rescue Errno::ECONNREFUSED, Errno::ECONNRESET
+  rescue Errno::ECONNRESET, Errno::EPIPE => e
+    puts e if ENV['DEBUG']
+    retry
+  rescue Errno::ECONNREFUSED
     false
   end
   

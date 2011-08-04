@@ -33,4 +33,4 @@ clean:
 	cd $(MHD) && make distclean
 
 test_verm: verm
-	test/create_files_test.rb
+	testrb test/create_files_test.rb test/get_files_test.rb

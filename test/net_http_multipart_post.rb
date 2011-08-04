@@ -20,7 +20,7 @@ module Net
 
         params.each do |param_name, param_value|
           param_value = param_value.to_s
-          raise "refusing to encode parameter value '#{param_value}'" if param_value.include?("--#{@boundary}")
+          raise "refusing to encode parameter value #{param_value.inspect}" if param_value.include?("--#{@boundary}")
           
           body << "--#{boundary}\r\n" <<
                   "Content-Disposition: form-data; name=\"#{param_name}\"\r\n" <<
@@ -33,7 +33,7 @@ module Net
       
       def attach(param_name, filename, content_type, file_data)
         raise "have already finished composing body!" if @added_final_boundary
-        raise "refusing to attach file data '#{file_data}'" if file_data.include?("--#{@boundary}")
+        raise "refusing to attach file data #{file_data.inspect}" if file_data.include?("--#{@boundary}")
 
         body << "--#{boundary}\r\n" <<
                 "Content-Disposition: form-data; name=\"#{param_name}\"; filename=\"#{filename}\"\r\n" <<
