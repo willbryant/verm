@@ -60,7 +60,7 @@ void load_builtin_mime_types() {
 	}
 }
 
-void load_mime_types_from_file(const char *filename) {
+int load_mime_types_from_file(const char *filename) {
 	FILE *file;
 	char buf[1024];
 	char *tok;
@@ -102,6 +102,9 @@ void load_mime_types_from_file(const char *filename) {
 			}
 		}
 		fclose(file);
+		return 1;
+	} else {
+		return 0;
 	}
 }
 
@@ -117,12 +120,16 @@ void dump_mime_types() {
 	}
 }
 
-void load_mime_types() {
+int load_mime_types(const char* filename) {
 	by_mime_type = kh_init(str);
 	by_extension = kh_init(str);
 
 	load_builtin_mime_types();
-	load_mime_types_from_file("/etc/mime.types");
+	return load_mime_types_from_file(filename);
+}
+
+const char* default_mime_types_file() {
+	return "/etc/mime.types";
 }
 
 const char *extension_for_mime_type(const char *mime_type) {

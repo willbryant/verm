@@ -536,8 +536,9 @@ int help() {
 		"Options: -d /foo           Changes the root data directory to /foo.  Must be fully-qualified (ie. it must"
 		"                           start with a /).  Default: %s.\n"
 		"         -l <port>         Listen on the given port.  Default: %d.\n"
+		"         -m <filename>     Load MIME content-types from the given file.  Default: %s.\n"
 		"         -q                Quiet mode.  Don't print startup and shutdown messages to stdout.\n",
-		DEFAULT_ROOT, DEFAULT_HTTP_PORT);
+		DEFAULT_ROOT, DEFAULT_HTTP_PORT, default_mime_types_file());
 	return 100;
 }
 
@@ -559,12 +560,14 @@ int wait_for_termination() {
 int main(int argc, char* argv[]) {
 	struct MHD_Daemon* daemon;
 	int port = DEFAULT_HTTP_PORT;
+	const char* mime_types_file = default_mime_types_file();
+	int complain_about_mime_types = 0;
 	int quiet = 0;
 	struct Options daemon_options;
 	daemon_options.root_data_directory = DEFAULT_ROOT;
 	
 	int c;
-	while ((c = getopt(argc, argv, "d:l:q")) != -1) {
+	while ((c = getopt(argc, argv, "d:l:m:q")) != -1) {
 		switch (c) {
 			case 'd':
 				if (strlen(optarg) <= 1 || *optarg != '/') return help();
@@ -576,6 +579,11 @@ int main(int argc, char* argv[]) {
 				if (port <= 0) return help();
 				break;
 			
+			case 'm':
+				mime_types_file = optarg;
+				complain_about_mime_types = 1;
+				break;
+			
 			case 'q':
 				quiet = 1;
 				break;
@@ -585,7 +593,10 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	
-	load_mime_types();
+	if (!load_mime_types(mime_types_file) && complain_about_mime_types) {
+		fprintf(stderr, "Couldn't load the MIME types file %s\n", mime_types_file);
+		return help();
+	}
 	#ifdef DUMP_MIME_TYPES
 	dump_mime_types();
 	#endif
