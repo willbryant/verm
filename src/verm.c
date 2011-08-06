@@ -1,8 +1,3 @@
-/**
- * This file is a part of verm
- * Copyright (c) Will Bryant, Sekuda Limited 2011
- */
-
 #define DEFAULT_HTTP_PORT 1138
 #define HTTP_TIMEOUT 60
 #define POST_BUFFER_SIZE 65536
