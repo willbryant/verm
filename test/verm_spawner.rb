@@ -36,7 +36,9 @@ class VermSpawner
   end
   
   def start_verm
-    @verm_child_pid = fork { exec @verm_binary, "-d", verm_data, "-l", port.to_s, "-m", mime_types_file, "-q" }
+    exec_args = [@verm_binary, "-d", verm_data, "-l", port.to_s, "-m", mime_types_file, "-q"]
+    exec_args.unshift "valgrind" if ENV['VALGRIND']
+    @verm_child_pid = fork { exec *exec_args }
   end
   
   def server_available?
