@@ -4,7 +4,7 @@ MHD_LIBRARY = $(MHD)/src/daemon/.libs/libmicrohttpd.a
 
 CFLAGS += -D_GNU_SOURCE
 CFLAGS += -I$(MHD) -I$(MHD)/src/include -I$(MHD)/src/include/plibc -Ivendor/khash
-LDFLAGS += -lpthread -lcrypto
+LDFLAGS += -lpthread -lcrypto -lz
 
 PLATFORM := $(shell uname -s)
 ifeq ($(PLATFORM),SunOS)
@@ -25,7 +25,7 @@ $(MHD_LIBRARY):
 
 $(MHD)/MHD_config.h: $(MHD_LIBRARY)
 
-verm: $(MHD)/MHD_config.h src/verm.o src/str.o src/mime_types.o $(MHD_LIBRARY)
+verm: $(MHD)/MHD_config.h src/verm.o src/decompression.o src/str.o src/mime_types.o $(MHD_LIBRARY)
 	cc $(LDFLAGS) -o $@ $^
 
 clean:

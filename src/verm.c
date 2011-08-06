@@ -29,6 +29,7 @@
 #include "platform.h"
 #include "microhttpd.h"
 #include <openssl/sha.h>
+#include "decompression.h"
 #include "str.h"
 #include "mime_types.h"
 
@@ -126,6 +127,35 @@ int add_content_type(struct MHD_Response* response, const char* filename) {
 	return MHD_YES;
 }
 
+int add_gzip_content_encoding(struct MHD_Response* response) {
+	return MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_ENCODING, "gzip");
+}
+
+int accept_gzip_encoding(struct MHD_Connection* connection) {
+	const char* value = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_ACCEPT_ENCODING);
+	if (!value) return 1; // spec says we should assume any of the "common" encodings are supported - ie. gzip and compress - if not explicitly told
+
+	while (1) {
+		while (isspace(*value)) value++;
+		if (*value == '*' || strncmp(value, "gzip", 4) == 0 || strncmp(value, "x-gzip", 6) == 0) { // spec requests we treat x-gzip as gzip
+			value += (*value == '*' ? 1 : (*value == 'x' ? 6 : 4));
+			while (isspace(*value)) value++;
+			
+			if (*value == ',') return 1; // no q-value given, so it's acceptable
+			if (*value++ == ';') {
+				while (isspace(*value)) value++; if (*value++ != 'q') return 0; // syntax error
+				while (isspace(*value)) value++; if (*value++ != '=') return 0; // syntax error
+				while (isspace(*value)) value++;
+				return (atof(value) != 0.0); // acceptable unless q-value 0 given; ok to treat invalid floating-point numbers as 0 here, since that falls back to the safe case of returning 0 which is what we'd return for such a syntax error anyway
+			}
+			// so the encoding name started with * or gzip, but that wasn't all of it, so no match; carry on and try the next
+		}
+		
+		while (*value && *value != ',') value++;
+		if (!*value++) return 0;
+	}
+}
+
 int handle_get_or_head_request(
 	struct Options* daemon_options, struct MHD_Connection* connection,
     const char* path, void** _request_data, int send_data) {
@@ -136,6 +166,7 @@ int handle_get_or_head_request(
 	int ret;
 	char fs_path[MAX_PATH_LENGTH];
 	const char* request_value;
+	int want_decompressed = 0;
 
 	if (strcmp(path, "/") == 0) {
 		return send_static_page_response(connection, MHD_HTTP_OK, UPLOAD_PAGE);
@@ -147,13 +178,35 @@ int handle_get_or_head_request(
 		return send_file_not_found_response(connection);
 	}
 	
-	DEBUG_PRINT("opening %s\n", fs_path);
+	DEBUG_PRINT("trying to open %s\n", fs_path);
 	do { fd = open(fs_path, O_RDONLY); } while (fd < 0 && errno == EINTR);
 	if (fd < 0) {
 		switch (errno) {
 			case ENOENT:
 			case EACCES:
-				return send_file_not_found_response(connection);
+				if (strendswith(fs_path, ".gz") || // if the client asked for a .gz, don't try .gz.gz
+					snprintf(fs_path, sizeof(fs_path), "%s%s.gz", daemon_options->root_data_directory, path) >= sizeof(fs_path)) {
+					return send_file_not_found_response(connection);
+				} else {
+					DEBUG_PRINT("trying to open %s\n", fs_path);
+					do { fd = open(fs_path, O_RDONLY); } while (fd < 0 && errno == EINTR);
+
+					if (fd < 0) {
+						switch (errno) {
+							case ENOENT:
+							case EACCES:
+								return send_file_not_found_response(connection);
+			
+							default:
+								fprintf(stderr, "Failed to open %s: %s (%d)\n", fs_path, strerror(errno), errno);
+								return MHD_NO;
+						}
+					}
+					DEBUG_PRINT("opened %s\n", fs_path);
+					
+					want_decompressed = 1;
+				}
+				break;
 			
 			default:
 				fprintf(stderr, "Failed to open %s: %s (%d)\n", fs_path, strerror(errno), errno);
@@ -179,10 +232,21 @@ int handle_get_or_head_request(
 	}
 	
 	// FUTURE: support range requests
-	// TODO: set transfer-encoding
 	if (send_data) {
 		// ie. a GET request
-		response = MHD_create_response_from_fd_at_offset(st.st_size, fd, 0); // fd will be closed by MHD when the response is destroyed
+		if (want_decompressed && !accept_gzip_encoding(connection)) {
+			// the file is compressed, but the client explicitly told us they don't support that, so decompress the file
+			void* decompression = create_decompressor(fd);
+			if (!decompression) return MHD_NO; // out of memory
+			response = MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, DECOMPRESSION_CHUNK, &decompress_chunk, decompression, &destroy_decompressor);
+		} else {
+			// the file is either not compressed, or is compressed and the client supports that, so we can serve the file as-is
+			response = MHD_create_response_from_fd_at_offset(st.st_size, fd, 0); // fd will be closed by MHD when the response is destroyed
+			
+			// if the file is compressed, then we need to add a header saying so
+			if (want_decompressed && !add_gzip_content_encoding(response)) return MHD_NO; // out of memory
+			want_decompressed = 0;
+		}
 	} else {
 		// ie. a HEAD request
 		response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
@@ -193,7 +257,7 @@ int handle_get_or_head_request(
 		fprintf(stderr, "Couldn't create response from file %s! (out of memory?)\n", fs_path);
 		close(fd);
 	}
-	ret = add_content_length(response, st.st_size) &&
+	ret = (want_decompressed ? 1 : add_content_length(response, st.st_size)) &&
 	      add_last_modified(response, st.st_mtime) &&
 	      add_content_type(response, path) &&
 	      MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, path + 1) && // since the path includes the hash, it's a perfect ETag
