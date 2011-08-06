@@ -31,7 +31,7 @@ module Net
 
       alias form_data= set_form_data
       
-      def attach(param_name, filename, content_type, file_data)
+      def attach(param_name, file_data, filename, content_type)
         raise "have already finished composing body!" if @added_final_boundary
         raise "refusing to attach file data #{file_data.inspect}" if file_data.include?("--#{@boundary}")
 

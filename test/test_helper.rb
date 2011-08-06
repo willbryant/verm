@@ -35,7 +35,7 @@ module Verm
       file_data = File.read(orig_filename)
       
       request = Net::HTTP::MultipartPost.new(options[:path])
-      request.attach 'uploaded_file', options[:file], options[:type], file_data
+      request.attach 'uploaded_file', file_data, options[:file], options[:type]
       request.form_data = {"test" => "bar"}
       
       http = Net::HTTP.new(VERM_SPAWNER.hostname, VERM_SPAWNER.port)
