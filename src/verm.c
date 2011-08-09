@@ -10,20 +10,10 @@
 #define DEFAULT_ROOT "/var/lib/verm"
 #define DIRECTORY_IF_NOT_GIVEN_BY_CLIENT "/default" // rather than letting people upload directly into the root directory, which in practice is a PITA to administer.  no command-line option for this because it should be provided by the client, so letting admins change it implies mis-use by the client which would be a problem down the track.
 
-#define HTTP_404_PAGE "<!DOCTYPE html><html><head><title>Verm - File not found</title></head><body>File not found</body></html>"
-#define UPLOAD_PAGE "<!DOCTYPE html><html><head><title>Verm - Upload</title></head><body>" \
-                    "<form method='post' enctype='multipart/form-data'>" \
-                    "<input type='hidden' name='redirect' value='1'/>" /* redirect instead of returning 201 (as APIs want) */ \
-                    "<input type='file' name='uploaded_file'/>" \
-                    "<input type='submit' value='Upload'/>" \
-                    "</form>" \
-                    "</body></html>\n"
-#define CREATED_PAGE "Resource created\n"
-#define REDIRECT_PAGE "You are being redirected\n"
-
 #include "platform.h"
 #include "microhttpd.h"
 #include <openssl/sha.h>
+#include "responses.h"
 #include "decompression.h"
 #include "str.h"
 #include "mime_types.h"
@@ -51,42 +41,6 @@ struct Upload {
 	char final_fs_path[MAX_PATH_LENGTH];
 	int redirect_afterwards;
 };
-
-int send_static_page_response(struct MHD_Connection* connection, unsigned int status_code, char* page) {
-	struct MHD_Response* response;
-	int ret;
-	
-	response = MHD_create_response_from_buffer(strlen(page), page, MHD_RESPMEM_PERSISTENT);
-	ret = MHD_queue_response(connection, status_code, response); // cleanly returns MHD_NO if response was NULL for any reason
-	MHD_destroy_response(response); // does nothing if response was NULL for any reason
-	return ret;
-}
-
-int send_file_not_found_response(struct MHD_Connection* connection) {
-	return send_static_page_response(connection, MHD_HTTP_NOT_FOUND, HTTP_404_PAGE);
-}
-
-int send_not_modified_response(struct MHD_Connection* connection, const char* etag) {
-	struct MHD_Response* response;
-	int ret;
-	
-	response = MHD_create_response_from_buffer(0, "", MHD_RESPMEM_PERSISTENT);
-	ret = MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etag) &&
-	      MHD_queue_response(connection, MHD_HTTP_NOT_MODIFIED, response); // cleanly returns MHD_NO if response was NULL for any reason
-	MHD_destroy_response(response); // does nothing if response was NULL for any reason
-	return ret;
-}
-
-int send_redirect(struct MHD_Connection* connection, unsigned int status_code, char* location, char* page) {
-	struct MHD_Response* response;
-	int ret;
-	
-	response = MHD_create_response_from_buffer(strlen(page), page, MHD_RESPMEM_PERSISTENT);
-	ret = MHD_add_response_header(response, "Location", location) &&
-	      MHD_queue_response(connection, status_code, response); // cleanly returns MHD_NO if response was NULL for any reason
-	MHD_destroy_response(response); // does nothing if response was NULL for any reason
-	return ret;
-}
 
 int add_content_length(struct MHD_Response* response, size_t content_length) {
 	char buf[32];
@@ -164,7 +118,7 @@ int handle_get_or_head_request(
 	int want_decompressed = 0;
 
 	if (strcmp(path, "/") == 0) {
-		return send_static_page_response(connection, MHD_HTTP_OK, UPLOAD_PAGE);
+		return send_upload_page_response(connection);
 	}
 	
 	// check and expand the path (although the MHD docs use 'url' as the name for this parameter, it's actually the path - it does not include the scheme/hostname/query, and has been URL-decoded)
@@ -217,7 +171,7 @@ int handle_get_or_head_request(
 	
 	if (st.st_mode & S_IFDIR) {
 		close(fd);
-		return send_static_page_response(connection, MHD_HTTP_OK, UPLOAD_PAGE);
+		return send_upload_page_response(connection);
 	}
 	
 	if ((request_value = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH)) &&
@@ -539,10 +493,10 @@ int handle_post_request(
 			char* final_relative_path = upload->final_fs_path + strlen(daemon_options->root_data_directory);
 			if (upload->redirect_afterwards) {
 				DEBUG_PRINT("redirecting to %s\n", final_relative_path);
-				return send_redirect(connection, MHD_HTTP_SEE_OTHER, final_relative_path, REDIRECT_PAGE);
+				return send_redirected_response(connection, final_relative_path);
 			} else {
 				DEBUG_PRINT("created %s\n", final_relative_path);
-				return send_redirect(connection, MHD_HTTP_CREATED, final_relative_path, CREATED_PAGE);
+				return send_see_other_response(connection, final_relative_path);
 			}
 		}
 	}
