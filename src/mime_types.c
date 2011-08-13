@@ -19,28 +19,28 @@ static struct BuiltinType builtin_mime_types[] = {
 	   excludes all non-standard or vendor-specific types and most non-document types.  should generally
 	   be supplemented by your /etc/mime.types file, especially if you plan to store audio, video, or
 	   animation files or source documents from word processors & spreadsheets etc. */
-	{"text/plain", "txt"},
-	{"text/html", "htm"},
-	{"text/html", "html"},
-	{"text/xml", "xsl"},
-	{"text/xml", "xsd"},
-	{"text/xml", "xml"},
-	{"text/css", "css"},
+	{"text/plain",                  "txt"},
+	{"text/html",                   "htm"},
+	{"text/html",                   "html"},
+	{"text/xml",                    "xsl"},
+	{"text/xml",                    "xsd"},
+	{"text/xml",                    "xml"},
+	{"text/css",                    "css"},
 	{"text/comma-separated-values", "csv"},
-	{"text/csv", "csv"}, // later entries overwrite earlier entries for the same extension
-	{"text/tab-separated-values", "tsv"},
-	{"image/jpeg", "jpeg"},
-	{"image/jpeg", "jpg"}, // later entries overwrite earlier entries for the same mime type
-	{"image/gif", "gif"},
-	{"image/png", "png"},
-	{"image/svg+xml", "svg"},
-	{"application/pdf", "pdf"},
-	{"application/javascript", "js"},
-	{"application/json", "json"},
-	{"application/tar", "tar"},
-	{"application/xhtml+xml",  "xhtml"},
-	{"application/zip", "zip"},
-	{"message/rfc822", "eml"},
+	{"text/csv",                    "csv"}, // later entries overwrite earlier entries for the same extension
+	{"text/tab-separated-values",   "tsv"},
+	{"image/jpeg",                  "jpeg"},
+	{"image/jpeg",                  "jpg"}, // later entries overwrite earlier entries for the same mime type
+	{"image/gif",                   "gif"},
+	{"image/png",                   "png"},
+	{"image/svg+xml",               "svg"},
+	{"application/pdf",             "pdf"},
+	{"application/javascript",      "js"},
+	{"application/json",            "json"},
+	{"application/tar",             "tar"},
+	{"application/xhtml+xml",       "xhtml"},
+	{"application/zip",             "zip"},
+	{"message/rfc822",              "eml"},
 };
 
 void load_builtin_mime_types() {
