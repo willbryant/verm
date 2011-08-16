@@ -1,8 +1,8 @@
 This is microhttpd.info, produced by makeinfo version 4.13 from
 microhttpd.texi.
 
-This manual documents GNU libmicrohttpd version 0.9.12, last updated
-23 June 2011. It is built upon the documentation in the header file
+This manual documents GNU libmicrohttpd version 0.9.13, last updated
+11 July 2011. It is built upon the documentation in the header file
 `microhttpd.h'.
 
 Copyright (C) 2007, 2008, 2009, 2010, 2011 Christian Grothoff
@@ -26,8 +26,8 @@ File: microhttpd.info,  Node: Top,  Next: microhttpd-intro,  Up: (dir)
 The GNU libmicrohttpd Library
 *****************************
 
-This manual documents GNU libmicrohttpd version 0.9.12, last updated
-23 June 2011. It is built upon the documentation in the header file
+This manual documents GNU libmicrohttpd version 0.9.13, last updated
+11 July 2011. It is built upon the documentation in the header file
 `microhttpd.h'.
 
 Copyright (C) 2007, 2008, 2009, 2010, 2011 Christian Grothoff
@@ -1061,8 +1061,8 @@ File: microhttpd.info,  Node: microhttpd-requests,  Next: microhttpd-responses, 
 
 File: microhttpd.info,  Node: microhttpd-responses,  Next: microhttpd-dauth,  Prev: microhttpd-requests,  Up: Top
 
-8 Building answers to responses
-*******************************
+8 Building responses to requests
+********************************
 
 Response objects handling by MHD is asynchronous with respect to the
 application execution flow. Instances of the `MHD_Response' structure
@@ -3312,24 +3312,24 @@ Node: microhttpd-init37920
 Node: microhttpd-inspect41076
 Node: microhttpd-requests43006
 Node: microhttpd-responses45503
-Node: microhttpd-response enqueue46552
-Ref: microhttpd-response enqueue-Footnote-148821
-Node: microhttpd-response create49040
-Node: microhttpd-response headers55152
-Node: microhttpd-response inspect56977
-Node: microhttpd-dauth58145
-Node: microhttpd-dauth basic59691
-Node: microhttpd-dauth digest60877
-Node: microhttpd-post65518
-Node: microhttpd-post api68460
-Node: microhttpd-info70978
-Node: microhttpd-info daemon71298
-Node: microhttpd-info conn72178
-Node: GNU-LGPL73038
-Node: GNU GPL with eCos Extension101148
-Node: GNU-FDL121006
-Node: Concept Index146108
-Node: Function and Data Index149838
-Node: Type Index154155
+Node: microhttpd-response enqueue46554
+Ref: microhttpd-response enqueue-Footnote-148823
+Node: microhttpd-response create49042
+Node: microhttpd-response headers55154
+Node: microhttpd-response inspect56979
+Node: microhttpd-dauth58147
+Node: microhttpd-dauth basic59693
+Node: microhttpd-dauth digest60879
+Node: microhttpd-post65520
+Node: microhttpd-post api68462
+Node: microhttpd-info70980
+Node: microhttpd-info daemon71300
+Node: microhttpd-info conn72180
+Node: GNU-LGPL73040
+Node: GNU GPL with eCos Extension101150
+Node: GNU-FDL121008
+Node: Concept Index146110
+Node: Function and Data Index149840
+Node: Type Index154157
 
 End Tag Table
