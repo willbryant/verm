@@ -1,5 +1,4 @@
-MHD_VERSION = 0.9.7
-MHD = vendor/libmicrohttpd-$(MHD_VERSION)
+MHD = vendor/libmicrohttpd
 MHD_LIBRARY = $(MHD)/src/daemon/.libs/libmicrohttpd.a
 
 CFLAGS += -D_GNU_SOURCE
