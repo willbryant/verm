@@ -1,11 +1,11 @@
 This is microhttpd.info, produced by makeinfo version 4.13 from
 microhttpd.texi.
 
-This manual documents GNU libmicrohttpd version 0.9.7, last updated
-7 February 2011. It is built upon the documentation in the header file
+This manual documents GNU libmicrohttpd version 0.9.10, last updated
+4 March 2011. It is built upon the documentation in the header file
 `microhttpd.h'.
 
-Copyright (C) 2007, 2008, 2009, 2010 Christian Grothoff
+Copyright (C) 2007, 2008, 2009, 2010, 2011 Christian Grothoff
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -26,11 +26,11 @@ File: microhttpd.info,  Node: Top,  Next: microhttpd-intro,  Up: (dir)
 The GNU libmicrohttpd Library
 *****************************
 
-This manual documents GNU libmicrohttpd version 0.9.7, last updated
-7 February 2011. It is built upon the documentation in the header file
+This manual documents GNU libmicrohttpd version 0.9.10, last updated
+4 March 2011. It is built upon the documentation in the header file
 `microhttpd.h'.
 
-Copyright (C) 2007, 2008, 2009, 2010 Christian Grothoff
+Copyright (C) 2007, 2008, 2009, 2010, 2011 Christian Grothoff
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -917,6 +917,35 @@ File: microhttpd.info,  Node: microhttpd-init,  Next: microhttpd-inspect,  Prev:
 
      Return `MHD_YES' on success, `MHD_NO' if this daemon was not
      started with the right options for this call.
+
+ -- Function: void MHD_add_connection (struct MHD_Daemon *daemon, int
+          client_socket, const struct sockaddr *addr, socklen_t addrlen)
+     Add another client connection to the set of connections managed by
+     MHD.  This API is usually not needed (since MHD will accept
+     inbound connections on the server socket).  Use this API in
+     special cases, for example if your HTTP server is behind NAT and
+     needs to connect out to the HTTP client.
+
+     The given client socket will be managed (and closed!) by MHD after
+     this call and must no longer be used directly by the application
+     afterwards.
+
+    DAEMON
+          daemon that manages the connection
+
+    CLIENT_SOCKET
+          socket to manage (MHD will expect to receive an HTTP request
+          from this socket next).
+
+    ADDR
+          IP address of the client
+
+    ADDRLEN
+          number of bytes in addr
+
+     This function will return `MHD_YES' on success, `MHD_NO' if this
+     daemon could not handle the connection (i.e. malloc failed, etc).
+     The socket will be closed in any case.
 
 
 File: microhttpd.info,  Node: microhttpd-inspect,  Next: microhttpd-requests,  Prev: microhttpd-init,  Up: Top
@@ -3153,6 +3182,7 @@ Function and Data Index
 * *MHD_KeyValueIterator:                 microhttpd-cb.       (line 110)
 * *MHD_PostDataIterator:                 microhttpd-cb.       (line 178)
 * *MHD_RequestCompletedCallback:         microhttpd-cb.       (line  91)
+* MHD_add_connection:                    microhttpd-init.     (line  64)
 * MHD_add_response_footer:               microhttpd-response headers.
                                                               (line  20)
 * MHD_add_response_header:               microhttpd-response headers.
@@ -3231,33 +3261,33 @@ Type Index
 
 
 Tag Table:
-Node: Top868
-Node: microhttpd-intro3035
-Node: microhttpd-const7819
-Node: microhttpd-struct28026
-Node: microhttpd-cb28803
-Node: microhttpd-init37408
-Node: microhttpd-inspect39483
-Node: microhttpd-requests41063
-Node: microhttpd-responses43560
-Node: microhttpd-response enqueue44609
-Ref: microhttpd-response enqueue-Footnote-146878
-Node: microhttpd-response create47097
-Node: microhttpd-response headers52070
-Node: microhttpd-response inspect53895
-Node: microhttpd-dauth55063
-Node: microhttpd-dauth basic56609
-Node: microhttpd-dauth digest57795
-Node: microhttpd-post62436
-Node: microhttpd-post api65378
-Node: microhttpd-info67896
-Node: microhttpd-info daemon68216
-Node: microhttpd-info conn69096
-Node: GNU-LGPL69956
-Node: GNU GPL with eCos Extension98066
-Node: GNU-FDL117924
-Node: Concept Index143026
-Node: Function and Data Index146756
-Node: Type Index151000
+Node: Top872
+Node: microhttpd-intro3043
+Node: microhttpd-const7827
+Node: microhttpd-struct28034
+Node: microhttpd-cb28811
+Node: microhttpd-init37416
+Node: microhttpd-inspect40572
+Node: microhttpd-requests42152
+Node: microhttpd-responses44649
+Node: microhttpd-response enqueue45698
+Ref: microhttpd-response enqueue-Footnote-147967
+Node: microhttpd-response create48186
+Node: microhttpd-response headers53159
+Node: microhttpd-response inspect54984
+Node: microhttpd-dauth56152
+Node: microhttpd-dauth basic57698
+Node: microhttpd-dauth digest58884
+Node: microhttpd-post63525
+Node: microhttpd-post api66467
+Node: microhttpd-info68985
+Node: microhttpd-info daemon69305
+Node: microhttpd-info conn70185
+Node: GNU-LGPL71045
+Node: GNU GPL with eCos Extension99155
+Node: GNU-FDL119013
+Node: Concept Index144115
+Node: Function and Data Index147845
+Node: Type Index152162
 
 End Tag Table

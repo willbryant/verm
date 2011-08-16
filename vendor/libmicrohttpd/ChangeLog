@@ -1,3 +1,70 @@
+Wed Apr 27 16:11:18 CEST 2011
+	Releasing libmicrohttpd 0.9.10. -CG
+
+Fri Apr  8 11:40:35 CEST 2011
+	Workaround for cygwin poll brokenness. -TS
+
+Sun Apr  3 13:56:52 CEST 2011
+	Fixing compile error on OS X. -CG
+
+Wed Mar 30 12:56:09 CEST 2011
+	Initialize tv_usec in MHD_USE_THREAD_PER_CONNECTION with select
+	and per-connection timeout. -CG
+
+Tue Mar 29 14:15:13 CEST 2011
+	Releasing libmicrohttpd 0.9.9. -CG
+
+Tue Mar 29 14:11:19 CEST 2011
+	Fixed call to mmap for memory pool, extended testcase to cover
+	POLL. -CG
+
+Wed Mar 23 23:24:25 CET 2011
+	Do not use POLLIN when we only care about POLLHUP (significantly
+	improves performance when using MHD_USE_THREAD_PER_CONNECTION
+	in combination with MHD_USE_POLL). -ES
+
+Sun Mar 20 09:16:53 CET 2011
+	Fixing race when using MHD_USE_THREAD_PER_CONNECTION in combination
+	with MHD_USE_POLL. -CG
+
+Fri Mar 18 13:23:47 CET 2011
+	Removing MSG_DONTWAIT which should not be needed and was presumably
+	causing problems with EAGAIN under certain circumstances. -ES
+
+Fri Mar 11 22:25:29 CET 2011
+	Fixing bug in MHD_create_response_from_fd_at_offset with non-zero offsets. -ES
+
+Sat Mar  5 22:00:36 CET 2011
+	Do not use POLLRDHUP, which causes build errors on OS X / OpenSolaris
+	(#1667). -CG
+
+Fri Mar  4 10:24:04 CET 2011
+	Added new API to allow MHD server to initiate connection to
+	client (special use-case for servers behind NAT), thereby
+	addressing #1661 (externally created connections).
+	Releasing libmicrohttpd 0.9.8. -CG
+
+Fri Mar  4 10:07:18 CET 2011
+	Avoid using a pipe for signalling as well, just use server
+	socket shutdown (also for thread-per-connection). -CG
+
+Thu Mar  3 21:42:47 CET 2011
+	Fixing issue where Base64 decode fails when char is defined
+        as unsigned char  (Mantis 1666). -CG/tmayer
+
+Tue Mar  1 13:58:04 CET 2011
+	Allow use of 'poll' in combination with the external select mode.
+	Avoid using pthread signals (SIGALRM), use pipe instead.
+	Corrected timeout calculation (s vs. ms). -CG
+
+Wed Feb 23 14:21:44 CET 2011
+	Removing useless code pointed out by Eivind Sarto. -CG
+
+Fri Feb 18 11:03:59 CET 2011
+	Handle large (>2 GB) file transfers with sendfile on 32-bit
+	systems better; handle odd sendfile failures by libc/kernel
+	by falling back to standard 'SEND'. -CG
+
 Sun Feb 13 10:52:29 CET 2011
 	Handle gnutls receive error(s) for interrupted SSL
 	connections better. -MS

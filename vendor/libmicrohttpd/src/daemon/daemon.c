@@ -29,6 +29,7 @@
 #include "response.h"
 #include "connection.h"
 #include "memorypool.h"
+#include <limits.h>
 
 #if HTTPS_SUPPORT
 #include "connection_https.h"
@@ -74,18 +75,7 @@
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
 #endif
-#ifndef MSG_DONTWAIT
-#define MSG_DONTWAIT 0
 #endif
-#endif
-
-#ifdef __SYMBIAN32__
-static void pthread_kill (int, int) {
-  // Symbian doesn't have signals. The user of the library is required to
-  // run it in an external select loop.
-  abort();
-}
-#endif  // __SYMBIAN32__
 
 /**
  * Default implementation of the panic function
@@ -554,6 +544,7 @@ MHD_get_fdset (struct MHD_Daemon *daemon,
   return MHD_YES;
 }
 
+
 /**
  * Main function of the thread that handles an individual
  * connection when MHD_USE_THREAD_PER_CONNECTION is set.
@@ -570,99 +561,125 @@ MHD_handle_connection (void *data)
   fd_set ws;
   fd_set es;
   int max;
+  int fd;
   struct timeval tv;
+  struct timeval *tvp;
   unsigned int timeout;
+  time_t now;
 #ifdef HAVE_POLL_H
   struct MHD_Pollfd mp;
-  struct pollfd p;
+  struct pollfd p[2];
 #endif
 
   timeout = con->daemon->connection_timeout;
   while ((!con->daemon->shutdown) && (con->socket_fd != -1)) {
-      tv.tv_usec = 0;
-      if ( (timeout > (time (NULL) - con->last_activity)) ||
-	   (timeout == 0) )
+      tvp = NULL;
+      if (timeout > 0)
 	{
-	  /* in case we are missing the SIGALRM, keep going after
-	     at most 1s; see http://lists.gnu.org/archive/html/libmicrohttpd/2009-10/msg00013.html */
-	  tv.tv_sec = 1;
-	  if ((con->state == MHD_CONNECTION_NORMAL_BODY_UNREADY) ||
-	      (con->state == MHD_CONNECTION_CHUNKED_BODY_UNREADY))
-	    {
-	      /* do not block (we're waiting for our callback to succeed) */
-	      tv.tv_sec = 0;
-	    }
+	  now = time (NULL);
+	  if (now - con->last_activity > timeout)
+	    tv.tv_sec = 0;
+	  else
+	    tv.tv_sec = timeout - (now - con->last_activity);
+	  tv.tv_usec = 0;
+	  tvp = &tv;
 	}
-      else
+      if ((con->state == MHD_CONNECTION_NORMAL_BODY_UNREADY) ||
+	  (con->state == MHD_CONNECTION_CHUNKED_BODY_UNREADY))
 	{
+	  /* do not block (we're waiting for our callback to succeed) */
 	  tv.tv_sec = 0;
+	  tv.tv_usec = 0;
+	  tvp = &tv;
 	}
 #ifdef HAVE_POLL_H
-      if (0 == (con->daemon->options & MHD_USE_POLL)) {
+      if (0 == (con->daemon->options & MHD_USE_POLL)) 
+	{
 #else
-      {
+	{
 #endif
-	/* use select */
-        FD_ZERO (&rs);
-        FD_ZERO (&ws);
-        FD_ZERO (&es);
-        max = 0;
-        MHD_connection_get_fdset (con, &rs, &ws, &es, &max);
-        num_ready = SELECT (max + 1, &rs, &ws, &es, &tv);
-        if (num_ready < 0) {
-            if (errno == EINTR)
-              continue;
+	  /* use select */
+	  FD_ZERO (&rs);
+	  FD_ZERO (&ws);
+	  FD_ZERO (&es);
+	  if (-1 != (fd = con->daemon->socket_fd))
+	    {
+	      /* we add the listen socket to our read set so
+		 that if the server is shutdown, we notice it */
+	      max = fd;
+	      FD_SET (fd, &rs);
+	    }
+	  else
+	    max = 0;
+	  MHD_connection_get_fdset (con, &rs, &ws, &es, &max);
+	  num_ready = SELECT (max + 1, &rs, &ws, &es, tvp);
+	  if (num_ready < 0) 
+	    {
+	      if (errno == EINTR)
+		continue;
 #if HAVE_MESSAGES
-            MHD_DLOG (con->daemon, "Error during select (%d): `%s'\n", max,
-                      STRERROR (errno));
+	      MHD_DLOG (con->daemon, "Error during select (%d): `%s'\n", max,
+			STRERROR (errno));
 #endif
-            break;
-        }
-        /* call appropriate connection handler if necessary */
-        if ((con->socket_fd != -1) && (FD_ISSET (con->socket_fd, &rs)))
-          con->read_handler (con);
-        if ((con->socket_fd != -1) && (FD_ISSET (con->socket_fd, &ws)))
-          con->write_handler (con);
-        if (con->socket_fd != -1)
-          con->idle_handler (con);
-      }
+	      break;
+	    }
+	  /* call appropriate connection handler if necessary */
+	  if ((con->socket_fd != -1) && (FD_ISSET (con->socket_fd, &rs)))
+	    con->read_handler (con);
+	  if ((con->socket_fd != -1) && (FD_ISSET (con->socket_fd, &ws)))
+	    con->write_handler (con);
+	  if (con->socket_fd != -1)
+	    con->idle_handler (con);
+	}
 #ifdef HAVE_POLL_H
       else
-      {
-        /* use poll */
-        memset(&mp, 0, sizeof (struct MHD_Pollfd));
-        MHD_connection_get_pollfd(con, &mp);
-	memset(&p, 0, sizeof (struct pollfd));
-        p.fd = mp.fd;
-        if (mp.events & MHD_POLL_ACTION_IN) 
-          p.events |= POLLIN;        
-        if (mp.events & MHD_POLL_ACTION_OUT) 
-          p.events |= POLLOUT;
-	/* in case we are missing the SIGALRM, keep going after
-	   at most 1s */
-	if (poll (&p, 1, 1000) < 0) {
-          if (errno == EINTR)
-            continue;
+	{
+	  /* use poll */
+	  memset(&mp, 0, sizeof (struct MHD_Pollfd));
+	  MHD_connection_get_pollfd(con, &mp);
+	  memset(&p, 0, sizeof (p));
+	  p[0].fd = mp.fd;
+	  if (mp.events & MHD_POLL_ACTION_IN) 
+	    p[0].events |= POLLIN;        
+	  if (mp.events & MHD_POLL_ACTION_OUT) 
+	    p[0].events |= POLLOUT;
+	  /* we add the listen socket to our read set so
+	     that if the server is shutdown, we notice it */
+
+	  fd = con->daemon->socket_fd;
+	  p[1].fd = fd;
+	  p[1].events = 0; /* only care about POLLHUP */
+	  
+	  if (poll (p, 
+		    (fd != -1) ? 2 : 1, 
+		    (tvp == NULL) 
+		    ? -1 
+		    : ((fd != -1) 
+		       ? (tv.tv_sec * 1000) 
+		       : 0)) < 0) 
+	    {
+	      if (errno == EINTR)
+		continue;
 #if HAVE_MESSAGES
-          MHD_DLOG (con->daemon, "Error during poll: `%s'\n", 
-                    STRERROR (errno));
+	      MHD_DLOG (con->daemon, "Error during poll: `%s'\n", 
+			STRERROR (errno));
 #endif
-          break;
-        }
-        if ( (con->socket_fd != -1) && 
-	     (0 != (p.revents & POLLIN)) ) 
-          con->read_handler (con);        
-        if ( (con->socket_fd != -1) && 
-	     (0 != (p.revents & POLLOUT)) )
-          con->write_handler (con);        
-        if (con->socket_fd != -1)
-          con->idle_handler (con);
-	if ( (con->socket_fd != -1) &&
-	     (0 != (p.revents & (POLLERR | POLLHUP))) )
-          MHD_connection_close (con, MHD_REQUEST_TERMINATED_WITH_ERROR);      
+	      break;
+	    }
+	  if ( (con->socket_fd != -1) && 
+	       (0 != (p[0].revents & POLLIN)) ) 
+	    con->read_handler (con);        
+	  if ( (con->socket_fd != -1) && 
+	       (0 != (p[0].revents & POLLOUT)) )
+	    con->write_handler (con);        
+	  if (con->socket_fd != -1)
+	    con->idle_handler (con);
+	  if ( (con->socket_fd != -1) &&
+	       (0 != (p[0].revents & (POLLERR | POLLHUP))) )
+	    MHD_connection_close (con, MHD_REQUEST_TERMINATED_WITH_ERROR);      
+	}
+#endif
       }
-#endif
-    }
   if (con->socket_fd != -1)
     {
 #if DEBUG_CLOSE
@@ -685,13 +702,15 @@ MHD_handle_connection (void *data)
  * @return number of bytes actually received
  */
 static ssize_t
-recv_param_adapter (struct MHD_Connection *connection, void *other, size_t i)
+recv_param_adapter (struct MHD_Connection *connection,
+		    void *other, 
+		    size_t i)
 {
   if (connection->socket_fd == -1)
     return -1;
   if (0 != (connection->daemon->options & MHD_USE_SSL))
     return RECV (connection->socket_fd, other, i, MSG_NOSIGNAL);
-  return RECV (connection->socket_fd, other, i, MSG_NOSIGNAL | MSG_DONTWAIT);
+  return RECV (connection->socket_fd, other, i, MSG_NOSIGNAL);
 }
 
 /**
@@ -704,12 +723,14 @@ recv_param_adapter (struct MHD_Connection *connection, void *other, size_t i)
  */
 static ssize_t
 send_param_adapter (struct MHD_Connection *connection,
-                    const void *other, size_t i)
+                    const void *other,
+		    size_t i)
 {
 #if LINUX
   int fd;
   off_t offset;
-  int ret;
+  off_t left;
+  ssize_t ret;
 #endif
   if (connection->socket_fd == -1)
     return -1;
@@ -723,17 +744,28 @@ send_param_adapter (struct MHD_Connection *connection,
     {
       /* can use sendfile */
       offset = (off_t) connection->response_write_position + connection->response->fd_off;
+      left = connection->response->total_size - connection->response_write_position;
+      if (left > SSIZE_MAX)
+	left = SSIZE_MAX; /* cap at return value limit */
       ret = sendfile (connection->socket_fd, 
 		      fd,
 		      &offset,
-		      connection->response->total_size - offset);
-      if ( (ret == -1) &&
-	   (errno == EINTR) )
+		      left);
+      if (ret != -1)
+	return ret;
+      if (EINTR == errno) 
 	return 0;
-      return ret;
+      if ( (EINVAL == errno) ||
+	   (EBADF == errno) ||
+	   (EAGAIN == errno) )
+	return -1; 
+      /* None of the 'usual' sendfile errors occurred, so we should try
+	 to fall back to 'SEND'; see also this thread for info on
+	 odd libc/Linux behavior with sendfile:
+	 http://lists.gnu.org/archive/html/libmicrohttpd/2011-02/msg00015.html */
     }
 #endif
-  return SEND (connection->socket_fd, other, i, MSG_NOSIGNAL | MSG_DONTWAIT);
+  return SEND (connection->socket_fd, other, i, MSG_NOSIGNAL);
 }
 
 
@@ -822,62 +854,53 @@ create_thread (pthread_t * thread,
 }
 
 
-
 /**
- * Accept an incoming connection and create the MHD_Connection object for
- * it.  This function also enforces policy by way of checking with the
- * accept policy callback.
- * 
- * @param daemon handle with the listen socket
- * @return MHD_YES on success
+ * Add another client connection to the set of connections 
+ * managed by MHD.  This API is usually not needed (since
+ * MHD will accept inbound connections on the server socket).
+ * Use this API in special cases, for example if your HTTP
+ * server is behind NAT and needs to connect out to the 
+ * HTTP client.
+ *
+ * The given client socket will be managed (and closed!) by MHD after
+ * this call and must no longer be used directly by the application
+ * afterwards.
+ *
+ * Per-IP connection limits are ignored when using this API.
+ *
+ * @param daemon daemon that manages the connection
+ * @param client_socket socket to manage (MHD will expect
+ *        to receive an HTTP request from this socket next).
+ * @param addr IP address of the client
+ * @param addrlen number of bytes in addr
+ * @return MHD_YES on success, MHD_NO if this daemon could
+ *        not handle the connection (i.e. malloc failed, etc).
+ *        The socket will be closed in any case.
  */
-static int
-MHD_accept_connection (struct MHD_Daemon *daemon)
+int 
+MHD_add_connection (struct MHD_Daemon *daemon, 
+		    int client_socket,
+		    const struct sockaddr *addr,
+		    socklen_t addrlen)
 {
   struct MHD_Connection *connection;
-#if HAVE_INET6
-  struct sockaddr_in6 addrstorage;
-#else
-  struct sockaddr_in addrstorage;
-#endif
-  struct sockaddr *addr = (struct sockaddr *) &addrstorage;
-  socklen_t addrlen;
-  int s;
   int res_thread_create;
 #if OSX
   static int on = 1;
 #endif
 
-  addrlen = sizeof (addrstorage);
-  memset (addr, 0, sizeof (addrstorage));
-
-  s = ACCEPT (daemon->socket_fd, addr, &addrlen);
-  if ((s == -1) || (addrlen <= 0))
-    {
-#if HAVE_MESSAGES
-      /* This could be a common occurance with multiple worker threads */
-      if ((EAGAIN != errno) && (EWOULDBLOCK != errno))
-        MHD_DLOG (daemon, "Error accepting connection: %s\n", STRERROR (errno));
-#endif
-      if (s != -1)
-        {
-          SHUTDOWN (s, SHUT_RDWR);
-          CLOSE (s);
-          /* just in case */
-        }
-      return MHD_NO;
-    }
 #ifndef WINDOWS
-  if ( (s >= FD_SETSIZE) &&
+  if ( (client_socket >= FD_SETSIZE) &&
        (0 == (daemon->options & MHD_USE_POLL)) )
     {
 #if HAVE_MESSAGES
       MHD_DLOG (daemon,
 		"Socket descriptor larger than FD_SETSIZE: %d > %d\n",
-		s,
+		client_socket,
 		FD_SETSIZE);
 #endif
-      CLOSE (s);
+      SHUTDOWN (client_socket, SHUT_RDWR);
+      CLOSE (client_socket);
       return MHD_NO;
     }
 #endif
@@ -896,8 +919,8 @@ MHD_accept_connection (struct MHD_Daemon *daemon)
       MHD_DLOG (daemon,
                 "Server reached connection limit (closing inbound connection)\n");
 #endif
-      SHUTDOWN (s, SHUT_RDWR);
-      CLOSE (s);
+      SHUTDOWN (client_socket, SHUT_RDWR);
+      CLOSE (client_socket);
       return MHD_NO;
     }
 
@@ -910,26 +933,28 @@ MHD_accept_connection (struct MHD_Daemon *daemon)
       MHD_DLOG (daemon, "Connection rejected, closing connection\n");
 #endif
 #endif
-      SHUTDOWN (s, SHUT_RDWR);
-      CLOSE (s);
+      SHUTDOWN (client_socket, SHUT_RDWR);
+      CLOSE (client_socket);
       MHD_ip_limit_del (daemon, addr, addrlen);
       return MHD_YES;
     }
+
 #if OSX
 #ifdef SOL_SOCKET
 #ifdef SO_NOSIGPIPE
-  setsockopt (s, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof (on));
+  setsockopt (client_socket, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof (on));
 #endif
 #endif
 #endif
+
   connection = malloc (sizeof (struct MHD_Connection));
   if (NULL == connection)
     {
 #if HAVE_MESSAGES
       MHD_DLOG (daemon, "Error allocating memory: %s\n", STRERROR (errno));
 #endif
-      SHUTDOWN (s, SHUT_RDWR);
-      CLOSE (s);
+      SHUTDOWN (client_socket, SHUT_RDWR);
+      CLOSE (client_socket);
       MHD_ip_limit_del (daemon, addr, addrlen);
       return MHD_NO;
     }
@@ -941,15 +966,15 @@ MHD_accept_connection (struct MHD_Daemon *daemon)
 #if HAVE_MESSAGES
       MHD_DLOG (daemon, "Error allocating memory: %s\n", STRERROR (errno));
 #endif
-      SHUTDOWN (s, SHUT_RDWR);
-      CLOSE (s);
+      SHUTDOWN (client_socket, SHUT_RDWR);
+      CLOSE (client_socket);
       MHD_ip_limit_del (daemon, addr, addrlen);
       free (connection);
       return MHD_NO;
     }
   memcpy (connection->addr, addr, addrlen);
   connection->addr_len = addrlen;
-  connection->socket_fd = s;
+  connection->socket_fd = client_socket;
   connection->daemon = daemon;
   connection->last_activity = time (NULL);
 
@@ -986,8 +1011,8 @@ MHD_accept_connection (struct MHD_Daemon *daemon)
                     "Failed to setup TLS credentials: unknown credential type %d\n",
                     connection->daemon->cred_type);
 #endif
-          SHUTDOWN (s, SHUT_RDWR);
-          CLOSE (s);
+          SHUTDOWN (client_socket, SHUT_RDWR);
+          CLOSE (client_socket);
           MHD_ip_limit_del (daemon, addr, addrlen);
           free (connection->addr);
           free (connection);
@@ -1026,8 +1051,8 @@ MHD_accept_connection (struct MHD_Daemon *daemon)
           MHD_DLOG (daemon, "Failed to create a thread: %s\n",
                     STRERROR (res_thread_create));
 #endif
-          SHUTDOWN (s, SHUT_RDWR);
-          CLOSE (s);
+          SHUTDOWN (client_socket, SHUT_RDWR);
+          CLOSE (client_socket);
           MHD_ip_limit_del (daemon, addr, addrlen);
           free (connection->addr);
           free (connection);
@@ -1037,7 +1062,55 @@ MHD_accept_connection (struct MHD_Daemon *daemon)
   connection->next = daemon->connections;
   daemon->connections = connection;
   daemon->max_connections--;
-  return MHD_YES;
+  return MHD_YES;  
+}
+
+
+/**
+ * Accept an incoming connection and create the MHD_Connection object for
+ * it.  This function also enforces policy by way of checking with the
+ * accept policy callback.
+ * 
+ * @param daemon handle with the listen socket
+ * @return MHD_YES on success
+ */
+static int
+MHD_accept_connection (struct MHD_Daemon *daemon)
+{
+#if HAVE_INET6
+  struct sockaddr_in6 addrstorage;
+#else
+  struct sockaddr_in addrstorage;
+#endif
+  struct sockaddr *addr = (struct sockaddr *) &addrstorage;
+  socklen_t addrlen;
+  int s;
+
+  addrlen = sizeof (addrstorage);
+  memset (addr, 0, sizeof (addrstorage));
+  s = ACCEPT (daemon->socket_fd, addr, &addrlen);
+  if ((s == -1) || (addrlen <= 0))
+    {
+#if HAVE_MESSAGES
+      /* This could be a common occurance with multiple worker threads */
+      if ((EAGAIN != errno) && (EWOULDBLOCK != errno))
+        MHD_DLOG (daemon, "Error accepting connection: %s\n", STRERROR (errno));
+#endif
+      if (s != -1)
+        {
+          SHUTDOWN (s, SHUT_RDWR);
+          CLOSE (s);
+          /* just in case */
+        }
+      return MHD_NO;
+    }
+#if HAVE_MESSAGES
+#if DEBUG_CONNECT
+  MHD_DLOG (daemon, "Accepted connection on socket %d\n", s);
+#endif
+#endif
+  return MHD_add_connection (daemon, s,
+			     addr, addrlen);
 }
 
 /**
@@ -1069,7 +1142,7 @@ MHD_cleanup_connections (struct MHD_Daemon *daemon)
             prev->next = pos->next;
           if (0 != (pos->daemon->options & MHD_USE_THREAD_PER_CONNECTION))
             {
-	      pthread_kill (pos->pid, SIGALRM);
+
               if (0 != (rc = pthread_join (pos->pid, &unused)))
 		{
 #if HAVE_MESSAGES
@@ -1117,7 +1190,8 @@ MHD_cleanup_connections (struct MHD_Daemon *daemon)
  *        necessiate the use of a timeout right now).
  */
 int
-MHD_get_timeout (struct MHD_Daemon *daemon, unsigned MHD_LONG_LONG *timeout)
+MHD_get_timeout (struct MHD_Daemon *daemon,
+		 unsigned MHD_LONG_LONG *timeout)
 {
   time_t earliest_deadline;
   time_t now;
@@ -1132,7 +1206,7 @@ MHD_get_timeout (struct MHD_Daemon *daemon, unsigned MHD_LONG_LONG *timeout)
     return MHD_NO;              /* no connections */
   now = time (NULL);
   /* start with conservative estimate */
-  earliest_deadline = now + dto;
+  earliest_deadline = now + dto + 1;
   while (pos != NULL)
     {
       if (earliest_deadline > pos->last_activity + dto)
@@ -1147,7 +1221,7 @@ MHD_get_timeout (struct MHD_Daemon *daemon, unsigned MHD_LONG_LONG *timeout)
   if (earliest_deadline < now)
     *timeout = 0;
   else
-    *timeout = (earliest_deadline - now);
+    *timeout = 1000 * (1 + earliest_deadline - now);
   return MHD_YES;
 }
 
@@ -1160,7 +1234,8 @@ MHD_get_timeout (struct MHD_Daemon *daemon, unsigned MHD_LONG_LONG *timeout)
  * @return MHD_NO on serious errors, MHD_YES on success
  */
 static int
-MHD_select (struct MHD_Daemon *daemon, int may_block)
+MHD_select (struct MHD_Daemon *daemon, 
+	    int may_block)
 {
   struct MHD_Connection *pos;
   int num_ready;
@@ -1169,6 +1244,7 @@ MHD_select (struct MHD_Daemon *daemon, int may_block)
   fd_set es;
   int max;
   struct timeval timeout;
+  struct timeval *tv;
   unsigned MHD_LONG_LONG ltimeout;
   int ds;
 
@@ -1180,7 +1256,6 @@ MHD_select (struct MHD_Daemon *daemon, int may_block)
   FD_ZERO (&ws);
   FD_ZERO (&es);
   max = 0;
-
   if (0 == (daemon->options & MHD_USE_THREAD_PER_CONNECTION))
     {
       /* single-threaded, go over everything */
@@ -1201,26 +1276,21 @@ MHD_select (struct MHD_Daemon *daemon, int may_block)
       FD_SET (max, &rs);
     }
 
-  /* in case we are missing the SIGALRM, keep going after
-     at most 1s; see http://lists.gnu.org/archive/html/libmicrohttpd/2009-10/msg00013.html */
-  timeout.tv_usec = 0;
-  timeout.tv_sec = 1;
+  tv = NULL;
   if (may_block == MHD_NO)
     {
       timeout.tv_usec = 0;
       timeout.tv_sec = 0;
+      tv = &timeout;
     }
-  else
+  else if (MHD_YES == MHD_get_timeout (daemon, &ltimeout))
     {
       /* ltimeout is in ms */
-      if ( (MHD_YES == MHD_get_timeout (daemon, &ltimeout)) &&
-	   (ltimeout < 1000) )
-	{
-          timeout.tv_usec = ltimeout * 1000;
-          timeout.tv_sec = 0;
-        }
+      timeout.tv_usec = (ltimeout % 1000) * 1000;
+      timeout.tv_sec = ltimeout / 1000;
+      tv = &timeout;
     }
-  num_ready = SELECT (max + 1, &rs, &ws, &es, &timeout);
+  num_ready = SELECT (max + 1, &rs, &ws, &es, tv);
 
   if (daemon->shutdown == MHD_YES)
     return MHD_NO;
@@ -1263,39 +1333,182 @@ MHD_select (struct MHD_Daemon *daemon, int may_block)
   return MHD_YES;
 }
 
+
+#ifdef HAVE_POLL_H
 /**
- * Poll for new connection. Used only with THREAD_PER_CONNECTION
+ * Process all of our connections and possibly the server
+ * socket using 'poll'.
  *
  * @param daemon daemon to run poll loop for
+ * @param may_block YES if blocking, NO if non-blocking
+ * @return MHD_NO on serious errors, MHD_YES on success
  */
 static int
-MHD_poll (struct MHD_Daemon *daemon)
+MHD_poll_all (struct MHD_Daemon *daemon,
+	      int may_block)
 {
-#ifdef HAVE_POLL_H
-  struct pollfd p;
+  unsigned int num_connections;
+  struct MHD_Connection *pos;
 
-  if (0 == (daemon->options & MHD_USE_THREAD_PER_CONNECTION)) 
-    return MHD_NO;
+  num_connections = 0;
+  pos = daemon->connections;
+  while (pos != NULL)
+    {
+      num_connections++;
+      pos = pos->next;
+    }
+  {
+    struct pollfd p[1 + num_connections];
+    struct MHD_Pollfd mp;
+    unsigned MHD_LONG_LONG ltimeout;
+    unsigned int i;
+    int timeout;
+    unsigned int poll_server;
+    
+    memset (p, 0, sizeof (p));
+    if ( (daemon->max_connections > 0) && (daemon->socket_fd != -1) )
+      {
+	poll_server = 1;
+	p[0].fd = daemon->socket_fd;
+	p[0].events = POLLIN;
+	p[0].revents = 0;
+      }
+    else
+      {
+	poll_server = 0;
+      }
+    if (may_block == MHD_NO)
+      timeout = 0;
+    else if (MHD_YES != MHD_get_timeout (daemon, &ltimeout))
+      timeout = -1;
+    else
+      timeout = (ltimeout > INT_MAX) ? INT_MAX : (int) ltimeout;
+    
+    i = 0;
+    pos = daemon->connections;
+    while (pos != NULL)
+      {
+	memset(&mp, 0, sizeof (struct MHD_Pollfd));
+	MHD_connection_get_pollfd (pos, &mp);
+	p[poll_server+i].fd = mp.fd;
+	if (mp.events & MHD_POLL_ACTION_IN) 
+	  p[poll_server+i].events |= POLLIN;        
+	if (mp.events & MHD_POLL_ACTION_OUT) 
+	  p[poll_server+i].events |= POLLOUT;
+	i++;
+	pos = pos->next;
+      }
+    if (poll (p, poll_server + num_connections, timeout) < 0) 
+      {
+	if (errno == EINTR)
+	  return MHD_YES;
+#if HAVE_MESSAGES
+	MHD_DLOG (daemon, "poll failed: %s\n", STRERROR (errno));
+#endif
+	return MHD_NO;
+      }
+    /* handle shutdown cases */
+    if (daemon->shutdown == MHD_YES) 
+      return MHD_NO;  
+    if (daemon->socket_fd < 0) 
+      return MHD_YES; 
+    i = 0;
+    pos = daemon->connections;
+    while (pos != NULL)
+      {
+	/* first, sanity checks */
+	if (i >= num_connections)
+	  break; /* connection list changed somehow, retry later ... */
+	MHD_connection_get_pollfd (pos, &mp);
+	if (p[poll_server+i].fd != mp.fd)
+	  break; /* fd mismatch, something else happened, retry later ... */
+
+	/* normal handling */
+	if (0 != (p[poll_server+i].revents & POLLIN)) 
+	  pos->read_handler (pos);
+	if (0 != (p[poll_server+i].revents & POLLOUT)) 
+	  pos->write_handler (pos);
+	if (pos->socket_fd != -1)
+	  pos->idle_handler (pos);
+	i++;
+	pos = pos->next;
+      }
+    if ( (1 == poll_server) &&
+	 (0 != (p[0].revents & POLLIN)) )
+      MHD_accept_connection (daemon);
+  }
+  return MHD_YES;
+}
+
+
+/**
+ * Process only the listen socket using 'poll'.
+ *
+ * @param daemon daemon to run poll loop for
+ * @param may_block YES if blocking, NO if non-blocking
+ * @return MHD_NO on serious errors, MHD_YES on success
+ */
+static int
+MHD_poll_listen_socket (struct MHD_Daemon *daemon,
+			int may_block)
+{
+  struct pollfd p;
+  unsigned MHD_LONG_LONG ltimeout;
+  int timeout;
+  
+  memset (&p, 0, sizeof (p));
   p.fd = daemon->socket_fd;
   p.events = POLLIN;
   p.revents = 0;
-
-  if (poll(&p, 1, 1000) < 0) {
-    if (errno == EINTR)
-      return MHD_YES;
-#if HAVE_MESSAGES
-    MHD_DLOG (daemon, "poll failed: %s\n", STRERROR (errno));
+  if (may_block == MHD_NO)
+    timeout = 0;
+  else if (MHD_YES != MHD_get_timeout (daemon, &ltimeout))
+    timeout = -1;
+  else
+    timeout = (ltimeout > INT_MAX) ? INT_MAX : (int) ltimeout;
+#ifdef __CYGWIN__
+  /* See https://gnunet.org/bugs/view.php?id=1674 */
+  timeout = ( (timeout > 2000) || (timeout < 0) ) ? 2000 : timeout;
 #endif
-    return MHD_NO;
-  }
+  if (poll (&p, 1, timeout) < 0)
+    {
+      if (errno == EINTR)
+	return MHD_YES;
+#if HAVE_MESSAGES
+      MHD_DLOG (daemon, "poll failed: %s\n", STRERROR (errno));
+#endif
+      return MHD_NO;
+    }
   /* handle shutdown cases */
   if (daemon->shutdown == MHD_YES) 
     return MHD_NO;  
   if (daemon->socket_fd < 0) 
     return MHD_YES; 
-  if (0 != (p.revents & POLLIN)) 
-    MHD_accept_connection (daemon);
+  if (0 != (p.revents & POLLIN))
+    MHD_accept_connection (daemon);  
   return MHD_YES;
+}
+#endif
+
+
+/**
+ * Do 'poll'-based processing.
+ *
+ * @param daemon daemon to run poll loop for
+ * @param may_block YES if blocking, NO if non-blocking
+ * @return MHD_NO on serious errors, MHD_YES on success
+ */
+static int
+MHD_poll (struct MHD_Daemon *daemon,
+	  int may_block)
+{
+#ifdef HAVE_POLL_H
+  if (daemon->shutdown == MHD_YES)
+    return MHD_NO;
+  if (0 == (daemon->options & MHD_USE_THREAD_PER_CONNECTION))
+    return MHD_poll_all (daemon, may_block);
+  else
+    return MHD_poll_listen_socket (daemon, may_block);
 #else
   return MHD_NO;
 #endif
@@ -1319,7 +1532,10 @@ MHD_run (struct MHD_Daemon *daemon)
                                              & MHD_USE_THREAD_PER_CONNECTION))
       || (0 != (daemon->options & MHD_USE_SELECT_INTERNALLY)))
     return MHD_NO;
-  MHD_select (daemon, MHD_NO);
+  if ((daemon->options & MHD_USE_POLL) == 0) 
+    MHD_select (daemon, MHD_NO);
+  else
+    MHD_poll (daemon, MHD_NO);
   MHD_cleanup_connections (daemon);
   return MHD_YES;
 }
@@ -1341,7 +1557,7 @@ MHD_select_thread (void *cls)
       if ((daemon->options & MHD_USE_POLL) == 0) 
 	MHD_select (daemon, MHD_YES);
       else 
-	MHD_poll(daemon);      
+	MHD_poll (daemon, MHD_YES);      
       MHD_cleanup_connections (daemon);
     }
   return NULL;
@@ -1709,7 +1925,7 @@ MHD_start_daemon_va (unsigned int options,
     }
 #endif
   retVal->socket_fd = -1;
-  retVal->options = (enum MHD_OPTION)options;
+  retVal->options = (enum MHD_OPTION) options;
   retVal->port = port;
   retVal->apc = apc;
   retVal->apc_cls = apc_cls;
@@ -1782,32 +1998,18 @@ MHD_start_daemon_va (unsigned int options,
 	      return NULL;
 	    }
     }
+
   if (0 != pthread_mutex_init (&retVal->nnc_lock, NULL))
     {
 #if HAVE_MESSAGES
       MHD_DLOG (retVal,
 		"MHD failed to initialize nonce-nc mutex\n");
 #endif
-      free (retVal);
-      return NULL;
-    }
-#endif
-
-  /* poll support currently only works with MHD_USE_THREAD_PER_CONNECTION */
-  if ( (0 != (options & MHD_USE_POLL)) && 
-       (0 == (options & MHD_USE_THREAD_PER_CONNECTION)) ) 
-    {
-#if HAVE_MESSAGES
-      MHD_DLOG (retVal,
-		"MHD poll support only works with MHD_USE_THREAD_PER_CONNECTION\n");
-#endif
-#if DAUTH_SUPPORT
       free (retVal->nnc);
-      pthread_mutex_destroy (&retVal->nnc_lock);
-#endif
       free (retVal);
       return NULL;
     }
+#endif
 
   /* Thread pooling currently works only with internal select thread model */
   if ( (0 == (options & MHD_USE_SELECT_INTERNALLY)) && 
@@ -1817,8 +2019,7 @@ MHD_start_daemon_va (unsigned int options,
       MHD_DLOG (retVal,
 		"MHD thread pooling only works with MHD_USE_SELECT_INTERNALLY\n");
 #endif
-      free (retVal);
-      return NULL;
+      goto free_and_fail;
     }
 
 #ifdef __SYMBIAN32__
@@ -1828,8 +2029,7 @@ MHD_start_daemon_va (unsigned int options,
       MHD_DLOG (retVal,
 		"Threaded operations are not supported on Symbian.\n");
 #endif
-      free (retVal);
-      return NULL;
+      goto free_and_fail;
     }
 #endif
   if (retVal->socket_fd == -1)
@@ -1843,8 +2043,7 @@ MHD_start_daemon_va (unsigned int options,
 	MHD_DLOG (retVal, 
 		  "AF_INET6 not supported\n");
 #endif
-	free (retVal);
-	return NULL;
+	goto free_and_fail;
       }
 #endif
       else
@@ -1857,8 +2056,7 @@ MHD_start_daemon_va (unsigned int options,
 		      "Call to socket failed: %s\n", 
 		      STRERROR (errno));
 #endif
-	  free (retVal);
-	  return NULL;
+	  goto free_and_fail;
 	}
       if ((SETSOCKOPT (socket_fd,
 		       SOL_SOCKET,
@@ -1932,8 +2130,7 @@ MHD_start_daemon_va (unsigned int options,
 		      STRERROR (errno));
 #endif
 	  CLOSE (socket_fd);
-	  free (retVal);
-	  return NULL;
+	  goto free_and_fail;
 	}
       
       if (LISTEN (socket_fd, 20) < 0)
@@ -1945,8 +2142,7 @@ MHD_start_daemon_va (unsigned int options,
 		      STRERROR (errno));
 #endif
 	  CLOSE (socket_fd);
-	  free (retVal);
-	  return NULL;
+	  goto free_and_fail;
 	}      
     }
   else
@@ -1965,8 +2161,7 @@ MHD_start_daemon_va (unsigned int options,
 		  FD_SETSIZE);
 #endif
       CLOSE (socket_fd);
-      free (retVal);
-      return NULL;
+      goto free_and_fail;
     }
 #endif
 
@@ -1977,8 +2172,7 @@ MHD_start_daemon_va (unsigned int options,
                "MHD failed to initialize IP connection limit mutex\n");
 #endif
       CLOSE (socket_fd);
-      free (retVal);
-      return NULL;
+      goto free_and_fail;
     }
 
 #if HTTPS_SUPPORT
@@ -1990,13 +2184,8 @@ MHD_start_daemon_va (unsigned int options,
 		"Failed to initialize TLS support\n");
 #endif
       CLOSE (socket_fd);
-#ifdef DAUTH_SUPPORT
-      pthread_mutex_destroy (&retVal->nnc_lock);
-      free (retVal->nnc);
-#endif
       pthread_mutex_destroy (&retVal->per_ip_connection_mutex);
-      free (retVal);
-      return NULL;
+      goto free_and_fail;
     }
 #endif
   if ( ( (0 != (options & MHD_USE_THREAD_PER_CONNECTION)) ||
@@ -2010,14 +2199,9 @@ MHD_start_daemon_va (unsigned int options,
                 "Failed to create listen thread: %s\n", 
 		STRERROR (res_thread_create));
 #endif
-#ifdef DAUTH_SUPPORT
-      pthread_mutex_destroy (&retVal->nnc_lock);
-      free (retVal->nnc);
-#endif
       pthread_mutex_destroy (&retVal->per_ip_connection_mutex);
-      free (retVal);
       CLOSE (socket_fd);
-      return NULL;
+      goto free_and_fail;
     }
   if (retVal->worker_pool_size > 0)
     {
@@ -2111,8 +2295,7 @@ thread_failed:
       pthread_mutex_destroy (&retVal->per_ip_connection_mutex);
       if (NULL != retVal->worker_pool)
         free (retVal->worker_pool);
-      free (retVal);
-      return NULL;
+      goto free_and_fail;
     }
 
   /* Shutdown worker threads we've already created. Pretend
@@ -2122,10 +2305,23 @@ thread_failed:
   retVal->worker_pool_size = i - 1;
   MHD_stop_daemon (retVal);
   return NULL;
+
+ free_and_fail:
+  /* clean up basic memory state in 'retVal' and return NULL to 
+     indicate failure */
+#ifdef DAUTH_SUPPORT
+  free (retVal->nnc);
+  pthread_mutex_destroy (&retVal->nnc_lock);
+#endif
+  free (retVal);
+  return NULL;
 }
+
 
 /**
  * Close all connections for the daemon
+ *
+ * @param daemon daemon to close down
  */
 static void
 MHD_close_connections (struct MHD_Daemon *daemon)
@@ -2146,8 +2342,11 @@ MHD_close_connections (struct MHD_Daemon *daemon)
     }
 }
 
+
 /**
  * Shutdown an http daemon
+ *
+ * @param daemon daemon to stop
  */
 void
 MHD_stop_daemon (struct MHD_Daemon *daemon)
@@ -2169,24 +2368,15 @@ MHD_stop_daemon (struct MHD_Daemon *daemon)
       daemon->worker_pool[i].shutdown = MHD_YES;
       daemon->worker_pool[i].socket_fd = -1;
     }
-
-#if OSX
-  /* without this, either (thread pool = 0) threads would get stuck or
-   * CLOSE would get stuck if attempted before (thread pool > 0)
-   * threads have ended */
   SHUTDOWN (fd, SHUT_RDWR);
-#else
 #if DEBUG_CLOSE
 #if HAVE_MESSAGES
-  MHD_DLOG (daemon, "MHD shutdown, closing listen socket\n");
+  MHD_DLOG (daemon, "MHD listen socket shutdown\n");
 #endif
-#endif
-  CLOSE (fd);
 #endif
 
+
   /* Signal workers to stop and clean them up */
-  for (i = 0; i < daemon->worker_pool_size; ++i)
-    pthread_kill (daemon->worker_pool[i].pid, SIGALRM);
   for (i = 0; i < daemon->worker_pool_size; ++i)
     {
       if (0 != (rc = pthread_join (daemon->worker_pool[i].pid, &unused)))
@@ -2205,7 +2395,6 @@ MHD_stop_daemon (struct MHD_Daemon *daemon)
       ((0 != (daemon->options & MHD_USE_SELECT_INTERNALLY))
         && (0 == daemon->worker_pool_size)))
     {
-      pthread_kill (daemon->pid, SIGALRM);
       if (0 != (rc = pthread_join (daemon->pid, &unused)))
 	{
 #if HAVE_MESSAGES
@@ -2216,15 +2405,7 @@ MHD_stop_daemon (struct MHD_Daemon *daemon)
 	}
     }
   MHD_close_connections (daemon);
-
-#if OSX
-#if DEBUG_CLOSE
-#if HAVE_MESSAGES
-  MHD_DLOG (daemon, "MHD shutdown, closing listen socket\n");
-#endif
-#endif
   CLOSE (fd);
-#endif
 
   /* TLS clean up */
 #if HTTPS_SUPPORT
@@ -2256,8 +2437,10 @@ MHD_stop_daemon (struct MHD_Daemon *daemon)
   pthread_mutex_destroy (&daemon->nnc_lock);
 #endif
   pthread_mutex_destroy (&daemon->per_ip_connection_mutex);
+
   free (daemon);
 }
+
 
 /**
  * Obtain information about the given daemon
@@ -2282,6 +2465,7 @@ MHD_get_daemon_info (struct MHD_Daemon *daemon,
     };
 }
 
+
 /**
  * Sets the global error handler to a different implementation.  "cb"
  * will only be called in the case of typically fatal, serious
@@ -2303,6 +2487,7 @@ void MHD_set_panic_func (MHD_PanicCallback cb, void *cls)
   mhd_panic_cls = cls;
 }
 
+
 /**
  * Obtain the version of this library
  *
@@ -2314,17 +2499,6 @@ MHD_get_version (void)
   return PACKAGE_VERSION;
 }
 
-#ifndef WINDOWS
-
-static struct sigaction sig;
-
-static struct sigaction old;
-
-static void
-sigalrmHandler (int sig)
-{
-}
-#endif
 
 #ifdef __GNUC__
 #define ATTRIBUTE_CONSTRUCTOR __attribute__ ((constructor))
@@ -2338,23 +2512,17 @@ sigalrmHandler (int sig)
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
 #endif
 
+
 /**
- * Initialize the signal handler for SIGALRM
- * and do other setup work.
+ * Initialize do setup work.
  */
-void ATTRIBUTE_CONSTRUCTOR MHD_init ()
+void ATTRIBUTE_CONSTRUCTOR 
+MHD_init ()
 {
   mhd_panic = &mhd_panic_std;
   mhd_panic_cls = NULL;
 
-#ifndef WINDOWS
-  /* make sure SIGALRM does not kill us */
-  memset (&sig, 0, sizeof (struct sigaction));
-  memset (&old, 0, sizeof (struct sigaction));
-  sig.sa_flags = SA_NODEFER;
-  sig.sa_handler = &sigalrmHandler;
-  sigaction (SIGALRM, &sig, &old);
-#else
+#ifdef WINDOWS
   plibc_init ("GNU", "libmicrohttpd");
 #endif
 #if HTTPS_SUPPORT
@@ -2365,16 +2533,16 @@ void ATTRIBUTE_CONSTRUCTOR MHD_init ()
 #endif
 }
 
-void ATTRIBUTE_DESTRUCTOR MHD_fini ()
+
+void ATTRIBUTE_DESTRUCTOR 
+MHD_fini ()
 {
 #if HTTPS_SUPPORT
   gnutls_global_deinit ();
   if (0 != pthread_mutex_destroy(&MHD_gnutls_init_mutex))
     mhd_panic (mhd_panic_cls, __FILE__, __LINE__, NULL);
 #endif
-#ifndef WINDOWS
-  sigaction (SIGALRM, &old, &sig);
-#else
+#ifdef WINDOWS
   plibc_shutdown ();
 #endif
 }

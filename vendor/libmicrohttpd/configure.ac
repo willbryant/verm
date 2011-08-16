@@ -1,5 +1,5 @@
 # This file is part of libmicrohttpd.
-# (C) 2006, 2007, 2008, 2009, 2010 Christian Grothoff (and other contributing authors)
+# (C) 2006, 2007, 2008, 2009, 2010, 2011 Christian Grothoff (and other contributing authors)
 #
 # libmicrohttpd is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published
@@ -21,15 +21,15 @@
 #
 #
 AC_PREREQ(2.57)
-AC_INIT([libmicrohttpd], [0.9.7],[libmicrohttpd@gnu.org])
-AM_INIT_AUTOMAKE([libmicrohttpd], [0.9.7])
+AC_INIT([libmicrohttpd], [0.9.10],[libmicrohttpd@gnu.org])
+AM_INIT_AUTOMAKE([libmicrohttpd], [0.9.10])
 AM_CONFIG_HEADER([MHD_config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AH_TOP([#define _GNU_SOURCE  1])
 
-LIB_VERSION_CURRENT=15
+LIB_VERSION_CURRENT=18
 LIB_VERSION_REVISION=0
-LIB_VERSION_AGE=5
+LIB_VERSION_AGE=8
 AC_SUBST(LIB_VERSION_CURRENT)
 AC_SUBST(LIB_VERSION_REVISION)
 AC_SUBST(LIB_VERSION_AGE)
@@ -117,12 +117,6 @@ netbsd*)
      AC_DEFINE_UNQUOTED(CYGWIN,1,[This is a Cygwin system])
      AM_CONDITIONAL(HAVE_GNU_LD, false)    
      LDFLAGS="$LDFLAGS -no-undefined"
-     # check if PlibC is available
-     CHECK_PLIBC
-     LIBS="$PLIBC_LIBS $LIBS"
-     AC_SUBST(PLIBC_LIBS)
-     AC_SUBST(PLIBC_LDFLAGS)
-     AC_SUBST(PLIBC_CPPFLAGS)
      ;;
 *mingw*)
      AC_DEFINE_UNQUOTED(MINGW,1,[This is a MinGW system])

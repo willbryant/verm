@@ -106,7 +106,7 @@ extern "C"
 /**
  * Current version of the library.
  */
-#define MHD_VERSION 0x00090700
+#define MHD_VERSION 0x00090A00
 
 /**
  * MHD-internal return code for "YES".
@@ -362,8 +362,6 @@ enum MHD_FLAG
 
   /**
    * Use poll instead of select. This allows sockets with fd >= FD_SETSIZE.
-   * This option only works in conjunction with MHD_USE_THREAD_PER_CONNECTION
-   * (at this point).
    */
   MHD_USE_POLL = 64
 };
@@ -1035,6 +1033,33 @@ void MHD_stop_daemon (struct MHD_Daemon *daemon);
 
 
 /**
+ * Add another client connection to the set of connections 
+ * managed by MHD.  This API is usually not needed (since
+ * MHD will accept inbound connections on the server socket).
+ * Use this API in special cases, for example if your HTTP
+ * server is behind NAT and needs to connect out to the 
+ * HTTP client.
+ *
+ * The given client socket will be managed (and closed!) by MHD after
+ * this call and must no longer be used directly by the application
+ * afterwards.
+ *
+ * @param daemon daemon that manages the connection
+ * @param client_socket socket to manage (MHD will expect
+ *        to receive an HTTP request from this socket next).
+ * @param addr IP address of the client
+ * @param addrlen number of bytes in addr
+ * @return MHD_YES on success, MHD_NO if this daemon could
+ *        not handle the connection (i.e. malloc failed, etc).
+ *        The socket will be closed in any case.
+ */
+int MHD_add_connection (struct MHD_Daemon *daemon, 
+			int client_socket,
+			const struct sockaddr *addr,
+			socklen_t addrlen);
+
+
+/**
  * Obtain the select sets for this daemon.
  *
  * @param daemon daemon to get sets from
@@ -1201,7 +1226,6 @@ struct MHD_Response *MHD_create_response_from_callback (uint64_t size,
                                                         crc, void *crc_cls,
                                                         MHD_ContentReaderFreeCallback
                                                         crfc);
-
 
 
 /**
@@ -1605,7 +1629,7 @@ const union MHD_DaemonInfo *MHD_get_daemon_info (struct MHD_Daemon *daemon,
 /**
  * Obtain the version of this library
  *
- * @return static version string, e.g. "0.4.1"
+ * @return static version string, e.g. "0.9.9"
  */
 const char* MHD_get_version(void);
 
