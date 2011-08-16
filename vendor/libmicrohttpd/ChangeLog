@@ -1,3 +1,39 @@
+Thu Jun 23 11:25:21 CEST 2011
+	Releasing libmicrohttpd 0.9.12. -CG
+
+Wed Jun 22 14:32:23 CEST 2011
+	Force closing connection if either the client asked it or
+	if the response contains 'Connection: close' (so far,
+	only the client's request was considered). -CG/RV
+
+Wed Jun 22 10:37:35 CEST 2011
+	Removing listen socket from poll/select sets in
+	MHD_USE_THREAD_PER_CONNECTION mode; using 'shutdown'
+	on connection sockets to signal termination instead. -CG
+
+Wed Jun 22 10:25:13 CEST 2011
+	Eliminate unnecessary (and badly synchronized) calls to
+	MHD_get_timeout in MHD_USE_THREAD_PER_CONNECTION mode.
+	Document that this is not acceptable. -CG
+
+Tue Jun 21 13:54:59 CEST 2011
+	Fixing tiny memory leak in SSL code from 'gnutls_priority_init'.
+	Fixing data race between code doing connection shutdown and
+	connection cleanup.
+	Changing code to reduce connection cleanup cost from O(n) to O(1).
+	Cleaning up logging code around 'connection_close_error'. -CG
+
+Sat Jun 11 13:05:12 CEST 2011
+	Replacing use of sscanf by strtoul (#1688). -CG/bplant
+
+Fri Jun  3 15:26:42 CEST 2011
+	Adding MHD_CONNECTION_INFO_DAEMON to obtain MHD_Daemon
+	responsible for a given connection. -CG
+
+Wed May 25 14:23:20 CEST 2011
+	Trying to fix stutter problem on timeout described by
+	David Myers on the mailinglist (5/10/2011). -CG
+
 Fri May 20 22:11:55 CEST 2011
 	Fixed bug in testcase setup code causing crashes in
 	tls_session_timeout_test on some systems.

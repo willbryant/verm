@@ -21,15 +21,15 @@
 #
 #
 AC_PREREQ(2.57)
-AC_INIT([libmicrohttpd], [0.9.11],[libmicrohttpd@gnu.org])
-AM_INIT_AUTOMAKE([libmicrohttpd], [0.9.11])
+AC_INIT([libmicrohttpd], [0.9.12],[libmicrohttpd@gnu.org])
+AM_INIT_AUTOMAKE([libmicrohttpd], [0.9.12])
 AM_CONFIG_HEADER([MHD_config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AH_TOP([#define _GNU_SOURCE  1])
 
-LIB_VERSION_CURRENT=19
+LIB_VERSION_CURRENT=20
 LIB_VERSION_REVISION=0
-LIB_VERSION_AGE=9
+LIB_VERSION_AGE=10
 AC_SUBST(LIB_VERSION_CURRENT)
 AC_SUBST(LIB_VERSION_REVISION)
 AC_SUBST(LIB_VERSION_AGE)
@@ -262,7 +262,7 @@ AC_DEFINE_UNQUOTED([MHD_GCRYPT_VERSION], "$MHD_GCRYPT_VERSION", [gcrypt lib vers
 
 # gnutls
 gnutls=0
-AC_MSG_CHECKING([for gnutls])
+AC_MSG_CHECKING(for gnutls)
 AC_ARG_WITH(gnutls,
    [  --with-gnutls=PFX   base of gnutls installation],
    [AC_MSG_RESULT([$with_gnutls])
@@ -350,11 +350,13 @@ AC_CACHE_CHECK([whether -export-symbols-regex works],
 
 
 # gcov compilation
+AC_MSG_CHECKING(whether to compile with support for code coverage analysis)
 AC_ARG_ENABLE([coverage], 
               AS_HELP_STRING([--enable-coverage],
                              [compile the library with code coverage support]),
               [use_gcov=${enableval}], 
               [use_gcov=no])
+AC_MSG_RESULT($use_gcov)
 AM_CONDITIONAL([USE_COVERAGE], [test "x$use_gcov" = "xyes"])
 
 

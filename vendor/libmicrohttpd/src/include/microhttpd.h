@@ -106,7 +106,7 @@ extern "C"
 /**
  * Current version of the library.
  */
-#define MHD_VERSION 0x00090B00
+#define MHD_VERSION 0x00090C00
 
 /**
  * MHD-internal return code for "YES".
@@ -306,7 +306,7 @@ extern "C"
 
 /**
  * Options for the MHD daemon.  Note that if neither
- * MHD_USER_THREAD_PER_CONNECTION nor MHD_USE_SELECT_INTERNALLY is
+ * MHD_USE_THREAD_PER_CONNECTION nor MHD_USE_SELECT_INTERNALLY is
  * used, the client wants control over the process and will call the
  * appropriate microhttpd callbacks.<p>
  *
@@ -714,10 +714,10 @@ enum MHD_ConnectionInfoType
   MHD_CONNECTION_INFO_PROTOCOL,
 
   /**
-   * Obtain IP address of the client.
-   * Takes no extra arguments.  Returns a
-   * 'struct sockaddr_in **' by accident; obsolete,
-   * use MHD_CONNECTION_INFO_CLIENT_SOCK_ADDR.
+   * Obtain IP address of the client.  Takes no extra arguments.
+   * Returns essentially a "struct sockaddr **" (since the API returns
+   * a "union MHD_ConnectionInfo *" and that union contains a "struct
+   * sockaddr *").
    */
   MHD_CONNECTION_INFO_CLIENT_ADDRESS,
 
@@ -729,7 +729,12 @@ enum MHD_ConnectionInfoType
   /**
    * Get the GNUTLS client certificate handle.
    */
-  MHD_CONNECTION_INFO_GNUTLS_CLIENT_CERT
+  MHD_CONNECTION_INFO_GNUTLS_CLIENT_CERT,
+
+  /**
+   * Get the 'struct MHD_Daemon' responsible for managing this connection.
+   */
+  MHD_CONNECTION_INFO_DAEMON
 
 };
 
@@ -1078,10 +1083,11 @@ MHD_get_fdset (struct MHD_Daemon *daemon,
                fd_set * write_fd_set, fd_set * except_fd_set, int *max_fd);
 
 /**
- * Obtain timeout value for select for this daemon
- * (only needed if connection timeout is used).  The
- * returned value is how long select should at most
- * block, not the timeout value set for connections.
+ * Obtain timeout value for select for this daemon (only needed if
+ * connection timeout is used).  The returned value is how long select
+ * should at most block, not the timeout value set for connections.
+ * This function MUST NOT be called if MHD is running with
+ * "MHD_USE_THREAD_PER_CONNECTION".
  *
  * @param daemon daemon to query for timeout
  * @param timeout set to the timeout (in milliseconds)
@@ -1577,6 +1583,12 @@ union MHD_ConnectionInfo
    * Address information for the client.
    */
   struct sockaddr *client_addr;
+
+  /**
+   * Which daemon manages this connection (useful in case there are many
+   * daemons running).
+   */
+  struct MHD_Daemon *daemon;
 };
 
 /**
