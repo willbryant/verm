@@ -1,8 +1,8 @@
 This is microhttpd.info, produced by makeinfo version 4.13 from
 microhttpd.texi.
 
-This manual documents GNU libmicrohttpd version 0.9.10, last updated
-4 March 2011. It is built upon the documentation in the header file
+This manual documents GNU libmicrohttpd version 0.9.11, last updated
+14 May 2011. It is built upon the documentation in the header file
 `microhttpd.h'.
 
 Copyright (C) 2007, 2008, 2009, 2010, 2011 Christian Grothoff
@@ -26,8 +26,8 @@ File: microhttpd.info,  Node: Top,  Next: microhttpd-intro,  Up: (dir)
 The GNU libmicrohttpd Library
 *****************************
 
-This manual documents GNU libmicrohttpd version 0.9.10, last updated
-4 March 2011. It is built upon the documentation in the header file
+This manual documents GNU libmicrohttpd version 0.9.11, last updated
+14 May 2011. It is built upon the documentation in the header file
 `microhttpd.h'.
 
 Copyright (C) 2007, 2008, 2009, 2010, 2011 Christian Grothoff
@@ -1176,7 +1176,8 @@ File: microhttpd.info,  Node: microhttpd-response create,  Next: microhttpd-resp
           file descriptor referring to a file on disk with the data;
           will be closed when response is destroyed; note that 'fd'
           must be an actual file descriptor (not a pipe or socket)
-          since MHD might use 'sendfile' or 'seek' on it
+          since MHD might use 'sendfile' or 'seek' on it.  The
+          descriptor should be in blocking-IO mode.
 
      Return `NULL' on error (i.e. invalid arguments, out of memory).
 
@@ -1185,6 +1186,25 @@ MHD_create_response_from_fd_at_offset (uint64_t size, int fd, off_t
           offset)
      Create a response object.  The response object can be extended with
      header information and then it can be used any number of times.
+     Note that you need to be a bit careful about `off_t' when writing
+     this code.  Depending on your platform, MHD is likely to have been
+     compiled with support for 64-bit files.  When you compile your own
+     application, you must make sure that `off_t' is also a 64-bit
+     value.  If not, your compiler may pass a 32-bit value as `off_t',
+     which will result in 32-bits of garbage.
+
+     If you use the autotools, use the `AC_SYS_LARGEFILE' autoconf
+     macro and make sure to include the generated `config.h' file
+     before `microhttpd.h' to avoid problems.  If you do not have a
+     build system and only want to run on a GNU/Linux system, you could
+     also use #define _FILE_OFFSET_BITS 64
+     #include <sys/types.h>
+     #include <sys/stat.h>
+     #include <fcntl.h>
+     #include <microhttpd.h>
+      to ensure 64-bit `off_t'.  Note that if your operating system
+     does not support 64-bit files, MHD will be compiled with a 32-bit
+     `off_t' (in which case the above would be wrong...).
 
     SIZE
           size of the data portion of the response (number of bytes to
@@ -1194,7 +1214,8 @@ MHD_create_response_from_fd_at_offset (uint64_t size, int fd, off_t
           file descriptor referring to a file on disk with the data;
           will be closed when response is destroyed; note that 'fd'
           must be an actual file descriptor (not a pipe or socket)
-          since MHD might use 'sendfile' or 'seek' on it
+          since MHD might use 'sendfile' or 'seek' on it.    The
+          descriptor should be in blocking-IO mode.
 
     OFFSET
           offset to start reading from in the file
@@ -3191,15 +3212,15 @@ Function and Data Index
                                                               (line   8)
 * MHD_create_post_processor:             microhttpd-post api. (line   9)
 * MHD_create_response_from_buffer:       microhttpd-response create.
-                                                              (line  74)
+                                                              (line  95)
 * MHD_create_response_from_callback:     microhttpd-response create.
                                                               (line   9)
 * MHD_create_response_from_data:         microhttpd-response create.
-                                                              (line  95)
+                                                              (line 116)
 * MHD_create_response_from_fd:           microhttpd-response create.
                                                               (line  34)
 * MHD_create_response_from_fd_at_offset: microhttpd-response create.
-                                                              (line  54)
+                                                              (line  55)
 * MHD_del_response_header:               microhttpd-response headers.
                                                               (line  37)
 * MHD_destroy_post_processor:            microhttpd-post api. (line  54)
@@ -3261,33 +3282,33 @@ Type Index
 
 
 Tag Table:
-Node: Top872
-Node: microhttpd-intro3043
-Node: microhttpd-const7827
-Node: microhttpd-struct28034
-Node: microhttpd-cb28811
-Node: microhttpd-init37416
-Node: microhttpd-inspect40572
-Node: microhttpd-requests42152
-Node: microhttpd-responses44649
-Node: microhttpd-response enqueue45698
-Ref: microhttpd-response enqueue-Footnote-147967
-Node: microhttpd-response create48186
-Node: microhttpd-response headers53159
-Node: microhttpd-response inspect54984
-Node: microhttpd-dauth56152
-Node: microhttpd-dauth basic57698
-Node: microhttpd-dauth digest58884
-Node: microhttpd-post63525
-Node: microhttpd-post api66467
-Node: microhttpd-info68985
-Node: microhttpd-info daemon69305
-Node: microhttpd-info conn70185
-Node: GNU-LGPL71045
-Node: GNU GPL with eCos Extension99155
-Node: GNU-FDL119013
-Node: Concept Index144115
-Node: Function and Data Index147845
-Node: Type Index152162
+Node: Top871
+Node: microhttpd-intro3041
+Node: microhttpd-const7825
+Node: microhttpd-struct28032
+Node: microhttpd-cb28809
+Node: microhttpd-init37414
+Node: microhttpd-inspect40570
+Node: microhttpd-requests42150
+Node: microhttpd-responses44647
+Node: microhttpd-response enqueue45696
+Ref: microhttpd-response enqueue-Footnote-147965
+Node: microhttpd-response create48184
+Node: microhttpd-response headers54296
+Node: microhttpd-response inspect56121
+Node: microhttpd-dauth57289
+Node: microhttpd-dauth basic58835
+Node: microhttpd-dauth digest60021
+Node: microhttpd-post64662
+Node: microhttpd-post api67604
+Node: microhttpd-info70122
+Node: microhttpd-info daemon70442
+Node: microhttpd-info conn71322
+Node: GNU-LGPL72182
+Node: GNU GPL with eCos Extension100292
+Node: GNU-FDL120150
+Node: Concept Index145252
+Node: Function and Data Index148982
+Node: Type Index153299
 
 End Tag Table
