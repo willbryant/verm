@@ -579,6 +579,7 @@ int wait_for_termination() {
 	    sigaddset(&signals, SIGQUIT) < 0 ||
 	    sigaddset(&signals, SIGTERM) < 0 ||
 	    sigaddset(&signals, SIGINT) < 0 ||
+	    sigprocmask(SIG_BLOCK, &signals, NULL) < 0 ||
 		sigwait(&signals, &_sig) < 0) {
 		perror("Couldn't wait on the termination signals");
 		return -1;
