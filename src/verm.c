@@ -273,6 +273,15 @@ void free_upload(struct Upload* upload) {
 	free(upload);
 }
 
+void _try_make_tempfile(struct Upload* upload, const char* root_data_directory) {
+	/* annoyingly, glibc's implementation of mkstemp overwrites the XXXXXXXX part of the template before attempting to
+	   open the directory.  consequently, subsequent calls to mkstemp would fail on Linux if we did not re-sprintf the
+	   template string, so we have extracted these two lines out to this method to avoid needing to duplicate the
+	   sprintf in the two places it's used below. */
+	snprintf(upload->tempfile_fs_path, sizeof(upload->tempfile_fs_path), "%s%s/upload.XXXXXXXX", root_data_directory, upload->directory);
+	do { upload->tempfile_fd = mkstemp(upload->tempfile_fs_path); } while (upload->tempfile_fd == -1 && errno == EINTR);
+}
+
 struct Upload* create_upload(struct MHD_Connection *connection, const char* root_data_directory, const char *path) {
 	char* s;
 	
@@ -316,8 +325,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 		return NULL;
 	}
 	
-	snprintf(upload->tempfile_fs_path, sizeof(upload->tempfile_fs_path), "%s%s/upload.XXXXXXXX", root_data_directory, upload->directory);
-	do { upload->tempfile_fd = mkstemp(upload->tempfile_fs_path); } while (upload->tempfile_fd == -1 && errno == EINTR);
+	_try_make_tempfile(upload, root_data_directory);
 	
 	if (upload->tempfile_fd < 0 && errno == ENOENT) {
 		// create the directory (or directories, if nested)
@@ -334,7 +342,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 		}
 
 		// try again
-		do { upload->tempfile_fd = mkstemp(upload->tempfile_fs_path); } while (upload->tempfile_fd == -1 && errno == EINTR);
+		_try_make_tempfile(upload, root_data_directory);
 	}
 	
 	if (upload->tempfile_fd < 0) {
