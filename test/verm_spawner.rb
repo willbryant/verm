@@ -37,7 +37,12 @@ class VermSpawner
   
   def start_verm
     exec_args = [@verm_binary, "-d", verm_data, "-l", port.to_s, "-m", mime_types_file, "-q"]
-    exec_args.unshift "valgrind" if ENV['VALGRIND']
+    
+    if ENV['VALGRIND']
+      exec_args.unshift "--leak-check=full" if ENV['VALGRIND'] == "full"
+      exec_args.unshift "valgrind"
+    end
+    
     @verm_child_pid = fork { exec *exec_args }
   end
   
