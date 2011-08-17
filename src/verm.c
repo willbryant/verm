@@ -565,12 +565,13 @@ int help() {
 
 int wait_for_termination() {
 	sigset_t signals;
+	int _sig; /* currently unused, but can't pass NULL to sigwait on Linux */
 	
 	if (sigemptyset(&signals) < 0 ||
 	    sigaddset(&signals, SIGQUIT) < 0 ||
 	    sigaddset(&signals, SIGTERM) < 0 ||
 	    sigaddset(&signals, SIGINT) < 0 ||
-		sigwait(&signals, NULL) < 0) {
+		sigwait(&signals, &_sig) < 0) {
 		perror("Couldn't wait on the termination signals");
 		return -1;
 	}
