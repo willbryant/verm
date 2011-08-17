@@ -554,7 +554,7 @@ int help() {
 		"            be run as the user you want to own the files.\n"
 		"            It can be run as root, but running your daemons as root is generally discouraged.\n"
 		"\n"
-		"Options: -d /foo           Changes the root data directory to /foo.  Must be fully-qualified (ie. it must"
+		"Options: -d /foo           Changes the root data directory to /foo.  Must be fully-qualified (ie. it must\n"
 		"                           start with a /).  Default: %s.\n"
 		"         -l <port>         Listen on the given port.  Default: %d.\n"
 		"         -m <filename>     Load MIME content-types from the given file.  Default: %s.\n"
