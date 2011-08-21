@@ -28,7 +28,7 @@ verm: $(MHD)/MHD_config.h src/verm.o src/responses.o src/decompression.o src/str
 	cc $(LDFLAGS) -o $@ $^
 
 clean:
-	rm -f src/verm.o verm
+	rm -f src/*.o verm
 	cd $(MHD) && make distclean
 
 test_verm: verm
