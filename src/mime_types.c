@@ -19,28 +19,28 @@ static struct BuiltinType builtin_mime_types[] = {
 	   excludes all non-standard or vendor-specific types and most non-document types.  should generally
 	   be supplemented by your /etc/mime.types file, especially if you plan to store audio, video, or
 	   animation files or source documents from word processors & spreadsheets etc. */
-	{"text/plain",                  "txt"},
-	{"text/html",                   "htm"},
-	{"text/html",                   "html"},
-	{"text/xml",                    "xsl"},
-	{"text/xml",                    "xsd"},
-	{"text/xml",                    "xml"},
-	{"text/css",                    "css"},
-	{"text/comma-separated-values", "csv"},
-	{"text/csv",                    "csv"}, // later entries overwrite earlier entries for the same extension
-	{"text/tab-separated-values",   "tsv"},
-	{"image/jpeg",                  "jpeg"},
-	{"image/jpeg",                  "jpg"}, // later entries overwrite earlier entries for the same mime type
-	{"image/gif",                   "gif"},
-	{"image/png",                   "png"},
-	{"image/svg+xml",               "svg"},
-	{"application/pdf",             "pdf"},
-	{"application/javascript",      "js"},
-	{"application/json",            "json"},
-	{"application/tar",             "tar"},
-	{"application/xhtml+xml",       "xhtml"},
-	{"application/zip",             "zip"},
-	{"message/rfc822",              "eml"},
+	{"text/plain",                  ".txt"},
+	{"text/html",                   ".htm"},
+	{"text/html",                   ".html"},
+	{"text/xml",                    ".xsl"},
+	{"text/xml",                    ".xsd"},
+	{"text/xml",                    ".xml"},
+	{"text/css",                    ".css"},
+	{"text/comma-separated-values", ".csv"},
+	{"text/csv",                    ".csv"}, // later entries overwrite earlier entries for the same extension
+	{"text/tab-separated-values",   ".tsv"},
+	{"image/jpeg",                  ".jpeg"},
+	{"image/jpeg",                  ".jpg"}, // later entries overwrite earlier entries for the same mime type
+	{"image/gif",                   ".gif"},
+	{"image/png",                   ".png"},
+	{"image/svg+xml",               ".svg"},
+	{"application/pdf",             ".pdf"},
+	{"application/javascript",      ".js"},
+	{"application/json",            ".json"},
+	{"application/tar",             ".tar"},
+	{"application/xhtml+xml",       ".xhtml"},
+	{"application/zip",             ".zip"},
+	{"message/rfc822",              ".eml"},
 };
 
 void load_builtin_mime_types() {
@@ -84,15 +84,18 @@ int load_mime_types_from_file(const char *filename) {
 					free(dup_mime_type); // key was already in the hash, so we don't need another copy
 					free(kh_value(by_mime_type, k)); // but our value will replace the old one, free that
 				}
-				kh_val(by_mime_type, k) = strdup(tok);
+				char *dup_extension = NULL;
+				asprintf(&dup_extension, ".%s", tok);
+				kh_val(by_mime_type, k) = dup_extension;
 			}
 			
 			while (tok) {
 				if (strlen(tok) > 0) {
-					char *dup_tok = strdup(tok);
-					k = kh_put(str, by_extension, dup_tok, &ret);
+					char *dup_extension = NULL;
+					asprintf(&dup_extension, ".%s", tok);
+					k = kh_put(str, by_extension, dup_extension, &ret);
 					if (!ret) {
-						free(dup_tok); // key was already in the hash, so we don't need another copy
+						free(dup_extension); // key was already in the hash, so we don't need another copy
 						free(kh_value(by_extension, k)); // but our value will replace the old one, free that
 					}
 					kh_val(by_extension, k) = strdup(mime_type);

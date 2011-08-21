@@ -68,7 +68,7 @@ int add_content_type(struct MHD_Response* response, const char* filename) {
 	
 	// and if an extension is indeed present, lookup and add the mime type for that extension (if any)
 	if (found) {
-		found = mime_type_for_extension(found + 1);
+		found = mime_type_for_extension(found);
 		if (found) return MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, found);
 	}
 
@@ -241,6 +241,7 @@ int handle_post_data(
 		if (offset == 0 && content_type) {
 			DEBUG_PRINT("Looking up extension for %s\n", content_type);
 			upload->extension = extension_for_mime_type(content_type);
+			if (!upload->extension) upload->extension = "";
 		}
 	
 	} else if (strcmp(key, "redirect") == 0) {
@@ -391,11 +392,7 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 	}
 	encoded += 2;
 	
-	if (upload->extension) {
-		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s.%s", final_directory, encoded, upload->extension);
-	} else {
-		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s",    final_directory, encoded);
-	}
+	ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s%s", final_directory, encoded, upload->extension);
 
 	while (1) {
 		if (ret >= sizeof(upload->final_fs_path)) { // shouldn't possible unless misconfigured
@@ -439,11 +436,7 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 		}
 		
 		// no, different file; loop around and try again, this time with an attempt number appended to the end
-		if (upload->extension) {
-			ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d.%s", final_directory, encoded, ++attempt, upload->extension);
-		} else {
-			ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d",    final_directory, encoded, ++attempt);
-		}
+		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d%s", final_directory, encoded, ++attempt, upload->extension);
 	}
 	
 	return 0;
