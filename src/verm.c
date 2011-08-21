@@ -38,7 +38,7 @@ struct Upload {
 	struct MHD_PostProcessor* pp;
 	SHA256_CTX hasher;
 	const char* extension;
-	char final_fs_path[MAX_PATH_LENGTH];
+	char location[MAX_PATH_LENGTH];
 	int redirect_afterwards;
 };
 
@@ -323,7 +323,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	upload->size = 0;
 	upload->pp = NULL;
 	upload->extension = "";
-	upload->final_fs_path[0] = 0;
+	upload->location[0] = 0;
 	upload->redirect_afterwards = 0;
 	
 	strncpy(upload->directory, path, sizeof(upload->directory)); // length was checked above, but easier to audit if we never call strcpy!
@@ -394,63 +394,56 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 	int ret;
 	int attempt = 1;
 	struct stat st;
-	char final_directory[MAX_PATH_LENGTH];
-	int created_directory = 0;
+	char final_fs_path[MAX_PATH_LENGTH];
 	
 	// we put each file in a subdirectory off the main root, whose name is the first two characters of the hash.
 	// we don't repeat those characters in the filename.
-	ret = snprintf(final_directory, sizeof(final_directory), "%s%s/%.2s", root_data_directory, upload->directory, encoded);
-	if (ret >= sizeof(final_directory)) { // shouldn't be possible unless misconfigured
-		fprintf(stderr, "Couldn't generate directory for %s under %s%s within limits\n", encoded, root_data_directory, upload->directory);
-		return -1;
-	}
-	encoded += 2;
-	
-	ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s%s", final_directory, encoded, upload->extension);
+	ret = snprintf(upload->location, sizeof(upload->location), "%s/%.2s/%s%s", upload->directory, encoded, encoded + 2, upload->extension);
 
 	while (1) {
-		if (ret >= sizeof(upload->final_fs_path)) { // shouldn't possible unless misconfigured
+		if (ret >= sizeof(upload->location) || // shouldn't possible unless misconfigured
+		    snprintf(final_fs_path, sizeof(final_fs_path), "%s%s", root_data_directory, upload->location) >= sizeof(final_fs_path)) { // same
 			fprintf(stderr, "Couldn't generate filename for %s under %s within limits\n", upload->tempfile_fs_path, root_data_directory);
 			return -1;
 		}
 		
-		DEBUG_PRINT("trying to link as %s\n", upload->final_fs_path);
-		do { ret = link(upload->tempfile_fs_path, upload->final_fs_path); } while (ret < 0 && errno == EINTR);
-		if (ret == 0) break; // successfully linked
+		DEBUG_PRINT("trying to link as %s\n", final_fs_path);
+		do { ret = link(upload->tempfile_fs_path, final_fs_path); } while (ret < 0 && errno == EINTR);
+
+		if (ret == 0) {
+			// successfully linked
+			break;
 		
-		if (errno != EEXIST) {
-			if (errno == ENOENT && !created_directory) {
-				DEBUG_PRINT("creating directory %s\n", final_directory);
-				do { ret = mkdir(final_directory, DIRECTORY_PERMISSION); } while (ret < 0 && errno == EINTR);
-				if (ret != 0 && errno != EEXIST) { // EEXIST would just mean another process beat us to it
-					fprintf(stderr, "Couldn't create %s: %s (%d)\n", final_directory, strerror(errno), errno);
-					return -1;
-				}
-				created_directory = 1;
-				continue;
+		} else if (errno == EEXIST) {
+			// so the file already exists; is it exactly the same file?
+			if (stat(final_fs_path, &st) < 0) {
+				fprintf(stderr, "Couldn't stat pre-existing file %s: %s (%d)\n", final_fs_path, strerror(errno), errno);
+				return -1;
 			}
-			
-			fprintf(stderr, "Couldn't link %s to %s: %s (%d)\n", upload->final_fs_path, upload->tempfile_fs_path, strerror(errno), errno);
-			return -1;
-		}
-		
-		// so the file already exists; is it exactly the same file?
-		if (stat(upload->final_fs_path, &st) < 0) {
-			fprintf(stderr, "Couldn't stat pre-existing file %s: %s (%d)\n", upload->final_fs_path, strerror(errno), errno);
-			return -1;
-		}
 				
-		if (st.st_size == upload->size) {
-			int fd2, same;
-			do { fd2 = open(upload->final_fs_path, O_RDONLY); } while (fd2 == -1 && errno == EINTR);
-			same = same_file_contents(upload->tempfile_fd, fd2, upload->size);
-			do { ret = close(fd2); } while (ret == -1 && errno == EINTR);
+			if (st.st_size == upload->size) {
+				int fd2, same;
+				do { fd2 = open(final_fs_path, O_RDONLY); } while (fd2 == -1 && errno == EINTR);
+				same = same_file_contents(upload->tempfile_fd, fd2, upload->size);
+				do { ret = close(fd2); } while (ret == -1 && errno == EINTR);
 			
-			if (same) break; // same file size and contents
-		}
+				if (same) break; // same file size and contents
+			}
 		
-		// no, different file; loop around and try again, this time with an attempt number appended to the end
-		ret = snprintf(upload->final_fs_path, sizeof(upload->final_fs_path), "%s/%s_%d%s", final_directory, encoded, ++attempt, upload->extension);
+			// no, different file; loop around and try again, this time with an attempt number appended to the end
+			ret = snprintf(upload->location, sizeof(upload->location), "%s/%.2s/%s_%d%s", upload->directory, encoded, encoded + 2, ++attempt, upload->extension);
+		
+		} else if (errno == ENOENT) {
+			// need to create the parent directory for the file - perfectly normal, since we make 64*64 subdirectories off the requested data directory, but only make them as required
+			if (create_parent_directories_in_path(final_fs_path, strlen(root_data_directory)) < 0) {
+				return -1;
+			}
+			ret = 0;
+			
+		} else {
+			fprintf(stderr, "Couldn't link %s to %s: %s (%d)\n", final_fs_path, upload->tempfile_fs_path, strerror(errno), errno);
+			return -1;
+		}
 	}
 	
 	return 0;
@@ -505,13 +498,12 @@ int handle_post_request(
 			DEBUG_PRINT("completing failed\n", NULL);
 			return MHD_NO;
 		} else {
-			char* final_relative_path = upload->final_fs_path + strlen(daemon_options->root_data_directory);
 			if (upload->redirect_afterwards) {
-				DEBUG_PRINT("redirecting to %s\n", final_relative_path);
-				return send_redirected_response(connection, final_relative_path);
+				DEBUG_PRINT("redirecting to %s\n", upload->location);
+				return send_redirected_response(connection, upload->location);
 			} else {
-				DEBUG_PRINT("created %s\n", final_relative_path);
-				return send_see_other_response(connection, final_relative_path);
+				DEBUG_PRINT("created %s\n", upload->location);
+				return send_see_other_response(connection, upload->location);
 			}
 		}
 	}
