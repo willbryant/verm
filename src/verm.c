@@ -224,6 +224,15 @@ int handle_post_data(
 	struct Upload* upload = (struct Upload*) post_data;
 	
 	if (strcmp(key, "uploaded_file") == 0) {
+		if (offset == 0) {
+			if (content_type) {
+				upload->extension = extension_for_mime_type(content_type);
+				if (!upload->extension) upload->extension = "";
+				DEBUG_PRINT("Extension for content-type %s is %s\n", content_type, upload->extension);
+			}
+		}
+	
+		// write to the tempfile
 		DEBUG_PRINT("uploading into %s: %s, %s, %s, %s (%llu, %ld)\n", upload->tempfile_fs_path, key, filename, content_type, transfer_encoding, offset, size);
 		SHA256_Update(&upload->hasher, (unsigned char*)data, size);
 		upload->size += size;
@@ -238,12 +247,6 @@ int handle_post_data(
 			data += written;
 		}
 		
-		if (offset == 0 && content_type) {
-			DEBUG_PRINT("Looking up extension for %s\n", content_type);
-			upload->extension = extension_for_mime_type(content_type);
-			if (!upload->extension) upload->extension = "";
-		}
-	
 	} else if (strcmp(key, "redirect") == 0) {
 		if (offset == 0) {
 			upload->redirect_afterwards = boolean(data, size);
@@ -301,7 +304,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	upload->tempfile_fd = -1;
 	upload->size = 0;
 	upload->pp = NULL;
-	upload->extension = NULL;
+	upload->extension = "";
 	upload->final_fs_path[0] = 0;
 	upload->redirect_afterwards = 0;
 	
