@@ -263,12 +263,12 @@ void free_upload(struct Upload* upload) {
 	if (upload->pp) MHD_destroy_post_processor(upload->pp); // returns MHD_NO if the processor wasn't finished, but it's freed the memory anyway
 	
 	if (upload->tempfile_fd >= 0) {
-		do { ret = close(upload->tempfile_fd); } while (ret < 0 && ret == EINTR);
+		do { ret = close(upload->tempfile_fd); } while (ret < 0 && errno == EINTR);
 		if (ret < 0) { // should never happen
 			fprintf(stderr, "Failed to close upload tempfile!: %s (%d)\n", strerror(errno), errno);
 		}
 		
-		do { ret = unlink(upload->tempfile_fs_path); } while (ret < 0 && ret == EINTR);
+		do { ret = unlink(upload->tempfile_fs_path); } while (ret < 0 && errno == EINTR);
 		if (ret < 0) { // should never happen
 			fprintf(stderr, "Failed to unlink upload tempfile %s!: %s (%d)\n", upload->tempfile_fs_path, strerror(errno), errno);
 		}
