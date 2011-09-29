@@ -92,12 +92,6 @@ GNU libmicrohttpd is a GNU package.
 @acronym{MHD}
 @end macro
 
-@c ............................................................
-
-@macro glibcref{NODE, NODE}
-@pxref{\NODE\, \NODE\, \NODE\, libc}
-@end macro
-
 @c ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -119,7 +113,7 @@ GNU libmicrohttpd is a GNU package.
 * microhttpd-responses::        Building responses to requests.
 * microhttpd-dauth::            Utilizing Authentication.
 * microhttpd-post::             Adding a @code{POST} processor.
-* microhttpd-info::             Obtaining status information.
+* microhttpd-info::             Obtaining and modifying status information.
 
 Appendices
 
@@ -183,6 +177,18 @@ recover gracefully (for example, by closing the connection).
 Additionally, clients can specify resource limits on the overall
 number of connections, number of connections per IP address and memory
 used per connection to avoid resource exhaustion.
+
+@section Scope
+
+@mhd{} is currently used in a wide range of implementations. 
+Examples based on reports we've received from developers include:
+@itemize
+@item Embedded HTTP server on a cortex M3 (128 KB code space)
+@item Large-scale multimedia server (reportedly serving at the
+      simulator limit of 7.5 GB/s)
+@item Administrative console (via HTTP/HTTPS) for network appliances
+@c If you have other interesting examples, please let us know
+@end itemize
 
 @section Including the microhttpd.h header
 @cindex portability
@@ -269,7 +275,7 @@ the percent sign).
 @deftp {Enumeration} MHD_FLAG
 Options for the @mhd{} daemon.
 
-Note that if neither @code{MHD_USER_THREAD_PER_CONNECTION} nor
+Note that if neither @code{MHD_USE_THREAD_PER_CONNECTION} nor
 @code{MHD_USE_SELECT_INTERNALLY} is used, the client wants control over
 the process and will call the appropriate microhttpd callbacks.
 
@@ -700,69 +706,6 @@ own private copy of the data for processing.
 @end deftp
 
 
-@deftp {Enumeration} MHD_ConnectionInfoType
-Values of this enum are used to specify what information about a
-connection is desired.
-
-@table @code
-
-@item MHD_CONNECTION_INFO_CIPHER_ALGO
-What cipher algorithm is being used (HTTPS connections only).  
-Takes no extra arguments.
-NULL is returned for non-HTTPS connections.
-
-@item MHD_CONNECTION_INFO_PROTOCOL,
-Takes no extra arguments.   Allows finding out the TLS/SSL protocol used
-(HTTPS connections only).
-NULL is returned for non-HTTPS connections.
-
-@item MHD_CONNECTION_INFO_CLIENT_ADDRESS
-Returns information about the address of the client.  Returns 
-essentially a @code{struct sockaddr **} (since the API returns
-a @code{union MHD_ConnectionInfo *} and that union contains
-a @code{struct sockaddr *}).
-
-@item MHD_CONNECTION_INFO_GNUTLS_SESSION,
-Takes no extra arguments.  Allows access to the underlying GNUtls session,
-including access to the underlying GNUtls client certificate
-(HTTPS connections only).  Takes no extra arguments.  
-NULL is returned for non-HTTPS connections.
-
-@item MHD_CONNECTION_INFO_GNUTLS_CLIENT_CERT,
-Takes no extra arguments.  Allows access to the client certificate
-including access to the underlying GNUtls client certificate
-(HTTPS connections only).  Takes no extra arguments.
-
-@end table
-@end deftp
-
-
-
-
-@deftp {Enumeration} MHD_DaemonInfoType
-Values of this enum are used to specify what
-information about a daemon is desired.
-@table @code
-@item MHD_DAEMON_INFO_KEY_SIZE
-Request information about the key size for a particular cipher
-algorithm.  The cipher algorithm should be passed as an extra argument
-(of type 'enum MHD_GNUTLS_CipherAlgorithm').
-
-@item MHD_DAEMON_INFO_MAC_KEY_SIZE
-Request information about the key size for a particular cipher
-algorithm.  The cipher algorithm should be passed as an extra argument
-(of type 'enum MHD_GNUTLS_HashAlgorithm').
-
-@item MHD_DAEMON_INFO_LISTEN_FD
-@cindex listen
-Request the file-descriptor number that MHD is using to listen to the
-server socket.  This can be useful if no port
-was specified and a client needs to learn what port
-is actually being used by MHD.
-No extra arguments should be passed.
-
-@end table
-@end deftp
 
 
 @c ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1143,8 +1086,6 @@ is added to @var{read_fd_set}. The list of currently existent
 connections is scanned and their file descriptors added to the correct
 set.
 
-@glibcref{Waiting for I/O}, for details on file descriptor sets.
-
 After the call completed successfully: the variable referenced by
 @var{max_fd} references the file descriptor with highest integer
 identifier. The variable must be set to zero before invoking this
@@ -1161,7 +1102,12 @@ the right options for this call.
 Obtain timeout value for select for this daemon (only needed if
 connection timeout is used).  The returned value is how long
 @cfunction{select} should at most block, not the timeout value set for
-connections.
+connections.  This function must not be called if the
+@code{MHD_USE_THREAD_PER_CONNECTION} mode is in use (since then it
+is not meaningful to ask for a timeout, after all, there is 
+concurrenct activity).  The function must also not be called by
+user-code if @code{MHD_USE_INTERNAL_SELECT} is in use.  In the latter
+case, the behavior is undefined.
 
 @table @var
 @cindex timeout
@@ -1182,7 +1128,7 @@ right now).
 
 
 @deftypefun int MHD_get_connection_values (struct MHD_Connection *connection, enum MHD_ValueKind kind, MHD_KeyValueIterator iterator, void *iterator_cls)
-Get all the headers matching @var{kind} from the request.
+Get all the headers matching @var{kind} from the request.  
 
 The @var{iterator} callback is invoked once for each header, with
 @var{iterator_cls} as first argument. Return the number of entries
@@ -1191,13 +1137,22 @@ iterating, @var{iterator} returns @code{MHD_NO}.
 
 @var{iterator} can be @mynull{}: in this case this function just counts
 and returns the number of headers.
+
+In the case of @code{MHD_GET_ARGUMENT_KIND}, the @var{value} argument
+will be NULL if the URL contained a key without an equals operator.
+For example, for a HTTP request to the URL ``http://foo/bar?key'', the
+@var{value} argument is NULL; in contrast, a HTTP request to the URL
+``http://foo/bar?key='', the @var{value} argument is the empty string.
+The normal case is that the URL contains ``http://foo/bar?key=value''
+in which case @var{value} would be the string ``value'' and @var{key}
+would contain the string ``key''.
 @end deftypefun
 
 
 @deftypefun int MHD_set_connection_value (struct MHD_Connection *connection, enum MHD_ValueKind kind, const char * key, const char * value)
 This function can be used to add an entry to
 the HTTP headers of a connection (so that the 
-MHD_get_connection_values function will return
+@code{MHD_get_connection_values function} will return
 them -- and the MHD PostProcessor will also 
 see them).  This maybe required in certain
 situations (see Mantis #1399) where (broken)
@@ -1238,7 +1193,7 @@ item was found.
 
 @c ------------------------------------------------------------
 @node microhttpd-responses
-@chapter Building answers to responses
+@chapter Building responses to requests
 
 
 @noindent
@@ -1381,8 +1336,6 @@ Return @mynull{} on error (i.e. invalid arguments, out of memory).
 @deftypefun {struct MHD_Response *} MHD_create_response_from_fd (uint64_t size, int fd)
 Create a response object.  The response object can be extended with
 header information and then it can be used any number of times.
-Function is deprecated, use @code{MHD_create_response_from_fd_at_offset}
-instead (with an offset of zero).
 
 @table @var
 @item size
@@ -1929,12 +1882,13 @@ of this function.
 
 @c ------------------------------------------------------------
 @node microhttpd-info
-@chapter Obtaining status information.
+@chapter Obtaining and modifying status information.
 
 
 @menu
 * microhttpd-info daemon::        State information about an MHD daemon
 * microhttpd-info conn::          State information about a connection
+* microhttpd-option conn::        Modify per-connection options
 @end menu
 
 
@@ -1964,6 +1918,34 @@ in case the desired information is not available or
 applicable.
 @end deftypefun
 
+
+@deftp {Enumeration} MHD_DaemonInfoType
+Values of this enum are used to specify what
+information about a daemon is desired.
+@table @code
+@item MHD_DAEMON_INFO_KEY_SIZE
+Request information about the key size for a particular cipher
+algorithm.  The cipher algorithm should be passed as an extra argument
+(of type 'enum MHD_GNUTLS_CipherAlgorithm').
+
+@item MHD_DAEMON_INFO_MAC_KEY_SIZE
+Request information about the key size for a particular cipher
+algorithm.  The cipher algorithm should be passed as an extra argument
+(of type 'enum MHD_GNUTLS_HashAlgorithm').
+
+@item MHD_DAEMON_INFO_LISTEN_FD
+@cindex listen
+Request the file-descriptor number that MHD is using to listen to the
+server socket.  This can be useful if no port
+was specified and a client needs to learn what port
+is actually being used by MHD.
+No extra arguments should be passed.
+
+@end table
+@end deftp
+
+
+
 @c ------------------------------------------------------------
 @node microhttpd-info conn
 @section Obtaining state information about a connection
@@ -1990,6 +1972,87 @@ in case the desired information is not available or
 applicable.
 @end deftypefun
 
+@deftp {Enumeration} MHD_ConnectionInfoType
+Values of this enum are used to specify what information about a
+connection is desired.
+
+@table @code
+
+@item MHD_CONNECTION_INFO_CIPHER_ALGO
+What cipher algorithm is being used (HTTPS connections only).  
+Takes no extra arguments.
+NULL is returned for non-HTTPS connections.
+
+@item MHD_CONNECTION_INFO_PROTOCOL,
+Takes no extra arguments.   Allows finding out the TLS/SSL protocol used
+(HTTPS connections only).
+NULL is returned for non-HTTPS connections.
+
+@item MHD_CONNECTION_INFO_CLIENT_ADDRESS
+Returns information about the address of the client.  Returns 
+essentially a @code{struct sockaddr **} (since the API returns
+a @code{union MHD_ConnectionInfo *} and that union contains
+a @code{struct sockaddr *}).
+
+@item MHD_CONNECTION_INFO_GNUTLS_SESSION,
+Takes no extra arguments.  Allows access to the underlying GNUtls session,
+including access to the underlying GNUtls client certificate
+(HTTPS connections only).  Takes no extra arguments.  
+NULL is returned for non-HTTPS connections.
+
+@item MHD_CONNECTION_INFO_GNUTLS_CLIENT_CERT,
+Dysfunctional (never implemented, deprecated).  Use
+MHD_CONNECTION_INFO_GNUTLS_SESSION to get the @code{gnutls_session_t}
+and then call @code{gnutls_certificate_get_peers()}.
+
+@item MHD_CONNECTION_INFO_DAEMON
+Returns information about @code{struct MHD_Daemon} which manages
+this connection.
+
+@end table
+@end deftp
+
+
+
+@c ------------------------------------------------------------
+@node microhttpd-option conn
+@section Setting custom options for an individual connection
+@cindex timeout
+
+
+
+@deftypefun {int} MHD_set_connection_option (struct MHD_Connection *daemon, enum MHD_CONNECTION_OPTION option, ...)
+Set a custom option for the given connection.
+
+@table @var
+@item connection
+the connection for which an option should be set or modified;
+
+@item option
+option to set
+
+@item ...
+additional arguments for the option (depending on option)
+@end table
+
+Returns @code{MHD_YES} on success, @code{MHD_NO} for errors
+(i.e. option argument invalid or option unknown).
+@end deftypefun
+
+
+@deftp {Enumeration} MHD_CONNECTION_OPTION
+Values of this enum are used to specify which option for a
+connection should be changed.
+
+@table @code
+
+@item MHD_CONNECTION_OPTION_TIMEOUT
+Set a custom timeout for the given connection.   Specified
+as the number of seconds, given as an @code{unsigned int}.  Use
+zero for no timeout. 
+
+@end table
+@end deftp
 
 
 @c ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

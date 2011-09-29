@@ -37,9 +37,10 @@ build_triplet = @build@
 host_triplet = @host@
 @ENABLE_HTTPS_TRUE@am__append_1 = https
 check_PROGRAMS = daemontest_get$(EXEEXT) \
-	daemontest_get_sendfile$(EXEEXT) daemontest_post$(EXEEXT) \
-	daemontest_postform$(EXEEXT) daemontest_post_loop$(EXEEXT) \
-	daemontest_put$(EXEEXT) daemontest_process_headers$(EXEEXT) \
+	daemontest_get_sendfile$(EXEEXT) daemontest_urlparse$(EXEEXT) \
+	daemontest_post$(EXEEXT) daemontest_postform$(EXEEXT) \
+	daemontest_post_loop$(EXEEXT) daemontest_put$(EXEEXT) \
+	daemontest_process_headers$(EXEEXT) \
 	daemontest_process_arguments$(EXEEXT) \
 	daemontest_parse_cookies$(EXEEXT) \
 	daemontest_large_put$(EXEEXT) daemontest_get11$(EXEEXT) \
@@ -51,7 +52,8 @@ check_PROGRAMS = daemontest_get$(EXEEXT) \
 	daemontest_get_chunked$(EXEEXT) \
 	daemontest_put_chunked$(EXEEXT) daemontest_iplimit11$(EXEEXT) \
 	daemontest_termination$(EXEEXT) daemontest_timeout$(EXEEXT) \
-	$(am__EXEEXT_1)
+	test_callback$(EXEEXT) $(am__EXEEXT_1) perf_get$(EXEEXT) \
+	$(am__EXEEXT_2) $(am__EXEEXT_3)
 noinst_PROGRAMS = daemon_options_test$(EXEEXT)
 @ENABLE_DAUTH_TRUE@am__append_2 = \
 @ENABLE_DAUTH_TRUE@	daemontest_digestauth
@@ -77,7 +79,9 @@ libcurl_version_check_a_LIBADD =
 am_libcurl_version_check_a_OBJECTS = curl_version_check.$(OBJEXT)
 libcurl_version_check_a_OBJECTS =  \
 	$(am_libcurl_version_check_a_OBJECTS)
-@ENABLE_DAUTH_TRUE@am__EXEEXT_1 = daemontest_digestauth$(EXEEXT)
+@HAVE_CURL_BINARY_TRUE@@HAVE_W32_FALSE@am__EXEEXT_1 = daemontest_get_response_cleanup$(EXEEXT)
+@HAVE_W32_FALSE@am__EXEEXT_2 = perf_get_concurrent$(EXEEXT)
+@ENABLE_DAUTH_TRUE@am__EXEEXT_3 = daemontest_digestauth$(EXEEXT)
 PROGRAMS = $(noinst_PROGRAMS)
 am_daemon_options_test_OBJECTS = daemon_options_test.$(OBJEXT)
 daemon_options_test_OBJECTS = $(am_daemon_options_test_OBJECTS)
@@ -98,6 +102,12 @@ daemontest_get11_DEPENDENCIES =  \
 am_daemontest_get_chunked_OBJECTS = daemontest_get_chunked.$(OBJEXT)
 daemontest_get_chunked_OBJECTS = $(am_daemontest_get_chunked_OBJECTS)
 daemontest_get_chunked_DEPENDENCIES =  \
+	$(top_builddir)/src/daemon/libmicrohttpd.la
+am_daemontest_get_response_cleanup_OBJECTS =  \
+	daemontest_get_response_cleanup.$(OBJEXT)
+daemontest_get_response_cleanup_OBJECTS =  \
+	$(am_daemontest_get_response_cleanup_OBJECTS)
+daemontest_get_response_cleanup_DEPENDENCIES =  \
 	$(top_builddir)/src/daemon/libmicrohttpd.la
 am_daemontest_get_sendfile_OBJECTS =  \
 	daemontest_get_sendfile.$(OBJEXT)
@@ -195,6 +205,21 @@ am_daemontest_timeout_OBJECTS = daemontest_timeout.$(OBJEXT)
 daemontest_timeout_OBJECTS = $(am_daemontest_timeout_OBJECTS)
 daemontest_timeout_DEPENDENCIES =  \
 	$(top_builddir)/src/daemon/libmicrohttpd.la
+am_daemontest_urlparse_OBJECTS = daemontest_urlparse.$(OBJEXT)
+daemontest_urlparse_OBJECTS = $(am_daemontest_urlparse_OBJECTS)
+daemontest_urlparse_DEPENDENCIES =  \
+	$(top_builddir)/src/daemon/libmicrohttpd.la
+am_perf_get_OBJECTS = perf_get.$(OBJEXT)
+perf_get_OBJECTS = $(am_perf_get_OBJECTS)
+perf_get_DEPENDENCIES = $(top_builddir)/src/daemon/libmicrohttpd.la
+am_perf_get_concurrent_OBJECTS = perf_get_concurrent.$(OBJEXT)
+perf_get_concurrent_OBJECTS = $(am_perf_get_concurrent_OBJECTS)
+perf_get_concurrent_DEPENDENCIES =  \
+	$(top_builddir)/src/daemon/libmicrohttpd.la
+am_test_callback_OBJECTS = test_callback.$(OBJEXT)
+test_callback_OBJECTS = $(am_test_callback_OBJECTS)
+test_callback_DEPENDENCIES =  \
+	$(top_builddir)/src/daemon/libmicrohttpd.la
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -212,6 +237,7 @@ SOURCES = $(libcurl_version_check_a_SOURCES) \
 	$(daemon_options_test_SOURCES) \
 	$(daemontest_digestauth_SOURCES) $(daemontest_get_SOURCES) \
 	$(daemontest_get11_SOURCES) $(daemontest_get_chunked_SOURCES) \
+	$(daemontest_get_response_cleanup_SOURCES) \
 	$(daemontest_get_sendfile_SOURCES) \
 	$(daemontest_get_sendfile11_SOURCES) \
 	$(daemontest_iplimit11_SOURCES) \
@@ -229,11 +255,14 @@ SOURCES = $(libcurl_version_check_a_SOURCES) \
 	$(daemontest_put_SOURCES) $(daemontest_put11_SOURCES) \
 	$(daemontest_put_chunked_SOURCES) \
 	$(daemontest_termination_SOURCES) \
-	$(daemontest_timeout_SOURCES)
+	$(daemontest_timeout_SOURCES) $(daemontest_urlparse_SOURCES) \
+	$(perf_get_SOURCES) $(perf_get_concurrent_SOURCES) \
+	$(test_callback_SOURCES)
 DIST_SOURCES = $(libcurl_version_check_a_SOURCES) \
 	$(daemon_options_test_SOURCES) \
 	$(daemontest_digestauth_SOURCES) $(daemontest_get_SOURCES) \
 	$(daemontest_get11_SOURCES) $(daemontest_get_chunked_SOURCES) \
+	$(daemontest_get_response_cleanup_SOURCES) \
 	$(daemontest_get_sendfile_SOURCES) \
 	$(daemontest_get_sendfile11_SOURCES) \
 	$(daemontest_iplimit11_SOURCES) \
@@ -251,7 +280,9 @@ DIST_SOURCES = $(libcurl_version_check_a_SOURCES) \
 	$(daemontest_put_SOURCES) $(daemontest_put11_SOURCES) \
 	$(daemontest_put_chunked_SOURCES) \
 	$(daemontest_termination_SOURCES) \
-	$(daemontest_timeout_SOURCES)
+	$(daemontest_timeout_SOURCES) $(daemontest_urlparse_SOURCES) \
+	$(perf_get_SOURCES) $(perf_get_concurrent_SOURCES) \
+	$(test_callback_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -323,6 +354,7 @@ EXT_LIBS = @EXT_LIBS@
 EXT_LIB_PATH = @EXT_LIB_PATH@
 FGREP = @FGREP@
 GREP = @GREP@
+HAVE_CURL_BINARY = @HAVE_CURL_BINARY@
 HAVE_SOCAT = @HAVE_SOCAT@
 HAVE_ZZUF = @HAVE_ZZUF@
 INSTALL = @INSTALL@
@@ -347,6 +379,7 @@ LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
+MANIFEST_TOOL = @MANIFEST_TOOL@
 MHD_LIBDEPS = @MHD_LIBDEPS@
 MHD_LIB_LDFLAGS = @MHD_LIB_LDFLAGS@
 MKDIR_P = @MKDIR_P@
@@ -381,6 +414,7 @@ abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
+ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
@@ -413,7 +447,6 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
-lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -439,6 +472,8 @@ AM_CPPFLAGS = \
 -I$(top_srcdir)/src/include \
 $(LIBCURL_CPPFLAGS)
 
+@HAVE_W32_FALSE@PERF_GET_CONCURRENT = perf_get_concurrent
+@HAVE_CURL_BINARY_TRUE@@HAVE_W32_FALSE@CURL_FORK_TEST = daemontest_get_response_cleanup
 TESTS = $(check_PROGRAMS)
 noinst_LIBRARIES = libcurl_version_check.a
 libcurl_version_check_a_SOURCES = \
@@ -457,6 +492,29 @@ daemontest_get_LDADD = \
   $(top_builddir)/src/daemon/libmicrohttpd.la \
   @LIBCURL@ 
 
+test_callback_SOURCES = \
+  test_callback.c
+
+test_callback_LDADD = \
+  $(top_builddir)/src/daemon/libmicrohttpd.la \
+  @LIBCURL@ 
+
+perf_get_SOURCES = \
+  perf_get.c \
+  gauger.h
+
+perf_get_LDADD = \
+  $(top_builddir)/src/daemon/libmicrohttpd.la \
+  @LIBCURL@ 
+
+perf_get_concurrent_SOURCES = \
+  perf_get_concurrent.c \
+  gauger.h
+
+perf_get_concurrent_LDADD = \
+  $(top_builddir)/src/daemon/libmicrohttpd.la \
+  @LIBCURL@ 
+
 daemontest_digestauth_SOURCES = \
   daemontest_digestauth.c
 
@@ -470,6 +528,19 @@ daemontest_get_sendfile_SOURCES = \
 daemontest_get_sendfile_LDADD = \
   $(top_builddir)/src/daemon/libmicrohttpd.la \
   @LIBCURL@ 
+
+daemontest_urlparse_SOURCES = \
+  daemontest_urlparse.c
+
+daemontest_urlparse_LDADD = \
+  $(top_builddir)/src/daemon/libmicrohttpd.la \
+  @LIBCURL@ 
+
+daemontest_get_response_cleanup_SOURCES = \
+  daemontest_get_response_cleanup.c
+
+daemontest_get_response_cleanup_LDADD = \
+  $(top_builddir)/src/daemon/libmicrohttpd.la 
 
 daemontest_get_chunked_SOURCES = \
   daemontest_get_chunked.c
@@ -699,6 +770,9 @@ daemontest_get11$(EXEEXT): $(daemontest_get11_OBJECTS) $(daemontest_get11_DEPEND
 daemontest_get_chunked$(EXEEXT): $(daemontest_get_chunked_OBJECTS) $(daemontest_get_chunked_DEPENDENCIES) 
 	@rm -f daemontest_get_chunked$(EXEEXT)
 	$(LINK) $(daemontest_get_chunked_OBJECTS) $(daemontest_get_chunked_LDADD) $(LIBS)
+daemontest_get_response_cleanup$(EXEEXT): $(daemontest_get_response_cleanup_OBJECTS) $(daemontest_get_response_cleanup_DEPENDENCIES) 
+	@rm -f daemontest_get_response_cleanup$(EXEEXT)
+	$(LINK) $(daemontest_get_response_cleanup_OBJECTS) $(daemontest_get_response_cleanup_LDADD) $(LIBS)
 daemontest_get_sendfile$(EXEEXT): $(daemontest_get_sendfile_OBJECTS) $(daemontest_get_sendfile_DEPENDENCIES) 
 	@rm -f daemontest_get_sendfile$(EXEEXT)
 	$(LINK) $(daemontest_get_sendfile_OBJECTS) $(daemontest_get_sendfile_LDADD) $(LIBS)
@@ -762,6 +836,18 @@ daemontest_termination$(EXEEXT): $(daemontest_termination_OBJECTS) $(daemontest_
 daemontest_timeout$(EXEEXT): $(daemontest_timeout_OBJECTS) $(daemontest_timeout_DEPENDENCIES) 
 	@rm -f daemontest_timeout$(EXEEXT)
 	$(LINK) $(daemontest_timeout_OBJECTS) $(daemontest_timeout_LDADD) $(LIBS)
+daemontest_urlparse$(EXEEXT): $(daemontest_urlparse_OBJECTS) $(daemontest_urlparse_DEPENDENCIES) 
+	@rm -f daemontest_urlparse$(EXEEXT)
+	$(LINK) $(daemontest_urlparse_OBJECTS) $(daemontest_urlparse_LDADD) $(LIBS)
+perf_get$(EXEEXT): $(perf_get_OBJECTS) $(perf_get_DEPENDENCIES) 
+	@rm -f perf_get$(EXEEXT)
+	$(LINK) $(perf_get_OBJECTS) $(perf_get_LDADD) $(LIBS)
+perf_get_concurrent$(EXEEXT): $(perf_get_concurrent_OBJECTS) $(perf_get_concurrent_DEPENDENCIES) 
+	@rm -f perf_get_concurrent$(EXEEXT)
+	$(LINK) $(perf_get_concurrent_OBJECTS) $(perf_get_concurrent_LDADD) $(LIBS)
+test_callback$(EXEEXT): $(test_callback_OBJECTS) $(test_callback_DEPENDENCIES) 
+	@rm -f test_callback$(EXEEXT)
+	$(LINK) $(test_callback_OBJECTS) $(test_callback_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -774,6 +860,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemontest_digestauth.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemontest_get.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemontest_get_chunked.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemontest_get_response_cleanup.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemontest_get_sendfile.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemontest_iplimit.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemontest_large_put.Po@am__quote@
@@ -788,6 +875,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemontest_put_chunked.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemontest_termination.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemontest_timeout.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemontest_urlparse.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/perf_get.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/perf_get_concurrent.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_callback.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

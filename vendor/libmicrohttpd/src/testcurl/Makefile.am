@@ -19,9 +19,17 @@ AM_CPPFLAGS = \
 -I$(top_srcdir)/src/include \
 $(LIBCURL_CPPFLAGS)
 
+if !HAVE_W32
+PERF_GET_CONCURRENT=perf_get_concurrent
+if HAVE_CURL_BINARY
+CURL_FORK_TEST=daemontest_get_response_cleanup
+endif
+endif
+
 check_PROGRAMS = \
   daemontest_get \
   daemontest_get_sendfile \
+  daemontest_urlparse \
   daemontest_post \
   daemontest_postform \
   daemontest_post_loop \
@@ -43,7 +51,12 @@ check_PROGRAMS = \
   daemontest_put_chunked \
   daemontest_iplimit11 \
   daemontest_termination \
-  daemontest_timeout
+  daemontest_timeout \
+  test_callback \
+  $(CURL_FORK_TEST) \
+  perf_get $(PERF_GET_CONCURRENT)
+
+
 noinst_PROGRAMS = \
   daemon_options_test
 
@@ -70,6 +83,26 @@ daemontest_get_LDADD = \
   $(top_builddir)/src/daemon/libmicrohttpd.la \
   @LIBCURL@ 
 
+test_callback_SOURCES = \
+  test_callback.c
+test_callback_LDADD = \
+  $(top_builddir)/src/daemon/libmicrohttpd.la \
+  @LIBCURL@ 
+
+perf_get_SOURCES = \
+  perf_get.c \
+  gauger.h
+perf_get_LDADD = \
+  $(top_builddir)/src/daemon/libmicrohttpd.la \
+  @LIBCURL@ 
+
+perf_get_concurrent_SOURCES = \
+  perf_get_concurrent.c \
+  gauger.h
+perf_get_concurrent_LDADD = \
+  $(top_builddir)/src/daemon/libmicrohttpd.la \
+  @LIBCURL@ 
+
 daemontest_digestauth_SOURCES = \
   daemontest_digestauth.c
 daemontest_digestauth_LDADD = \
@@ -81,6 +114,17 @@ daemontest_get_sendfile_SOURCES = \
 daemontest_get_sendfile_LDADD = \
   $(top_builddir)/src/daemon/libmicrohttpd.la \
   @LIBCURL@ 
+
+daemontest_urlparse_SOURCES = \
+  daemontest_urlparse.c
+daemontest_urlparse_LDADD = \
+  $(top_builddir)/src/daemon/libmicrohttpd.la \
+  @LIBCURL@ 
+
+daemontest_get_response_cleanup_SOURCES = \
+  daemontest_get_response_cleanup.c
+daemontest_get_response_cleanup_LDADD = \
+  $(top_builddir)/src/daemon/libmicrohttpd.la 
 
 daemontest_get_chunked_SOURCES = \
   daemontest_get_chunked.c

@@ -1,3 +1,105 @@
+Wed Sep 28 08:37:55 CEST 2011
+	Releasing libmicrohttpd 0.9.15. -CG
+
+Tue Sep 27 13:07:36 CEST 2011
+	Added ability to access URL arguments of the form 'url?foo' (without
+	'=').  Added testcase and updated documentation accordingly. -CG
+
+Mon Sep 26 21:24:00 CEST 2011
+	Only run response cleanup testcase if curl binary was found by
+	configure. -CG
+
+Wed Sep 21 09:53:18 CEST 2011
+	Reverting to using pipes for signalling select on non-Linux
+	platforms where shutdown-on-listen-sockets does not work. -WB/CG
+
+Mon Sep 19 14:06:30 CEST 2011
+	Fixing problem introduced with prompt response cleanup code. -CG
+
+Wed Sep 14 13:43:26 CEST 2011
+	Fixing minor memory leak if daemon with HTTPS support failed to
+	initialize (#1766). -CG
+
+Tue Sep 13 09:47:58 CEST 2011
+	Try to release responses more promptly upon connection termination. -CG
+
+Mon Sep 12 10:20:28 CEST 2011
+	Releasing libmicrohttpd 0.9.14. -CG
+
+Mon Sep 12 10:05:36 CEST 2011
+	Added new function to allow setting of a custom timeout value
+	for an individual connection (the MHD_set_connection_option is
+	more generic, but this is currently the only use). -CG
+
+Sat Sep 10 07:30:12 CEST 2011
+	Documenting that MHD_CONNECTION_INFO_GNUTLS_CLIENT_CERT is not
+	implemented and will not be implemented, and what to use instead. -CG
+
+Fri Sep  9 13:42:20 CEST 2011
+	Added testcase to demonstrate that response cleanup calling is
+	working. No bug was found. -CG
+
+Thu Aug 18 11:05:16 CEST 2011
+	Fixed bug with wrong state transition if callback returned
+	MHD_CONTENT_READER_END_OF_STREAM causing spurious extra callbacks
+	to the handler (thanks to Jan Seeger for pointing it out). -CG/JS
+
+Thu Aug 11 11:40:03 CEST 2011
+	Changing sockets to be non-blocking as suggested by Eivind Sarto
+	on the mailinglist. -CG
+
+Mon Jul 25 16:13:15 CEST 2011
+	Added a logo. -CG
+
+Sat Jul 16 22:42:10 CEST 2011
+	Change type of nonce to 'unsigned long int' to match return type
+	from 'strtoul'.  Fixes ERANGE check which would have previously
+	failed. -CG
+
+Wed Jul 13 09:26:17 CEST 2011
+	Fixing HTTP error status strings for certain high-numbered status codes.
+	Added support for some more (non-standard) status codes.
+	Releasing libmicrohttpd 0.9.13. -CG
+
+Thu Jul  7 10:24:20 CEST 2011
+	Adding performance measurements. -CG
+
+Thu Jun 23 14:21:13 CEST 2011
+	Releasing libmicrohttpd 0.9.12. -CG
+
+Wed Jun 22 14:32:23 CEST 2011
+	Force closing connection if either the client asked it or
+	if the response contains 'Connection: close' (so far,
+	only the client's request was considered). -CG/RV
+
+Wed Jun 22 10:37:35 CEST 2011
+	Removing listen socket from poll/select sets in
+	MHD_USE_THREAD_PER_CONNECTION mode; using 'shutdown'
+	on connection sockets to signal termination instead. -CG
+
+Wed Jun 22 10:25:13 CEST 2011
+	Eliminate unnecessary (and badly synchronized) calls to
+	MHD_get_timeout in MHD_USE_THREAD_PER_CONNECTION mode.
+	Document that this is not acceptable. -CG
+
+Tue Jun 21 13:54:59 CEST 2011
+	Fixing tiny memory leak in SSL code from 'gnutls_priority_init'.
+	Fixing data race between code doing connection shutdown and
+	connection cleanup.
+	Changing code to reduce connection cleanup cost from O(n) to O(1).
+	Cleaning up logging code around 'connection_close_error'. -CG
+
+Sat Jun 11 13:05:12 CEST 2011
+	Replacing use of sscanf by strtoul (#1688). -CG/bplant
+
+Fri Jun  3 15:26:42 CEST 2011
+	Adding MHD_CONNECTION_INFO_DAEMON to obtain MHD_Daemon
+	responsible for a given connection. -CG
+
+Wed May 25 14:23:20 CEST 2011
+	Trying to fix stutter problem on timeout described by
+	David Myers on the mailinglist (5/10/2011). -CG
+
 Fri May 20 22:11:55 CEST 2011
 	Fixed bug in testcase setup code causing crashes in
 	tls_session_timeout_test on some systems.
