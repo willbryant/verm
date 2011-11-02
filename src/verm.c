@@ -42,6 +42,8 @@ struct Upload {
 	int redirect_afterwards;
 };
 
+const char* dummy_to_indicate_second_call = "not-null";
+
 int add_content_length(struct MHD_Response* response, size_t content_length) {
 	char buf[32];
 	snprintf(buf, sizeof(buf), "%lu", content_length);
@@ -107,7 +109,7 @@ int accept_gzip_encoding(struct MHD_Connection* connection) {
 
 int handle_get_or_head_request(
 	struct Options* daemon_options, struct MHD_Connection* connection,
-    const char* path, void** _request_data, int send_data) {
+    const char* path, void** request_data, int send_data) {
 
 	int fd;
 	struct stat st;
@@ -116,6 +118,13 @@ int handle_get_or_head_request(
 	char fs_path[MAX_PATH_LENGTH];
 	const char* request_value;
 	int want_decompressed = 0;
+
+	// later versions of libmicrohttpd misbehave if we queue a response immediately on receiving the request;
+	// we are supposed to wait until the second call
+	if (NULL == *request_data) {
+		*request_data = dummy_to_indicate_second_call;
+		return MHD_YES;
+	}
 
 	if (strcmp(path, "/") == 0) {
 		return send_upload_page_response(connection);
@@ -536,7 +545,7 @@ int handle_request_completed(
 	void **request_data,
 	enum MHD_RequestTerminationCode toe) {
 	
-	if (*request_data) {
+	if (*request_data && *request_data != dummy_to_indicate_second_call) {
 		free_upload((struct Upload*) *request_data);
 		*request_data = NULL;
 	}
