@@ -494,13 +494,13 @@ int handle_request_completed(
 int help() {
 	fprintf(stderr, "%s",
 		"Usage: verm\n"
-		"          - Runs verm.\n"
+		"          - Runs Verm.\n"
 		"\n"
-		"            verm requires no privileges except read/write access to the data directory, and should\n"
+		"            Verm requires no privileges except read/write access to the data directory, and should\n"
 		"            be run as the user you want to own the files.\n"
-		"            It can be run as root, but running your daemons as root is generally discouraged.\n"
+		"            It can be run as root, but running daemons as root is generally discouraged.\n"
 		"\n"
-		"Options: -d /foo           Changes the root data directory to /foo.  Must be fully-qualified (ie. it must\n"
+		"Options: -d /foo           Sets the root data directory to /foo.  Must be fully-qualified (ie. it must\n"
 		"                           start with a /).  Default: %s.\n"
 		"         -l <port>         Listen on the given port.  Default: %d.\n"
 		"         -m <filename>     Load MIME content-types from the given file.  Default: %s.\n"
