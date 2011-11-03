@@ -27,6 +27,7 @@
 #endif
 
 struct Options {
+	int quiet;
 	char* root_data_directory;
 };
 
@@ -593,8 +594,8 @@ int main(int argc, char* argv[]) {
 	int port = DEFAULT_HTTP_PORT;
 	const char* mime_types_file = default_mime_types_file();
 	int complain_about_mime_types = 0;
-	int quiet = 0;
 	struct Options daemon_options;
+	daemon_options.quiet = 0;
 	daemon_options.root_data_directory = DEFAULT_ROOT;
 	
 	int c;
@@ -616,7 +617,7 @@ int main(int argc, char* argv[]) {
 				break;
 			
 			case 'q':
-				quiet = 1;
+				daemon_options.quiet = 1;
 				break;
 			
 			case '?':
@@ -646,10 +647,10 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	
-	if (!quiet) fprintf(stdout, "Verm listening on http://localhost:%d/, data in %s\n", port, daemon_options.root_data_directory);
+	if (!daemon_options.quiet) fprintf(stdout, "Verm listening on http://localhost:%d/, data in %s\n", port, daemon_options.root_data_directory);
 	if (wait_for_termination() < 0) return 6;
 
 	MHD_stop_daemon(daemon);
-	if (!quiet) fprintf(stdout, "Verm shutdown\n");
+	if (!daemon_options.quiet) fprintf(stdout, "Verm shutdown\n");
 	return 0;
 }
