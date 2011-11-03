@@ -60,7 +60,7 @@ int handle_get_or_head_request(
 	// later versions of libmicrohttpd misbehave if we queue a response immediately on receiving the request;
 	// we are supposed to wait until the second call
 	if (NULL == *request_data) {
-		*request_data = dummy_to_indicate_second_call;
+		*request_data = (void*) dummy_to_indicate_second_call;
 		return MHD_YES;
 	}
 
