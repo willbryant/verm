@@ -55,6 +55,6 @@ int send_redirected_response(struct MHD_Connection* connection, char* location) 
 	send_redirect(connection, MHD_HTTP_SEE_OTHER, location, REDIRECT_PAGE);
 }
 
-int send_see_other_response(struct MHD_Connection* connection, char* location) {
+int send_created_response(struct MHD_Connection* connection, char* location) {
 	send_redirect(connection, MHD_HTTP_CREATED, location, CREATED_PAGE);
 }

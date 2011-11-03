@@ -450,7 +450,7 @@ int handle_post_request(
 				return send_redirected_response(connection, upload->location);
 			} else {
 				DEBUG_PRINT("created %s\n", upload->location);
-				return send_see_other_response(connection, upload->location);
+				return send_created_response(connection, upload->location);
 			}
 		}
 	}
