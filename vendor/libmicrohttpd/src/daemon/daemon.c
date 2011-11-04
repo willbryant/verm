@@ -751,11 +751,10 @@ send_param_adapter (struct MHD_Connection *connection,
 		      (size_t) left);
       if (ret != -1)
 	return ret;
-      if (EINTR == errno) 
+      if ((EINTR == errno) || (EAGAIN == errno))
 	return 0;
       if ( (EINVAL == errno) ||
-	   (EBADF == errno) ||
-	   (EAGAIN == errno) )
+	   (EBADF == errno) )
 	return -1; 
       /* None of the 'usual' sendfile errors occurred, so we should try
 	 to fall back to 'SEND'; see also this thread for info on
@@ -764,40 +763,6 @@ send_param_adapter (struct MHD_Connection *connection,
     }
 #endif
   return SEND (connection->socket_fd, other, i, MSG_NOSIGNAL);
-}
-
-
-/**
- * Set if a socket should use non-blocking IO.
- * @param fd socket
- */
-static void
-socket_set_nonblocking (int fd)
-{
-#if MINGW
-  u_long mode;
-  mode = 1;
-  if (ioctlsocket (fd, FIONBIO, &mode) == SOCKET_ERROR)
-    {
-      SetErrnoFromWinsockError (WSAGetLastError ());
-#if HAVE_MESSAGES
-      FPRINTF(stderr, "Failed to make socket non-blocking: %s\n", 
-	      STRERROR (errno));
-#endif
-    }
-#else
-
-  /* not MINGW */
-  int flags = fcntl (fd, F_GETFL);
-  if ( (flags == -1) ||
-       (0 != fcntl (fd, F_SETFL, flags | O_NONBLOCK)) )
-    {
-#if HAVE_MESSAGES
-      FPRINTF(stderr, "Failed to make socket non-blocking: %s\n", 
-	      STRERROR (errno));
-#endif
-    }
-#endif
 }
 
 
@@ -979,7 +944,21 @@ MHD_add_connection (struct MHD_Daemon *daemon,
   MHD_set_http_callbacks_ (connection);
   connection->recv_cls = &recv_param_adapter;
   connection->send_cls = &send_param_adapter;
-  socket_set_nonblocking (connection->socket_fd);
+#if LINUX
+  {
+    /* non-blocking sockets perform better on Linux */
+    int flags = fcntl (connection->socket_fd, F_GETFL);
+    if ( (flags == -1) ||
+	 (0 != fcntl (connection->socket_fd, F_SETFL, flags | O_NONBLOCK)) )
+      {
+#if HAVE_MESSAGES
+	FPRINTF(stderr, "Failed to make socket non-blocking: %s\n", 
+		STRERROR (errno));
+#endif
+      }
+  }
+#endif
+
 #if HTTPS_SUPPORT
   if (0 != (daemon->options & MHD_USE_SSL))
     {
@@ -2466,7 +2445,8 @@ close_all_connections (struct MHD_Daemon *daemon)
       abort();
     }
   for (pos = daemon->connections_head; pos != NULL; pos = pos->next)    
-    SHUTDOWN (pos->socket_fd, SHUT_RDWR);    
+    SHUTDOWN (pos->socket_fd, 
+	      (pos->read_closed == MHD_YES) ? SHUT_WR : SHUT_RDWR);    
   if (0 != pthread_mutex_unlock(&daemon->cleanup_connection_mutex))
     {
 #if HAVE_MESSAGES

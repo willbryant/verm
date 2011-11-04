@@ -277,7 +277,7 @@ need_100_continue (struct MHD_Connection *connection)
 
   return ((connection->response == NULL) &&
           (connection->version != NULL) &&
-          (0 == strcasecmp (connection->version,
+	 (0 == strcasecmp (connection->version,
                             MHD_HTTP_VERSION_1_1)) &&
           (NULL != (expect = MHD_lookup_connection_value (connection,
                                                           MHD_HEADER_KIND,
@@ -302,7 +302,8 @@ MHD_connection_close (struct MHD_Connection *connection,
   struct MHD_Daemon *daemon;
 
   daemon = connection->daemon;
-  SHUTDOWN (connection->socket_fd, SHUT_RDWR);
+  SHUTDOWN (connection->socket_fd, 
+	    (connection->read_closed == MHD_YES) ? SHUT_WR : SHUT_RDWR);
   connection->state = MHD_CONNECTION_CLOSED;
   if ( (NULL != daemon->notify_completed) &&
        (MHD_YES == connection->client_aware) )
@@ -608,10 +609,10 @@ try_grow_read_buffer (struct MHD_Connection *connection)
   return MHD_YES;
 }
 
+
 /**
- * Allocate the connection's write buffer and
- * fill it with all of the headers (or footers,
- * if we have already sent the body) from the
+ * Allocate the connection's write buffer and fill it with all of the
+ * headers (or footers, if we have already sent the body) from the
  * HTTPd's response.
  */
 static int
@@ -626,6 +627,7 @@ build_header_response (struct MHD_Connection *connection)
   enum MHD_ValueKind kind;
   const char *reason_phrase;
   uint32_t rc;
+  int must_add_close;
 
   EXTRA_CHECK (NULL != connection->version);
   if (0 == strlen(connection->version))
@@ -669,6 +671,13 @@ build_header_response (struct MHD_Connection *connection)
       kind = MHD_FOOTER_KIND;
       off = 0;
     }
+  must_add_close = ( (connection->read_closed == MHD_YES) &&
+		     (0 == strcasecmp (connection->version,
+				       MHD_HTTP_VERSION_1_1)) &&
+		     (NULL == MHD_get_response_header (connection->response,
+						       MHD_HTTP_HEADER_CONNECTION)) );
+  if (must_add_close)
+    size += strlen ("Connection: close\r\n");
   pos = connection->response->first_header;
   while (pos != NULL)
     {
@@ -689,6 +698,16 @@ build_header_response (struct MHD_Connection *connection)
     {
       memcpy (data, code, off);
     }
+  if (must_add_close)
+    {
+      /* we must add the 'close' header because circumstances forced us to
+	 stop reading from the socket; however, we are not adding the header
+	 to the response as the response may be used in a different context
+	 as well */
+      memcpy (&data[off], "Connection: close\r\n",
+	      strlen ("Connection: close\r\n"));
+      off += strlen ("Connection: close\r\n");
+    }
   pos = connection->response->first_header;
   while (pos != NULL)
     {
@@ -703,6 +722,7 @@ build_header_response (struct MHD_Connection *connection)
     }
   memcpy (&data[off], "\r\n", 2);
   off += 2;
+
   if (off != size)
     mhd_panic (mhd_panic_cls, __FILE__, __LINE__, NULL);
   connection->write_buffer = data;
@@ -711,6 +731,7 @@ build_header_response (struct MHD_Connection *connection)
   connection->write_buffer_size = size + 1;
   return MHD_YES;
 }
+
 
 /**
  * We encountered an error processing the request.
@@ -1463,7 +1484,7 @@ do_read (struct MHD_Connection *connection)
                                      connection->read_buffer_offset);
   if (bytes_read < 0)
     {
-      if (errno == EINTR)
+      if ((errno == EINTR) || (errno == EAGAIN))
         return MHD_NO;
 #if HAVE_MESSAGES
 #if HTTPS_SUPPORT
@@ -1510,7 +1531,7 @@ do_write (struct MHD_Connection *connection)
 
   if (ret < 0)
     {
-      if (errno == EINTR)
+      if ((errno == EINTR) || (errno == EAGAIN))
         return MHD_NO;
 #if HAVE_MESSAGES
 #if HTTPS_SUPPORT
@@ -1836,7 +1857,7 @@ MHD_connection_handle_write (struct MHD_Connection *connection)
                                       connection->continue_message_write_offset);
           if (ret < 0)
             {
-              if (errno == EINTR)
+              if ((errno == EINTR) || (errno == EAGAIN))
                 break;
 #if HAVE_MESSAGES
               MHD_DLOG (connection->daemon,
@@ -1898,7 +1919,7 @@ MHD_connection_handle_write (struct MHD_Connection *connection)
             pthread_mutex_unlock (&response->mutex);
           if (ret < 0)
             {
-              if (errno == EINTR)
+              if ((errno == EINTR) || (errno == EAGAIN))
                 return MHD_YES;
 #if HAVE_MESSAGES
               MHD_DLOG (connection->daemon,

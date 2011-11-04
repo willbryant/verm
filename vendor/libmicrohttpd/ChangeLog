@@ -1,3 +1,30 @@
+Fri Nov  4 10:03:00 CET 2011
+	Small updates to the tutorial. -CG
+
+Thu Nov  3 10:14:59 CET 2011
+	shutdown(RDWR) fails on OS X after shutdown(RD), so only use
+	shutdown(WR) if we already closed the socket for reading (otherwise
+	OS X might not do shutdown (WR) at all). -CG
+
+Tue Nov  1 18:51:50 CET 2011
+	Force adding of 'Connection: close' to the header if we (for whatever
+	reason) are shutting down the socket for reading (see also
+	#1760). -CG
+
+Thu Oct 27 14:16:34 CEST 2011
+	Treat EAGAIN the same way as EINTR (helps on W32). -LRN
+
+Wed Oct 12 10:40:12 CEST 2011
+	Made sockets blocking again for non-Linux platforms as non-blocking
+	sockets cause problems (#1824) on Cygwin but offer better performance
+	on Linux (see change on August 11 2011). -CG/pross
+
+Fri Oct  7 19:50:07 CEST 2011
+ 	Fixed problems with testcases on W32. -LRN
+
+Fri Sep 30 17:56:36 CEST 2011
+	Fixed MHD_CONNECTION_OPTION_TIMEOUT for HTTPS (#1811). -CG
+
 Wed Sep 28 08:37:55 CEST 2011
 	Releasing libmicrohttpd 0.9.15. -CG
 

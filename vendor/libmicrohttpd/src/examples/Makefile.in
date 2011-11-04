@@ -99,8 +99,10 @@ minimal_example_comet_DEPENDENCIES =  \
 	$(top_builddir)/src/daemon/libmicrohttpd.la
 am_post_example_OBJECTS = post_example.$(OBJEXT)
 post_example_OBJECTS = $(am_post_example_OBJECTS)
+am__DEPENDENCIES_1 =
 post_example_DEPENDENCIES =  \
-	$(top_builddir)/src/daemon/libmicrohttpd.la
+	$(top_builddir)/src/daemon/libmicrohttpd.la \
+	$(am__DEPENDENCIES_1)
 am_querystring_example_OBJECTS = querystring_example.$(OBJEXT)
 querystring_example_OBJECTS = $(am_querystring_example_OBJECTS)
 querystring_example_DEPENDENCIES =  \
@@ -321,6 +323,7 @@ AM_CPPFLAGS = \
   @LIBGCRYPT_CFLAGS@
 
 @USE_COVERAGE_TRUE@AM_CFLAGS = --coverage
+@HAVE_W32_TRUE@IBERTY = -liberty
 minimal_example_SOURCES = \
  minimal_example.c 
 
@@ -331,7 +334,8 @@ post_example_SOURCES = \
  post_example.c 
 
 post_example_LDADD = \
- $(top_builddir)/src/daemon/libmicrohttpd.la 
+ $(top_builddir)/src/daemon/libmicrohttpd.la \
+ $(IBERTY)
 
 minimal_example_comet_SOURCES = \
  minimal_example_comet.c 
