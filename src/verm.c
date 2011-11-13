@@ -41,6 +41,7 @@ struct Upload {
 	struct MHD_PostProcessor* pp;
 	SHA256_CTX hasher;
 	const char* extension;
+	const char* encoding_suffix;
 	char location[MAX_PATH_LENGTH];
 	int redirect_afterwards;
 };
@@ -167,7 +168,7 @@ int handle_get_or_head_request(
 
 int handle_post_data(
 	void *post_data, enum MHD_ValueKind kind, const char *key, const char *filename,
-	const char *content_type, const char *transfer_encoding,
+	const char *content_type, const char *content_encoding,
 	const char *data, uint64_t offset, size_t size) {
 
 	struct Upload* upload = (struct Upload*) post_data;
@@ -179,10 +180,16 @@ int handle_post_data(
 				if (!upload->extension) upload->extension = "";
 				DEBUG_PRINT("Extension for content-type %s is %s\n", content_type, upload->extension);
 			}
+			if (content_encoding) {
+				if (strcmp(content_encoding, "gzip") == 0) {
+					upload->encoding_suffix = ".gz";
+				}
+				DEBUG_PRINT("Extension suffix for encoding %s is %s\n", content_encoding, upload->encoding_suffix);
+			}
 		}
 	
 		// write to the tempfile
-		DEBUG_PRINT("uploading into %s: %s, %s, %s, %s (%llu, %ld)\n", upload->tempfile_fs_path, key, filename, content_type, transfer_encoding, offset, size);
+		DEBUG_PRINT("uploading into %s: %s, %s, %s, %s (%llu, %ld)\n", upload->tempfile_fs_path, key, filename, content_type, content_encoding, offset, size);
 		SHA256_Update(&upload->hasher, (unsigned char*)data, size);
 		upload->size += size;
 		while (size > 0) {
@@ -273,6 +280,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	upload->size = 0;
 	upload->pp = NULL;
 	upload->extension = "";
+	upload->encoding_suffix = "";
 	upload->location[0] = 0;
 	upload->redirect_afterwards = 0;
 	
@@ -326,7 +334,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 
 int process_upload_data(struct MHD_Connection* connection, struct Upload* upload, const char *upload_data, size_t *upload_data_size) {
 	const char *content_type = NULL;
-	const char *transfer_encoding = NULL;
+	const char *content_encoding = NULL;
 	uint64_t offset = 0;
 
 	if (upload->pp) {
@@ -336,11 +344,11 @@ int process_upload_data(struct MHD_Connection* connection, struct Upload* upload
 		// raw POST
 		if ((offset = upload->size) == 0) {
 			// first call, need to pass in the content headers
-			content_type      = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_TYPE);
-			transfer_encoding = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_TRANSFER_ENCODING);
+			content_type     = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_TYPE);
+			content_encoding = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_ENCODING);
 		}
 		if (handle_post_data(upload, MHD_POSTDATA_KIND, UPLOADED_FILE_FIELD_NAME, NULL,
-		                     content_type, transfer_encoding,
+		                     content_type, content_encoding,
 		                     upload_data, 0, *upload_data_size) != MHD_YES) return MHD_NO;
 	}
 	*upload_data_size = 0;
@@ -374,7 +382,7 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 
 	while (1) {
 		if (ret >= sizeof(upload->location) || // shouldn't possible unless misconfigured
-		    snprintf(final_fs_path, sizeof(final_fs_path), "%s%s", root_data_directory, upload->location) >= sizeof(final_fs_path)) { // same
+		    snprintf(final_fs_path, sizeof(final_fs_path), "%s%s%s", root_data_directory, upload->location, upload->encoding_suffix) >= sizeof(final_fs_path)) { // same
 			fprintf(stderr, "Couldn't generate filename for %s under %s within limits\n", upload->tempfile_fs_path, root_data_directory);
 			return -1;
 		}

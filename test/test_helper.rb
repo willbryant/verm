@@ -37,6 +37,7 @@ module Verm
       if @raw
         request = Net::HTTP::Post.new(options[:path])
         request.content_type = options[:type]
+        request['Content-Encoding'] = options[:encoding] if options[:encoding]
       else
         request = Net::HTTP::MultipartPost.new(options[:path])
         request.attach 'uploaded_file', file_data, options[:file], options[:type]
@@ -55,11 +56,13 @@ module Verm
       end
 
       dest_filename = File.expand_path(File.join(VERM_SPAWNER.verm_data, location))
+      raise "The data was saved to #{dest_filename}, but it was supposed to have a #{options[:expected_extension]} extension" if options[:expected_extension] && dest_filename[(-options[:expected_extension].length - 1)..-1] != ".#{options[:expected_extension]}"
+
+      dest_filename += '.' + options[:expected_extension_suffix] if options[:expected_extension_suffix]
       raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
       saved_data = File.read(dest_filename)
       raise "The data saved to verm doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
       raise "The data was saved to #{location}, but it was supposed to be saved under #{options[:path]}/" if location[0..options[:path].length] != "#{options[:path]}/"
-      raise "The data was saved to #{dest_filename}, but it was supposed to have a #{options[:expected_extension]} extension" if options[:expected_extension] && dest_filename[(-options[:expected_extension].length - 1)..-1] != ".#{options[:expected_extension]}"
       dest_filename
     end
     
