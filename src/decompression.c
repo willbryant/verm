@@ -2,7 +2,7 @@
 #include "microhttpd.h"
 #include <zlib.h>
 
-void* create_decompressor(int fd) {
+void *create_file_decompressor(int fd) {
 	gzFile gz_file = gzdopen(fd, "rb");
 	
     if (!gz_file) {
@@ -13,12 +13,12 @@ void* create_decompressor(int fd) {
 	return gz_file;
 }
 
-void destroy_decompressor(void* decompression_info) {
+void destroy_file_decompressor(void *decompression_info) {
 	gzFile gz_file = (gzFile) decompression_info;
 	gzclose(gz_file); // also closes the original file descriptor
 }
 
-ssize_t decompress_chunk(void* decompression_info, uint64_t pos, char* buf, size_t max) {
+ssize_t decompress_file_chunk(void *decompression_info, uint64_t pos, char *buf, size_t max) {
 	gzFile gz_file = (gzFile) decompression_info;
 	int result = gzread(gz_file, buf, max);
 	if (result < 0) {
