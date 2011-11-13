@@ -306,6 +306,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	upload->tempfile_fd = -1;
 	upload->size = 0;
 	upload->pp = NULL;
+	upload->decompressor = NULL;
 	upload->extension = "";
 	upload->encoding_suffix = "";
 	upload->location[0] = 0;
