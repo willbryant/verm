@@ -40,6 +40,7 @@ struct Upload {
 	size_t size;
 	struct MHD_PostProcessor* pp;
 	SHA256_CTX hasher;
+	void* decompressor;
 	const char* extension;
 	const char* encoding_suffix;
 	char location[MAX_PATH_LENGTH];
@@ -166,6 +167,24 @@ int handle_get_or_head_request(
 	return ret;
 }
 
+void update_upload_hash(struct Upload* upload, const char *data, size_t size) {
+	SHA256_Update(&upload->hasher, (unsigned char*)data, size);
+}
+
+int decompress_and_update_upload_hash(struct Upload* upload, const char *data, size_t size) {
+	char decompressed[16384];
+	ssize_t decompressed_size;
+
+	while (1) {
+		decompressed_size = decompress_memory_chunk(upload->decompressor, &data, &size, decompressed, sizeof(decompressed));
+		if (decompressed_size == -1) return 1;
+		if (decompressed_size == 0) break;
+		update_upload_hash(upload, decompressed, decompressed_size);
+	}
+
+	return 0;
+}
+
 int handle_post_data(
 	void *post_data, enum MHD_ValueKind kind, const char *key, const char *filename,
 	const char *content_type, const char *content_encoding,
@@ -183,6 +202,8 @@ int handle_post_data(
 			if (content_encoding) {
 				if (strcmp(content_encoding, "gzip") == 0) {
 					upload->encoding_suffix = ".gz";
+					upload->decompressor = create_memory_decompressor(); // we have to decompress the file to hash it and determine the filename (but we save the wire content as it is, so the files should be binary-identical even if zlib is set up differently)
+					if (!upload->decompressor) return MHD_NO; // presumably out of memory; create_memory_decompressor() has already printed an error
 				}
 				DEBUG_PRINT("Extension suffix for encoding %s is %s\n", content_encoding, upload->encoding_suffix);
 			}
@@ -190,7 +211,11 @@ int handle_post_data(
 	
 		// write to the tempfile
 		DEBUG_PRINT("uploading into %s: %s, %s, %s, %s (%llu, %ld)\n", upload->tempfile_fs_path, key, filename, content_type, content_encoding, offset, size);
-		SHA256_Update(&upload->hasher, (unsigned char*)data, size);
+		if (upload->decompressor) {
+			if (decompress_and_update_upload_hash(upload, data, size)) return MHD_NO;
+		} else {
+			update_upload_hash(upload, data, size);
+		}
 		upload->size += size;
 		while (size > 0) {
 			ssize_t written = write(upload->tempfile_fd, data, size);
@@ -215,6 +240,8 @@ int handle_post_data(
 void free_upload(struct Upload* upload) {
 	DEBUG_PRINT("freeing upload object\n", NULL);
 	int ret;
+
+	if (upload->decompressor) destroy_memory_decompressor(upload->decompressor);
 	
 	if (upload->pp) MHD_destroy_post_processor(upload->pp); // returns MHD_NO if the processor wasn't finished, but it's freed the memory anyway
 	
