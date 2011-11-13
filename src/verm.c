@@ -26,6 +26,8 @@
 	#define DEBUG_PRINT(...) 
 #endif
 
+#define UPLOADED_FILE_FIELD_NAME "uploaded_file"
+
 struct Options {
 	int quiet;
 	char* root_data_directory;
@@ -170,7 +172,7 @@ int handle_post_data(
 
 	struct Upload* upload = (struct Upload*) post_data;
 	
-	if (strcmp(key, "uploaded_file") == 0) {
+	if (strcmp(key, UPLOADED_FILE_FIELD_NAME) == 0) {
 		if (offset == 0) {
 			if (content_type) {
 				upload->extension = extension_for_mime_type(content_type);
@@ -252,6 +254,7 @@ int create_parent_directories_in_path(char* path, int root_directory_length) {
 }
 
 struct Upload* create_upload(struct MHD_Connection *connection, const char* root_data_directory, const char *path) {
+	const char* request_value;
 	char* s;
 	
 	if (path[0] != '/' || strstr(path, "/..") || strlen(path) >= MAX_DIRECTORY_LENGTH) {
@@ -287,11 +290,16 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	
 	SHA256_Init(&upload->hasher);
 	
-	upload->pp = MHD_create_post_processor(connection, POST_BUFFER_SIZE, &handle_post_data, upload);
-	if (!upload->pp) { // presumably out of memory
-		fprintf(stderr, "Couldn't create a post processor! (out of memory?)\n");
-		free_upload(upload);
-		return NULL;
+	if ((request_value = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_TYPE)) &&
+	    (strncasecmp(request_value, MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA, strlen(MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA)) == 0 ||
+	     strncasecmp(request_value, MHD_HTTP_POST_ENCODING_FORM_URLENCODED,    strlen(MHD_HTTP_POST_ENCODING_FORM_URLENCODED)) == 0)) {
+	    // an encoded form
+		upload->pp = MHD_create_post_processor(connection, POST_BUFFER_SIZE, &handle_post_data, upload);
+		if (!upload->pp) { // presumably out of memory
+			fprintf(stderr, "Couldn't create a post processor! (out of memory?)\n");
+			free_upload(upload);
+			return NULL;
+		}
 	}
 	
 	_try_make_tempfile(upload, root_data_directory);
@@ -316,8 +324,25 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	return upload;
 }
 
-int process_upload_data(struct Upload* upload, const char *upload_data, size_t *upload_data_size) {
-	if (MHD_post_process(upload->pp, upload_data, *upload_data_size) != MHD_YES) return MHD_NO;
+int process_upload_data(struct MHD_Connection* connection, struct Upload* upload, const char *upload_data, size_t *upload_data_size) {
+	const char *content_type = NULL;
+	const char *transfer_encoding = NULL;
+	uint64_t offset = 0;
+
+	if (upload->pp) {
+		// encoded form
+		if (MHD_post_process(upload->pp, upload_data, *upload_data_size) != MHD_YES) return MHD_NO;
+	} else {
+		// raw POST
+		if ((offset = upload->size) == 0) {
+			// first call, need to pass in the content headers
+			content_type      = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_TYPE);
+			transfer_encoding = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_TRANSFER_ENCODING);
+		}
+		if (handle_post_data(upload, MHD_POSTDATA_KIND, UPLOADED_FILE_FIELD_NAME, NULL,
+		                     content_type, transfer_encoding,
+		                     upload_data, 0, *upload_data_size) != MHD_YES) return MHD_NO;
+	}
 	*upload_data_size = 0;
 	return MHD_YES;
 }
@@ -438,7 +463,7 @@ int handle_post_request(
 	
 	struct Upload* upload = (struct Upload*) *request_data;
 	if (*upload_data_size > 0) {
-	 	return process_upload_data(upload, upload_data, upload_data_size);
+	 	return process_upload_data(connection, upload, upload_data, upload_data_size);
 	} else {
 		DEBUG_PRINT("completing upload\n", NULL);
 		if (complete_upload(upload, daemon_options->root_data_directory) < 0) {

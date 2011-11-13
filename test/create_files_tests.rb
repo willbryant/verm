@@ -1,6 +1,6 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
-class CreateFilesTest < Verm::TestCase
+module CreateFilesSharedTests
   def test_saves_files_under_requested_path
     post_file :path => '/foo',
               :file => 'simple_text_file',

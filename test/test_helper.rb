@@ -34,14 +34,23 @@ module Verm
       orig_filename = File.join(File.dirname(__FILE__), 'fixtures', options[:file])
       file_data = File.read(orig_filename)
       
-      request = Net::HTTP::MultipartPost.new(options[:path])
-      request.attach 'uploaded_file', file_data, options[:file], options[:type]
-      request.form_data = {"test" => "bar"}
+      if @raw
+        request = Net::HTTP::Post.new(options[:path])
+        request.content_type = options[:type]
+      else
+        request = Net::HTTP::MultipartPost.new(options[:path])
+        request.attach 'uploaded_file', file_data, options[:file], options[:type]
+        request.form_data = {"test" => "bar"}
+      end
       
       http = Net::HTTP.new(VERM_SPAWNER.hostname, VERM_SPAWNER.port)
       http.read_timeout = timeout
       location = http.start do |connection|
-        response = connection.request(request)
+        if @raw
+          response = connection.request(request, file_data)
+        else
+          response = connection.request(request)
+        end
         response['location']
       end
 
