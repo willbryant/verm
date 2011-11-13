@@ -70,14 +70,13 @@ module Verm
         response['location']
       end
 
+      raise "The location returned was #{location}, but it was supposed to be saved under #{options[:path]}/" if location[0..options[:path].length] != "#{options[:path]}/"
+      raise "The location returned was #{location}, but it was supposed to have a #{options[:expected_extension]} extension" if options[:expected_extension] && location[(-options[:expected_extension].length - 1)..-1] != ".#{options[:expected_extension]}"
       dest_filename = File.expand_path(File.join(VERM_SPAWNER.verm_data, location))
-      raise "The data was saved to #{dest_filename}, but it was supposed to have a #{options[:expected_extension]} extension" if options[:expected_extension] && dest_filename[(-options[:expected_extension].length - 1)..-1] != ".#{options[:expected_extension]}"
-
       dest_filename += '.' + options[:expected_extension_suffix] if options[:expected_extension_suffix]
       raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
       saved_data = File.read(dest_filename)
-      raise "The data saved to verm doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
-      raise "The data was saved to #{location}, but it was supposed to be saved under #{options[:path]}/" if location[0..options[:path].length] != "#{options[:path]}/"
+      raise "The data saved to file doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
       dest_filename
     end
   end
