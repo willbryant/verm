@@ -436,7 +436,7 @@ int complete_upload(struct Upload* upload, const char* root_data_directory) {
 	unsigned char* src = md;
 	unsigned char* end = md + SHA256_DIGEST_LENGTH;
 
-	char encoded[45]; // for 32 input bytes, we need 45 output bytes (ceil(32/3.0)*4 rounded up, plus a null terminator byte)
+	char encoded[45]; // for 32 input bytes, we need 45 output bytes (ceil(32/3.0)*4, plus a null terminator byte)
 	char* dest = encoded;
 	
 	SHA256_Final(md, &upload->hasher);
