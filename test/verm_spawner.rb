@@ -48,7 +48,7 @@ class VermSpawner
   
   def server_available?
     !!Net::HTTP.get(server_uri)
-  rescue Errno::ECONNRESET, Errno::EPIPE => e
+  rescue Errno::ECONNRESET, Errno::EPIPE, EOFError => e
     puts e if ENV['DEBUG']
     retry
   rescue Errno::ECONNREFUSED
