@@ -300,7 +300,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	
 	if ((request_value = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_TYPE)) &&
 	    (strncasecmp(request_value, MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA, strlen(MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA)) == 0 ||
-	     strncasecmp(request_value, MHD_HTTP_POST_ENCODING_FORM_URLENCODED,    strlen(MHD_HTTP_POST_ENCODING_FORM_URLENCODED)) == 0)) {
+	     strncasecmp(request_value, MHD_HTTP_POST_ENCODING_FORM_URLENCODED,    strlen(MHD_HTTP_POST_ENCODING_FORM_URLENCODED))    == 0)) {
 	    // an encoded form
 		upload->pp = MHD_create_post_processor(connection, POST_BUFFER_SIZE, &handle_post_data, upload);
 		if (!upload->pp) { // presumably out of memory
@@ -346,8 +346,7 @@ int process_upload_data(struct MHD_Connection* connection, struct Upload* upload
 			content_type     = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_TYPE);
 			content_encoding = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_ENCODING);
 		}
-		if (handle_post_data(upload, MHD_POSTDATA_KIND, UPLOADED_FILE_FIELD_NAME, NULL,
-		                     content_type, content_encoding,
+		if (handle_post_data(upload, MHD_POSTDATA_KIND, UPLOADED_FILE_FIELD_NAME, NULL, content_type, content_encoding,
 		                     upload_data, upload->size, *upload_data_size) != MHD_YES) return MHD_NO;
 	}
 	*upload_data_size = 0;
