@@ -335,21 +335,20 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 int process_upload_data(struct MHD_Connection* connection, struct Upload* upload, const char *upload_data, size_t *upload_data_size) {
 	const char *content_type = NULL;
 	const char *content_encoding = NULL;
-	uint64_t offset = 0;
 
 	if (upload->pp) {
 		// encoded form
 		if (MHD_post_process(upload->pp, upload_data, *upload_data_size) != MHD_YES) return MHD_NO;
 	} else {
 		// raw POST
-		if ((offset = upload->size) == 0) {
+		if (upload->size == 0) {
 			// first call, need to pass in the content headers
 			content_type     = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_TYPE);
 			content_encoding = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_ENCODING);
 		}
 		if (handle_post_data(upload, MHD_POSTDATA_KIND, UPLOADED_FILE_FIELD_NAME, NULL,
 		                     content_type, content_encoding,
-		                     upload_data, 0, *upload_data_size) != MHD_YES) return MHD_NO;
+		                     upload_data, upload->size, *upload_data_size) != MHD_YES) return MHD_NO;
 	}
 	*upload_data_size = 0;
 	return MHD_YES;
