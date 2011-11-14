@@ -10,6 +10,7 @@
                     "</body></html>\n"
 #define CREATED_PAGE "Resource created\n"
 #define REDIRECT_PAGE "You are being redirected\n"
+#define CONFLICT_PAGE "Conflict: there is already a different resource with that path\n"
 
 int send_static_page_response(struct MHD_Connection* connection, unsigned int status_code, char* page) {
 	struct MHD_Response* response;
@@ -57,4 +58,8 @@ int send_redirected_response(struct MHD_Connection* connection, char* location) 
 
 int send_created_response(struct MHD_Connection* connection, char* location) {
 	send_redirect(connection, MHD_HTTP_CREATED, location, CREATED_PAGE);
+}
+
+int send_conflict_response(struct MHD_Connection* connection) {
+	send_static_page_response(connection, MHD_HTTP_CONFLICT, CONFLICT_PAGE);
 }

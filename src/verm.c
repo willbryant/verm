@@ -287,12 +287,12 @@ int create_parent_directories_in_path(char* path, int root_directory_length) {
 	return 0;
 }
 
-struct Upload* create_upload(struct MHD_Connection *connection, const char* root_data_directory, const char *path) {
-	const char* request_value;
-	char* s;
+struct Upload* create_upload(struct MHD_Connection *connection, const char* root_data_directory, const char *path, int posting) {
+	const char *request_value, *separator;
+	char *s;
 	
-	if (path[0] != '/' || strstr(path, "/..") || strlen(path) >= MAX_DIRECTORY_LENGTH) {
-		fprintf(stderr, "Refusing post to a suspicious path: '%s'\n", path);
+	if (path[0] != '/' || strstr(path, "/..") || strlen(path) >= (posting ? MAX_DIRECTORY_LENGTH : MAX_PATH_LENGTH)) {
+		fprintf(stderr, "Refusing %s to a suspicious path: '%s'\n", posting ? "post" : "put", path);
 		return NULL;
 	}
 	
@@ -312,8 +312,18 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	upload->location[0] = 0;
 	upload->redirect_afterwards = 0;
 	
-	strncpy(upload->directory, path, sizeof(upload->directory)); // length was checked above, but easier to audit if we never call strcpy!
-	while (s = strstr(upload->directory, "//")) memmove(s, s + 1, strlen(s)); // replace a//b with a/b
+	if (posting) {
+		strncpy(upload->directory, path, sizeof(upload->directory)); // length was checked above, but easier to audit if we never call strcpy!
+		while (s = strstr(upload->directory, "//")) memmove(s, s + 1, strlen(s)); // replace a//b with a/b
+	} else {
+		separator = strchr(path + 1, '/');
+		if (separator == NULL || separator == path + 1 || separator - path >= MAX_DIRECTORY_LENGTH || !*(separator + 1) || strstr(path, "//")) {
+			fprintf(stderr, "Refusing put to an invalid path: '%s'\n", path);
+			return NULL;
+		}
+		strncpy(upload->directory, path, separator - path);
+		strncpy(upload->location, path, sizeof(upload->location)); // length was checked above, but easier to audit if we never call strcpy!
+	}
 
 	if (upload->directory[1]) {
 		// path given
@@ -401,10 +411,30 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 	int attempt = 1;
 	struct stat st;
 	char final_fs_path[MAX_PATH_LENGTH];
+	int dl, sl;
 	
-	// we put each file in a subdirectory off the main root, whose name is the first two characters of the hash.
-	// we don't repeat those characters in the filename.
-	ret = snprintf(upload->location, sizeof(upload->location), "%s/%.2s/%s%s", upload->directory, encoded, encoded + 2, upload->extension);
+	if (!upload->location[0]) {
+		// we put each file in a subdirectory off the main root, whose name is the first two characters of the hash.
+		// we don't repeat those characters in the filename.
+		ret = snprintf(upload->location, sizeof(upload->location), "%s/%.2s/%s%s", upload->directory, encoded, encoded + 2, upload->extension);
+	} else {
+		// check that the given location is correct
+		dl = strlen(upload->directory);
+		sl = strlen(encoded);
+		if (strlen(upload->location) < dl + sl + 2 ||
+		    strncmp(upload->location, upload->directory, dl) != 0 ||
+		    *(upload->location + dl) != '/' ||
+		    *(upload->location + dl + 1) != encoded[0] ||
+		    *(upload->location + dl + 2) != encoded[1] ||
+		    *(upload->location + dl + 3) != '/' ||
+		    strncmp(upload->location + dl + 4, encoded + 2, sl - 2) ||
+		    (*(upload->location + dl + sl + 2) != '\0' &&
+		     (*(upload->location + dl + sl + 2) != '.' || strchr(upload->location + dl + sl + 3, '.')))) {
+		    // PUT to an incorrect path
+	    	fprintf(stderr, "Location %s doesn't match\n", upload->location);
+	    	return -1;
+	    }
+	}
 
 	while (1) {
 		if (ret >= sizeof(upload->location) || // shouldn't possible unless misconfigured
@@ -482,16 +512,17 @@ int complete_upload(struct Upload* upload, const char* root_data_directory) {
 	return link_file(upload, root_data_directory, encoded);
 }
 
-int handle_post_request(
+int handle_post_or_put_request(
 	struct Options* daemon_options, struct MHD_Connection* connection,
     const char *path,
     const char *upload_data, size_t *upload_data_size,
-	void **request_data) {
+	void **request_data,
+	int posting) {
 	
-	DEBUG_PRINT("handle_post_request to %s with %ld bytes, request_data set %d, upload_data set %d\n", path, *upload_data_size, (*request_data ? 1 : 0), (upload_data ? 1 : 0));
+	DEBUG_PRINT("handle_post_request to %s with %ld bytes, request_data set %d, upload_data set %d, %s\n", path, *upload_data_size, (*request_data ? 1 : 0), (upload_data ? 1 : 0), posting ? "posting" : "putting");
 
 	if (!*request_data) { // new connection
-		*request_data = create_upload(connection, daemon_options->root_data_directory, path);
+		*request_data = create_upload(connection, daemon_options->root_data_directory, path, posting);
 		return *request_data ? MHD_YES : MHD_NO;
 	}
 	
@@ -529,7 +560,10 @@ int handle_request(
 		return handle_get_or_head_request(daemon_options, connection, path, request_data, 0);
 		
 	} else if (strcmp(method, "POST") == 0) {
-		return handle_post_request(daemon_options, connection, path, upload_data, upload_data_size, request_data);
+		return handle_post_or_put_request(daemon_options, connection, path, upload_data, upload_data_size, request_data, 1);
+		
+	} else if (strcmp(method, "PUT") == 0) {
+		return handle_post_or_put_request(daemon_options, connection, path, upload_data, upload_data_size, request_data, 0);
 		
 	} else {
 		return MHD_NO;
