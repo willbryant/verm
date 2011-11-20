@@ -31,6 +31,20 @@ ssize_t decompress_file_chunk(void *decompression_info, uint64_t pos, char *buf,
 	return result;
 }
 
+static uint32_t uint32_le_to_he(uint32_t v)
+{
+	if (htons(1) != 1) return v;
+	return ((v >> 24) & 0xff) | ((v >> 8) & 0xff00) | ((v << 8) & 0xff0000) | ((v << 24) & 0xff000000);
+}
+
+off_t get_decompressed_file_size(int fd, off_t file_size) {
+	uint32_t uncompressed_size;
+	if (pread(fd, &uncompressed_size, 4, file_size - 4) < 4) {
+		return -1;
+	}
+	return uint32_le_to_he(uncompressed_size);
+}
+
 void *create_memory_decompressor() {
 	int ret;
 	z_stream *strm = malloc(sizeof(z_stream));

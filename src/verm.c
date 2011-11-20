@@ -55,6 +55,7 @@ int handle_get_or_head_request(
 
 	int fd;
 	struct stat st;
+	off_t file_size;
 	struct MHD_Response* response;
 	int ret;
 	char fs_path[MAX_PATH_LENGTH];
@@ -124,6 +125,8 @@ int handle_get_or_head_request(
 		close(fd);
 		return send_upload_page_response(connection);
 	}
+
+	file_size = st.st_size;
 	
 	if ((request_value = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH)) &&
 	    strcmp(request_value, path + 1) == 0) {
@@ -136,9 +139,10 @@ int handle_get_or_head_request(
 		// ie. a GET request
 		if (want_decompressed && !accept_gzip_encoding(connection)) {
 			// the file is compressed, but the client explicitly told us they don't support that, so decompress the file
+			file_size = get_decompressed_file_size(fd, st.st_size);
 			void* decompression = create_file_decompressor(fd);
 			if (!decompression) return MHD_NO; // out of memory
-			response = MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, DECOMPRESSION_CHUNK, &decompress_file_chunk, decompression, &destroy_file_decompressor);
+			response = MHD_create_response_from_callback(file_size, DECOMPRESSION_CHUNK, &decompress_file_chunk, decompression, &destroy_file_decompressor);
 		} else {
 			// the file is either not compressed, or is compressed and the client supports that, so we can serve the file as-is
 			response = MHD_create_response_from_fd_at_offset(st.st_size, fd, 0); // fd will be closed by MHD when the response is destroyed
@@ -157,7 +161,7 @@ int handle_get_or_head_request(
 		fprintf(stderr, "Couldn't create response from file %s! (out of memory?)\n", fs_path);
 		close(fd);
 	}
-	ret = (want_decompressed ? 1 : add_content_length(response, st.st_size)) &&
+	ret = add_content_length(response, file_size) &&
 	      add_last_modified(response, st.st_mtime) &&
 	      add_content_type(response, path) &&
 	      MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, path + 1) && // since the path includes the hash, it's a perfect ETag
