@@ -27,6 +27,7 @@ module Verm
       http.read_timeout = timeout
       location = http.start do |connection|
         response = connection.request(request, file_data)
+        response.error! unless response.is_a?(Net::HTTPSuccess)
         response['location']
       end
 

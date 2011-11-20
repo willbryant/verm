@@ -29,6 +29,8 @@
 
 #define UPLOADED_FILE_FIELD_NAME "uploaded_file"
 
+#define ERR_PUT_TO_WRONG_PATH -2
+
 struct Options {
 	int quiet;
 	char* root_data_directory;
@@ -435,9 +437,8 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 		    strncmp(upload->location + dl + 4, encoded + 2, sl - 2) ||
 		    (*(upload->location + dl + sl + 2) != '\0' &&
 		     (*(upload->location + dl + sl + 2) != '.' || strchr(upload->location + dl + sl + 3, '.')))) {
-		    // PUT to an incorrect path
-	    	fprintf(stderr, "Location %s doesn't match\n", upload->location);
-	    	return -1;
+		    // PUT to an incorrect path; return a 409
+	    	return ERR_PUT_TO_WRONG_PATH;
 	    }
 	}
 
@@ -536,17 +537,23 @@ int handle_post_or_put_request(
 	 	return process_upload_data(connection, upload, upload_data, upload_data_size);
 	} else {
 		DEBUG_PRINT("completing upload\n", NULL);
-		if (complete_upload(upload, daemon_options->root_data_directory) < 0) {
-			DEBUG_PRINT("completing failed\n", NULL);
-			return MHD_NO;
-		} else {
-			if (upload->redirect_afterwards) {
-				DEBUG_PRINT("redirecting to %s\n", upload->location);
-				return send_redirected_response(connection, upload->location);
-			} else {
-				DEBUG_PRINT("created %s\n", upload->location);
-				return send_created_response(connection, upload->location);
-			}
+		switch (complete_upload(upload, daemon_options->root_data_directory)) {
+			case 0:
+				if (upload->redirect_afterwards) {
+					DEBUG_PRINT("redirecting to %s\n", upload->location);
+					return send_redirected_response(connection, upload->location);
+				} else {
+					DEBUG_PRINT("created %s\n", upload->location);
+					return send_created_response(connection, upload->location);
+				}
+			
+			case ERR_PUT_TO_WRONG_PATH:
+				DEBUG_PRINT("put to wrong path\n", NULL);
+				return send_conflict_response(connection);
+			
+			default:
+				DEBUG_PRINT("completing failed\n", NULL);
+				return MHD_NO;
 		}
 	}
 }
