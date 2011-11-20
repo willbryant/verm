@@ -14,6 +14,7 @@
 #include "microhttpd.h"
 #include <openssl/sha.h>
 #include "responses.h"
+#include "response_logging.h"
 #include "decompression.h"
 #include "str.h"
 #include "mime_types.h"
@@ -575,14 +576,19 @@ int handle_request(
 }
 
 int handle_request_completed(
-	void *_daemon_data,
+	void* void_daemon_options,
 	struct MHD_Connection *connection,
-	void **request_data,
+	void** request_data,
 	enum MHD_RequestTerminationCode toe) {
+	struct Options* daemon_options = (struct Options*) void_daemon_options;
 	
 	if (*request_data && *request_data != dummy_to_indicate_second_call) {
 		free_upload((struct Upload*) *request_data);
 		*request_data = NULL;
+	}
+
+	if (!daemon_options->quiet) {
+		(void) log_response(connection);
 	}
 	
 	return MHD_YES;
@@ -601,7 +607,7 @@ int help() {
 		"                           start with a /).  Default: %s.\n"
 		"         -l <port>         Listen on the given port.  Default: %d.\n"
 		"         -m <filename>     Load MIME content-types from the given file.  Default: %s.\n"
-		"         -q                Quiet mode.  Don't print startup and shutdown messages to stdout.\n",
+		"         -q                Quiet mode.  Don't print startup/shutdown/request log messages to stdout.\n",
 		DEFAULT_ROOT, DEFAULT_HTTP_PORT, default_mime_types_file());
 	return 100;
 }
@@ -672,7 +678,7 @@ int main(int argc, char* argv[]) {
 		port,
 		NULL, NULL, // no connection address check
 		&handle_request, &daemon_options,
-		MHD_OPTION_NOTIFY_COMPLETED, &handle_request_completed, NULL, // no extra argument to handle_request
+		MHD_OPTION_NOTIFY_COMPLETED, &handle_request_completed, &daemon_options,
 		MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int) HTTP_TIMEOUT,
 		MHD_OPTION_END);
 	

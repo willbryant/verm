@@ -24,7 +24,7 @@ $(MHD_LIBRARY):
 
 $(MHD)/MHD_config.h: $(MHD_LIBRARY)
 
-verm: $(MHD)/MHD_config.h src/verm.o src/responses.o src/response_headers.o src/decompression.o src/str.o src/mime_types.o $(MHD_LIBRARY)
+verm: $(MHD)/MHD_config.h src/verm.o src/responses.o src/response_headers.o src/response_logging.o src/decompression.o src/str.o src/mime_types.o $(MHD_LIBRARY)
 	cc $(LDFLAGS) -o $@ $^
 
 clean:
