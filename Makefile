@@ -11,6 +11,9 @@ ifeq ($(PLATFORM),SunOS)
 	LDFLAGS += -lsocket
 	MHDFLAGS = LIBS="-lsocket -lnsl"
 else
+	ifeq ($(PLATFORM),Linux)
+		NEED_SA_LEN = 1
+	endif
 	CFLAGS += -pthread
 endif
 
