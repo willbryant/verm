@@ -549,7 +549,7 @@ int handle_post_or_put_request(
 			
 			case ERR_PUT_TO_WRONG_PATH:
 				DEBUG_PRINT("put to wrong path\n", NULL);
-				return send_conflict_response(connection);
+				return send_forbidden_wrong_path_response(connection);
 			
 			default:
 				DEBUG_PRINT("completing failed\n", NULL);

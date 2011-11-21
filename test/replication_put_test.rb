@@ -3,9 +3,9 @@ require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 class ReplicationPutTest < Verm::TestCase
   def assert_wrong_path
     yield
-    fail "Expected a 409 Conflict error"
+    fail "Expected a 403 Forbidden error"
   rescue Net::HTTPServerException => e
-    assert e.response.is_a?(Net::HTTPConflict)
+    assert e.response.is_a?(Net::HTTPForbidden)
   end
 
   def test_saves_files_under_requested_path
