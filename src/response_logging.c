@@ -27,6 +27,10 @@
 
 static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+int responded(struct MHD_Connection* connection) {
+	return (connection->response != NULL);
+}
+
 int log_response(struct MHD_Connection* connection) {
 	struct sockaddr* address;
 	char addr[NI_MAXHOST];

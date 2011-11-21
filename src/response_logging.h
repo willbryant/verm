@@ -4,6 +4,7 @@
 #include "platform.h"
 #include "microhttpd.h"
 
+int responded(struct MHD_Connection* connection);
 int log_response(struct MHD_Connection* connection);
 
 #endif

@@ -300,6 +300,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	
 	if (path[0] != '/' || strstr(path, "/..") || strlen(path) >= (posting ? MAX_DIRECTORY_LENGTH : MAX_PATH_LENGTH)) {
 		fprintf(stderr, "Refusing %s to a suspicious path: '%s'\n", posting ? "post" : "put", path);
+		send_forbidden_wrong_path_response(connection);
 		return NULL;
 	}
 	
@@ -325,7 +326,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	} else {
 		separator = strchr(path + 1, '/');
 		if (separator == NULL || separator == path + 1 || separator - path >= MAX_DIRECTORY_LENGTH || !*(separator + 1) || strstr(path, "//")) {
-			fprintf(stderr, "Refusing put to an invalid path: '%s'\n", path);
+			send_forbidden_wrong_path_response(connection);
 			return NULL;
 		}
 		snprintf(upload->directory, separator - path + 1, "%s", path);
@@ -528,9 +529,9 @@ int handle_post_or_put_request(
 	
 	DEBUG_PRINT("handle_post_request to %s with %ld bytes, request_data set %d, upload_data set %d, %s\n", path, *upload_data_size, (*request_data ? 1 : 0), (upload_data ? 1 : 0), posting ? "posting" : "putting");
 
-	if (!*request_data) { // new connection
+	if (!*request_data) { // new request
 		*request_data = create_upload(connection, daemon_options->root_data_directory, path, posting);
-		return *request_data ? MHD_YES : MHD_NO;
+		return (*request_data || responded(connection)) ? MHD_YES : MHD_NO;
 	}
 	
 	struct Upload* upload = (struct Upload*) *request_data;
