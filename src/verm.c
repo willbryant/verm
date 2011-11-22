@@ -440,6 +440,7 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 		    // PUT to an incorrect path; return a 409
 	    	return ERR_PUT_TO_WRONG_PATH;
 	    }
+	    ret = 0;
 	}
 
 	while (1) {
