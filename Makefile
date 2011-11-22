@@ -12,7 +12,7 @@ ifeq ($(PLATFORM),SunOS)
 	MHDFLAGS = LIBS="-lsocket -lnsl"
 else
 	ifeq ($(PLATFORM),Linux)
-		NEED_SA_LEN = 1
+		CFLAGS += -DNEED_SA_LEN
 	endif
 	CFLAGS += -pthread
 endif

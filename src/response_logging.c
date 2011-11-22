@@ -2,7 +2,7 @@
 
 #include "src/daemon/internal.h"
 
-#ifndef NEED_SA_LEN
+#ifdef NEED_SA_LEN
 	#include <sys/un.h>
 
 	static int __sa_len(sa_family_t af) {
