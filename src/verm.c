@@ -328,7 +328,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 			fprintf(stderr, "Refusing put to an invalid path: '%s'\n", path);
 			return NULL;
 		}
-		strncpy(upload->directory, path, separator - path);
+		snprintf(upload->directory, separator - path + 1, "%s", path);
 		strncpy(upload->location, path, sizeof(upload->location)); // length was checked above, but easier to audit if we never call strcpy!
 	}
 
