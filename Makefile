@@ -1,7 +1,7 @@
 MHD = vendor/libmicrohttpd
 MHD_LIBRARY = $(MHD)/src/daemon/.libs/libmicrohttpd.a
 
-CFLAGS += -D_GNU_SOURCE
+CFLAGS += -D_GNU_SOURCE -g
 CFLAGS += -I$(MHD) -I$(MHD)/src/include -I$(MHD)/src/include/plibc -Ivendor/khash
 LDFLAGS += -lpthread -lcrypto -lz
 
