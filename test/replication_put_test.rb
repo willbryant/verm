@@ -95,6 +95,10 @@ class ReplicationPutTest < Verm::TestCase
              :file => 'simple_text_file',
              :type => 'application/octet-stream'
 
+    put_file :path => '/different/path/lO/SLenl_se3zbBC0n88buiy2vAadjA9lq2xXRPccE7AA',
+             :file => 'simple_text_file',
+             :type => 'application/octet-stream'
+
     put_file :path => '/foo/lO/SLenl_se3zbBC0n88buiy2vAadjA9lq2xXRPccE7AA.ext',
              :file => 'simple_text_file',
              :type => 'application/octet-stream'

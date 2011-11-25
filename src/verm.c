@@ -324,7 +324,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 		strncpy(upload->directory, path, sizeof(upload->directory)); // length was checked above, but easier to audit if we never call strcpy!
 		while (s = strstr(upload->directory, "//")) memmove(s, s + 1, strlen(s)); // replace a//b with a/b
 	} else {
-		separator = strchr(path + 1, '/');
+		separator = strr2ndchr(path + 1, '/');
 		if (separator == NULL || separator == path + 1 || separator - path >= MAX_DIRECTORY_LENGTH || !*(separator + 1) || strstr(path, "//")) {
 			send_forbidden_wrong_path_response(connection);
 			return NULL;
