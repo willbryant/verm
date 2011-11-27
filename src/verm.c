@@ -272,7 +272,7 @@ void _try_make_tempfile(struct Upload* upload, const char* root_data_directory) 
 	   open the directory.  consequently, subsequent calls to mkstemp would fail on Linux if we did not re-sprintf the
 	   template string, so we have extracted these two lines out to this method to avoid needing to duplicate the
 	   sprintf in the two places it's used below. */
-	snprintf(upload->tempfile_fs_path, sizeof(upload->tempfile_fs_path), "%s%s/upload.XXXXXXXX", root_data_directory, upload->directory);
+	snprintf(upload->tempfile_fs_path, sizeof(upload->tempfile_fs_path), "%s%s/upload.XXXXXX", root_data_directory, upload->directory);
 	do { upload->tempfile_fd = mkstemp(upload->tempfile_fs_path); } while (upload->tempfile_fd == -1 && errno == EINTR);
 }
 
