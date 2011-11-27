@@ -31,7 +31,7 @@
 
 #define ERR_PUT_TO_WRONG_PATH -2
 
-struct Options {
+struct Server {
 	int quiet;
 	char* root_data_directory;
 };
@@ -53,7 +53,7 @@ struct Upload {
 const char* dummy_to_indicate_second_call = "not-null";
 
 int handle_get_or_head_request(
-	struct Options* daemon_options, struct MHD_Connection* connection,
+	struct Server* server, struct MHD_Connection* connection,
     const char* path, void** request_data, int send_data) {
 
 	int fd;
@@ -78,7 +78,7 @@ int handle_get_or_head_request(
 	
 	// check and expand the path (although the MHD docs use 'url' as the name for this parameter, it's actually the path - it does not include the scheme/hostname/query, and has been URL-decoded)
 	if (path[0] != '/' || strstr(path, "/..") ||
-	    snprintf(fs_path, sizeof(fs_path), "%s%s", daemon_options->root_data_directory, path) >= sizeof(fs_path)) {
+	    snprintf(fs_path, sizeof(fs_path), "%s%s", server->root_data_directory, path) >= sizeof(fs_path)) {
 		return send_file_not_found_response(connection);
 	}
 	
@@ -89,7 +89,7 @@ int handle_get_or_head_request(
 			case ENOENT:
 			case EACCES:
 				if (strendswith(fs_path, ".gz") || // if the client asked for a .gz, don't try .gz.gz
-					snprintf(fs_path, sizeof(fs_path), "%s%s.gz", daemon_options->root_data_directory, path) >= sizeof(fs_path)) {
+					snprintf(fs_path, sizeof(fs_path), "%s%s.gz", server->root_data_directory, path) >= sizeof(fs_path)) {
 					return send_file_not_found_response(connection);
 				} else {
 					DEBUG_PRINT("trying to open %s\n", fs_path);
@@ -521,7 +521,7 @@ int complete_upload(struct Upload* upload, const char* root_data_directory) {
 }
 
 int handle_post_or_put_request(
-	struct Options* daemon_options, struct MHD_Connection* connection,
+	struct Server* server, struct MHD_Connection* connection,
     const char *path,
     const char *upload_data, size_t *upload_data_size,
 	void **request_data,
@@ -530,7 +530,7 @@ int handle_post_or_put_request(
 	DEBUG_PRINT("handle_post_request to %s with %ld bytes, request_data set %d, upload_data set %d, %s\n", path, *upload_data_size, (*request_data ? 1 : 0), (upload_data ? 1 : 0), posting ? "posting" : "putting");
 
 	if (!*request_data) { // new request
-		*request_data = create_upload(connection, daemon_options->root_data_directory, path, posting);
+		*request_data = create_upload(connection, server->root_data_directory, path, posting);
 		return (*request_data || responded(connection)) ? MHD_YES : MHD_NO;
 	}
 	
@@ -539,7 +539,7 @@ int handle_post_or_put_request(
 	 	return process_upload_data(connection, upload, upload_data, upload_data_size);
 	} else {
 		DEBUG_PRINT("completing upload\n", NULL);
-		switch (complete_upload(upload, daemon_options->root_data_directory)) {
+		switch (complete_upload(upload, server->root_data_directory)) {
 			case 0:
 				if (upload->redirect_afterwards) {
 					DEBUG_PRINT("redirecting to %s\n", upload->location);
@@ -561,23 +561,23 @@ int handle_post_or_put_request(
 }
 		
 int handle_request(
-	void* void_daemon_options, struct MHD_Connection* connection,
+	void* void_server, struct MHD_Connection* connection,
     const char* path, const char* method, const char* version,
     const char* upload_data, size_t* upload_data_size,
 	void** request_data) {
-	struct Options* daemon_options = (struct Options*) void_daemon_options;
+	struct Server* server = (struct Server*) void_server;
 	
 	if (strcmp(method, "GET") == 0) {
-		return handle_get_or_head_request(daemon_options, connection, path, request_data, 1);
+		return handle_get_or_head_request(server, connection, path, request_data, 1);
 		
 	} else if (strcmp(method, "HEAD") == 0) {
-		return handle_get_or_head_request(daemon_options, connection, path, request_data, 0);
+		return handle_get_or_head_request(server, connection, path, request_data, 0);
 		
 	} else if (strcmp(method, "POST") == 0) {
-		return handle_post_or_put_request(daemon_options, connection, path, upload_data, upload_data_size, request_data, 1);
+		return handle_post_or_put_request(server, connection, path, upload_data, upload_data_size, request_data, 1);
 		
 	} else if (strcmp(method, "PUT") == 0) {
-		return handle_post_or_put_request(daemon_options, connection, path, upload_data, upload_data_size, request_data, 0);
+		return handle_post_or_put_request(server, connection, path, upload_data, upload_data_size, request_data, 0);
 		
 	} else {
 		return MHD_NO;
@@ -585,18 +585,18 @@ int handle_request(
 }
 
 int handle_request_completed(
-	void* void_daemon_options,
+	void* void_server,
 	struct MHD_Connection *connection,
 	void** request_data,
 	enum MHD_RequestTerminationCode toe) {
-	struct Options* daemon_options = (struct Options*) void_daemon_options;
+	struct Server* server = (struct Server*) void_server;
 	
 	if (*request_data && *request_data != dummy_to_indicate_second_call) {
 		free_upload((struct Upload*) *request_data);
 		*request_data = NULL;
 	}
 
-	if (!daemon_options->quiet) {
+	if (!server->quiet) {
 		(void) log_response(connection);
 	}
 	
@@ -639,20 +639,20 @@ int wait_for_termination() {
 }
 
 int main(int argc, char* argv[]) {
-	struct MHD_Daemon* daemon;
+	struct MHD_Daemon* http_daemon;
 	int port = DEFAULT_HTTP_PORT;
 	const char* mime_types_file = default_mime_types_file();
 	int complain_about_mime_types = 0;
-	struct Options daemon_options;
-	daemon_options.quiet = 0;
-	daemon_options.root_data_directory = DEFAULT_ROOT;
+	struct Server server;
+	server.quiet = 0;
+	server.root_data_directory = DEFAULT_ROOT;
 	
 	int c;
 	while ((c = getopt(argc, argv, "d:l:m:q")) != -1) {
 		switch (c) {
 			case 'd':
 				if (strlen(optarg) <= 1 || *optarg != '/') return help();
-				daemon_options.root_data_directory = optarg;
+				server.root_data_directory = optarg;
 				break;
 			
 			case 'l':
@@ -666,7 +666,7 @@ int main(int argc, char* argv[]) {
 				break;
 			
 			case 'q':
-				daemon_options.quiet = 1;
+				server.quiet = 1;
 				break;
 			
 			case '?':
@@ -682,24 +682,24 @@ int main(int argc, char* argv[]) {
 	dump_mime_types();
 	#endif
 	
-	daemon = MHD_start_daemon(
+	http_daemon = MHD_start_daemon(
 		MHD_USE_THREAD_PER_CONNECTION | EXTRA_DAEMON_FLAGS,
 		port,
 		NULL, NULL, // no connection address check
-		&handle_request, &daemon_options,
-		MHD_OPTION_NOTIFY_COMPLETED, &handle_request_completed, &daemon_options,
+		&handle_request, &server,
+		MHD_OPTION_NOTIFY_COMPLETED, &handle_request_completed, &server,
 		MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int) HTTP_TIMEOUT,
 		MHD_OPTION_END);
 	
-	if (daemon == NULL) {
+	if (http_daemon == NULL) {
 		fprintf(stderr, "Couldn't start HTTP daemon");
 		return 1;
 	}
 	
-	if (!daemon_options.quiet) fprintf(stdout, "Verm listening on http://localhost:%d/, data in %s\n", port, daemon_options.root_data_directory);
+	if (!server.quiet) fprintf(stdout, "Verm listening on http://localhost:%d/, data in %s\n", port, server.root_data_directory);
 	if (wait_for_termination() < 0) return 6;
 
-	MHD_stop_daemon(daemon);
-	if (!daemon_options.quiet) fprintf(stdout, "Verm shutdown\n");
+	MHD_stop_daemon(http_daemon);
+	if (!server.quiet) fprintf(stdout, "Verm shutdown\n");
 	return 0;
 }
