@@ -63,16 +63,10 @@ class VermSpawner
     raise "Can't connect to our verm instance on #{server_address}"
   end
   
-  def wait_until_not_available
-    1.upto(STARTUP_TIMEOUT*10) do
-      return unless server_available?
-      sleep(0.1)
-    end
-    raise "Gave up waiting for verm instance on #{server_address} to go away"
-  end
-  
   def stop_verm
-    Process.kill('TERM', @verm_child_pid) if @verm_child_pid
+    return unless @verm_child_pid
+    Process.kill('TERM', @verm_child_pid)
+    Process.wait(@verm_child_pid)
     @verm_child_pid = nil
   end
 end

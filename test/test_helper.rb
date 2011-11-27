@@ -48,7 +48,6 @@ module Verm
   
     def teardown
       VERM_SPAWNER.stop_verm
-      VERM_SPAWNER.wait_until_not_available
     end
     
     def timeout
