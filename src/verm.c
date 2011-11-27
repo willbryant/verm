@@ -639,6 +639,9 @@ int help() {
 		"Options: -d /foo           Sets the root data directory to /foo.  Must be fully-qualified (ie. it must\n"
 		"                           start with a /).  Default: %s.\n"
 		"         -l <port>         Listen on the given port.  Default: %d.\n"
+		"         -r <hostname>	Replicate files to the Verm instance running on <hostname>.\n"
+		"            <hostname>:<port>          ... to the Verm instance running on <hostname> listening on <port>.\n"
+		"                           This option may be used multiple times, to replicate to multiple servers concurrently.\n"
 		"         -m <filename>     Load MIME content-types from the given file.  Default: %s.\n"
 		"         -q                Quiet mode.  Don't print startup/shutdown/request log messages to stdout.\n",
 		DEFAULT_ROOT, DEFAULT_HTTP_PORT, default_mime_types_file());
@@ -688,7 +691,7 @@ int main(int argc, char* argv[]) {
 	server.root_data_directory = DEFAULT_ROOT;
 	
 	int c;
-	while ((c = getopt(argc, argv, "d:l:m:q")) != -1) {
+	while ((c = getopt(argc, argv, "d:l:m:r:q")) != -1) {
 		switch (c) {
 			case 'd':
 				if (strlen(optarg) <= 1 || *optarg != '/') return help();
@@ -707,6 +710,11 @@ int main(int argc, char* argv[]) {
 			
 			case 'q':
 				server.quiet = 1;
+				break;
+			
+			case 'r':
+				// note that even if OUR listening port is changed from the default using -r, we still replicate to the default port on the other instance unless a port is explicitly given
+				if (parse_and_add_replication_target(optarg, DEFAULT_HTTP_PORT)) return help();
 				break;
 			
 			case '?':

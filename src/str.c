@@ -13,6 +13,13 @@ int boolean(const char *data, size_t size) {
 			strncasecmp("false", data, size) != 0);
 }
 
+long atoi_or_default(const char* s, long def) {
+	char* end = NULL;
+	long result = strtol(s, &end, 10);
+	if (end && *end == 0) return result;
+	return def;
+}
+
 const char *strr2ndchr(const char *s, int c) {
 	const char *curr = NULL, *prev = NULL;
 	while (*s) {
