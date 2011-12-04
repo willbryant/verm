@@ -54,28 +54,30 @@ module CreateFilesSharedTests
   end
   
   def test_saves_same_file_to_same_path
-    first_file_location =
-      post_file(:path => '/foo',
-                :file => 'simple_text_file',
-                :type => 'application/octet-stream',
-                :expected_extension => nil)
-    assert_equal first_file_location,
-      post_file(:path => '/foo',
-                :file => 'simple_text_file',
-                :type => 'application/octet-stream',
-                :expected_extension => nil)
+    assert_statistics_change(:post_requests => 4, :post_requests_new_file_stored => 2) do
+      first_file_location =
+        post_file(:path => '/foo',
+                  :file => 'simple_text_file',
+                  :type => 'application/octet-stream',
+                  :expected_extension => nil)
+      assert_equal first_file_location,
+        post_file(:path => '/foo',
+                  :file => 'simple_text_file',
+                  :type => 'application/octet-stream',
+                  :expected_extension => nil)
 
-    different_file_location = 
-      post_file(:path => '/foo',
-                :file => 'another_text_file',
-                :type => 'application/octet-stream',
-                :expected_extension => nil)
-    assert_equal different_file_location,
-      post_file(:path => '/foo',
-                :file => 'another_text_file',
-                :type => 'application/octet-stream',
-                :expected_extension => nil)
-    
-    assert_not_equal first_file_location, different_file_location
+      different_file_location = 
+        post_file(:path => '/foo',
+                  :file => 'another_text_file',
+                  :type => 'application/octet-stream',
+                  :expected_extension => nil)
+      assert_equal different_file_location,
+        post_file(:path => '/foo',
+                  :file => 'another_text_file',
+                  :type => 'application/octet-stream',
+                  :expected_extension => nil)
+      
+      assert_not_equal first_file_location, different_file_location
+    end
   end
 end

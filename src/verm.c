@@ -10,6 +10,9 @@
 #define DEFAULT_ROOT "/var/lib/verm"
 #define DIRECTORY_IF_NOT_GIVEN_BY_CLIENT "/default" // rather than letting people upload directly into the root directory, which in practice is a PITA to administer.  no command-line option for this because it should be provided by the client, so letting admins change it implies mis-use by the client which would be a problem down the track.
 
+#define UPLOADED_FILE_FIELD_NAME "uploaded_file"
+#define STATISTICS_PATH "/_statistics"
+
 #include "platform.h"
 #include "microhttpd.h"
 #include <openssl/sha.h>
@@ -26,8 +29,6 @@
 	#define EXTRA_DAEMON_FLAGS 0
 	#define DEBUG_PRINT(...) 
 #endif
-
-#define UPLOADED_FILE_FIELD_NAME "uploaded_file"
 
 #define ERR_PUT_TO_WRONG_PATH -2
 
@@ -48,6 +49,7 @@ struct Upload {
 	const char* encoding_suffix;
 	char location[MAX_PATH_LENGTH];
 	int redirect_afterwards;
+	int new_file_stored;
 };
 
 const char* dummy_to_indicate_second_call = "not-null";
@@ -74,6 +76,9 @@ int handle_get_or_head_request(
 
 	if (strcmp(path, "/") == 0) {
 		return send_upload_page_response(connection);
+
+	} else if (strcmp(path, STATISTICS_PATH) == 0) {
+		return handle_statistics_request(connection);
 	}
 	
 	// check and expand the path (although the MHD docs use 'url' as the name for this parameter, it's actually the path - it does not include the scheme/hostname/query, and has been URL-decoded)
@@ -171,6 +176,21 @@ int handle_get_or_head_request(
 	      MHD_add_response_header(response, MHD_HTTP_HEADER_EXPIRES, "Tue, 19 Jan 2038 00:00:00"), // essentially never expires
 	      MHD_queue_response(connection, MHD_HTTP_OK, response); // does nothing and returns our desired MHD_NO if response is NULL
 	MHD_destroy_response(response); // does nothing if response is NULL
+	return ret;
+}
+
+int handle_statistics_request(struct MHD_Connection* connection) {
+	struct MHD_Response* response;
+	int ret;
+	char *buffer;
+	
+	buffer = create_log_statistics_string();
+	if (buffer == NULL) return MHD_NO;
+	
+	response = MHD_create_response_from_buffer(strlen(buffer), buffer, MHD_RESPMEM_MUST_FREE);
+	ret = MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, "text/plain") &&
+		  MHD_queue_response(connection, MHD_HTTP_OK, response); // cleanly returns MHD_NO if response was NULL for any reason
+	MHD_destroy_response(response); // does nothing if response was NULL for any reason
 	return ret;
 }
 
@@ -319,6 +339,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	upload->encoding_suffix = "";
 	upload->location[0] = 0;
 	upload->redirect_afterwards = 0;
+	upload->new_file_stored = 0;
 	
 	if (posting) {
 		strncpy(upload->directory, path, sizeof(upload->directory)); // length was checked above, but easier to audit if we never call strcpy!
@@ -456,6 +477,7 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 
 		if (ret == 0) {
 			// successfully linked
+			upload->new_file_stored = 1;
 			break;
 		
 		} else if (errno == EEXIST) {
@@ -472,6 +494,7 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 				do { ret = close(fd2); } while (ret == -1 && errno == EINTR);
 			
 				if (same) break; // same file size and contents
+				// note that we have not set upload->new_file_stored - as the name implies, that is for counting new files
 			}
 		
 			// no, different file; loop around and try again, this time with an attempt number appended to the end
@@ -591,14 +614,15 @@ int handle_request_completed(
 	enum MHD_RequestTerminationCode toe) {
 	struct Server* server = (struct Server*) void_server;
 	
+	int new_file_stored = 0;
 	if (*request_data && *request_data != dummy_to_indicate_second_call) {
-		free_upload((struct Upload*) *request_data);
+		struct Upload *upload = (struct Upload *)*request_data;
+		new_file_stored = upload->new_file_stored;
+		free_upload(upload);
 		*request_data = NULL;
 	}
 
-	if (!server->quiet) {
-		(void) log_response(connection);
-	}
+	log_response(connection, server->quiet, new_file_stored);
 	
 	return MHD_YES;
 }

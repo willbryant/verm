@@ -15,11 +15,13 @@ class GetFilesTest < Verm::TestCase
   end
   
   def test_gives_404_for_nonexistant_paths
-    copy_file_to('somefiles', nil)
-    get :path => "/somefiles/x#{@filename}y",
-        :expected_response_code => 404
-    get :path => "/otherdirectory/#{@filename}",
-        :expected_response_code => 404
+    assert_statistics_change(:get_requests => 2, :get_requests_not_found => 2) do
+      copy_file_to('somefiles', nil)
+      get :path => "/somefiles/x#{@filename}y",
+          :expected_response_code => 404
+      get :path => "/otherdirectory/#{@filename}",
+          :expected_response_code => 404
+    end
   end
   
   def test_serves_files_with_no_extension_without_content_type
@@ -61,23 +63,27 @@ class GetFilesTest < Verm::TestCase
   end
   
   def test_serves_files_with_correct_length_and_content
-    copy_file_to('somefiles', nil)
-    File.open(@original_file, 'rb') do |f|
-      get :path => "/somefiles/#{@filename}",
-          :expected_content_length => f.stat.size,
-          :expected_content => f.read
+    assert_statistics_change(:get_requests => 1) do
+      copy_file_to('somefiles', nil)
+      File.open(@original_file, 'rb') do |f|
+        get :path => "/somefiles/#{@filename}",
+            :expected_content_length => f.stat.size,
+            :expected_content => f.read
+      end
     end
   end
   
   def test_serves_files_with_etag_and_supports_if_none_match
-    copy_file_to('somefiles', nil)
-    response = get :path => "/somefiles/#{@filename}"
-    assert_not_nil response['etag']
-    
-    get :path => "/somefiles/#{@filename}",
-        :headers => {'if-none-match' => response['etag']},
-        :expected_response_code => 304, # HTTP not modified
-        :expected_content => nil # and body not sent
+    assert_statistics_change(:get_requests => 2) do
+      copy_file_to('somefiles', nil)
+      response = get :path => "/somefiles/#{@filename}"
+      assert_not_nil response['etag']
+      
+      get :path => "/somefiles/#{@filename}",
+          :headers => {'if-none-match' => response['etag']},
+          :expected_response_code => 304, # HTTP not modified
+          :expected_content => nil # and body not sent
+    end
   end
   
   def test_serves_files_uncompressed_if_client_accepts_gzip_but_file_is_uncompressed

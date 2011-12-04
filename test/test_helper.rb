@@ -103,5 +103,27 @@ module Verm
       raise "The data saved to file doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
       location
     end
+
+    def get_statistics
+      response = get :path => "/_statistics", :expected_response_code => 200
+      lines = response.body.split(/\n/)
+      lines.inject({}) {|results, line| name, value = line.split(/ /); results[name.to_sym] = value.to_i; results}
+    end
+
+    def statistics_change
+      before = get_statistics
+      yield
+      after = get_statistics
+
+      # we take off the change caused by the 'before' request itself so that the calling test doesn't need to embed that knowledge
+      after[:get_requests] -= 1
+      
+      results = after.inject({}) {|results, (k, v)| results[k] = v - before[k] unless v == before[k]; results}
+    end
+
+    def assert_statistics_change(expected_change)
+      change = statistics_change { yield }
+      assert_equal expected_change, change
+    end
   end
 end

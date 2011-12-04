@@ -9,17 +9,25 @@ class ReplicationPutTest < Verm::TestCase
   end
 
   def test_saves_files_under_requested_path
-    put_file :path => '/foo/lO/SLenl_se3zbBC0n88buiy2vAadjA9lq2xXRPccE7AA',
-             :file => 'simple_text_file',
-             :type => 'application/octet-stream'
+    assert_statistics_change(:put_requests => 2, :put_requests_new_file_stored => 1) do
+      put_file :path => '/foo/lO/SLenl_se3zbBC0n88buiy2vAadjA9lq2xXRPccE7AA',
+               :file => 'simple_text_file',
+               :type => 'application/octet-stream'
 
-    put_file :path => '/foo/iX/jUKZYPw2NppTMTYyev5t3_x9NhyB-MLfbv1pDDGX0A',
-             :file => 'another_text_file',
-             :type => 'application/octet-stream'
+      put_file :path => '/foo/lO/SLenl_se3zbBC0n88buiy2vAadjA9lq2xXRPccE7AA',
+               :file => 'simple_text_file',
+               :type => 'application/octet-stream'
+    end
 
-    put_file :path => '/different/lO/SLenl_se3zbBC0n88buiy2vAadjA9lq2xXRPccE7AA',
-             :file => 'simple_text_file',
-             :type => 'application/octet-stream'
+    assert_statistics_change(:put_requests => 2, :put_requests_new_file_stored => 2) do
+      put_file :path => '/foo/iX/jUKZYPw2NppTMTYyev5t3_x9NhyB-MLfbv1pDDGX0A',
+               :file => 'another_text_file',
+               :type => 'application/octet-stream'
+
+      put_file :path => '/different/lO/SLenl_se3zbBC0n88buiy2vAadjA9lq2xXRPccE7AA',
+               :file => 'simple_text_file',
+               :type => 'application/octet-stream'
+    end
   end
 
   def test_saves_binary_files_without_truncation_or_miscoding
