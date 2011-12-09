@@ -46,6 +46,7 @@ struct Upload {
 	SHA256_CTX hasher;
 	void* decompressor;
 	const char* extension;
+	const char* encoding;
 	const char* encoding_suffix;
 	char location[MAX_PATH_LENGTH];
 	int redirect_afterwards;
@@ -228,7 +229,8 @@ int handle_post_data(
 			}
 			if (content_encoding) {
 				if (strcmp(content_encoding, "gzip") == 0) {
-					upload->encoding_suffix = ".gz";
+					upload->encoding = "gzip"; // static string so doesn't need to be copied
+					upload->encoding_suffix = ".gz"; // static string so doesn't need to be copied
 					upload->decompressor = create_memory_decompressor(); // we have to decompress the file to hash it and determine the filename (but we save the wire content as it is, so the files should be binary-identical even if zlib is set up differently)
 					if (!upload->decompressor) return MHD_NO; // presumably out of memory; create_memory_decompressor() has already printed an error
 				}
@@ -336,6 +338,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	upload->pp = NULL;
 	upload->decompressor = NULL;
 	upload->extension = "";
+	upload->encoding = "";
 	upload->encoding_suffix = "";
 	upload->location[0] = 0;
 	upload->redirect_afterwards = 0;
@@ -478,6 +481,7 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 		if (ret == 0) {
 			// successfully linked
 			upload->new_file_stored = 1;
+			add_replication_file(upload->location, final_fs_path, upload->encoding);
 			break;
 		
 		} else if (errno == EEXIST) {
