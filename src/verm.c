@@ -645,6 +645,22 @@ int help() {
 	return 100;
 }
 
+int ignore_pipe_signals() {
+	struct sigaction sig;
+	sigemptyset(&sig.sa_mask);
+	sig.sa_handler = SIG_IGN;
+	#ifdef SA_INTERRUPT
+	sig.sa_flags = SA_INTERRUPT;  /* SunOS */
+	#else
+	sig.sa_flags = SA_RESTART;
+	#endif
+	if (sigaction(SIGPIPE, &sig, NULL) < 0) {
+		perror("Couldn't install SIGPIPE handler");
+		return -1;
+	}
+	return 0;
+}
+
 int wait_for_termination() {
 	sigset_t signals;
 	int _sig; /* currently unused, but can't pass NULL to sigwait on Linux */
@@ -705,6 +721,8 @@ int main(int argc, char* argv[]) {
 	#ifdef DUMP_MIME_TYPES
 	dump_mime_types();
 	#endif
+
+	if (ignore_pipe_signals()) return 6;
 	
 	http_daemon = MHD_start_daemon(
 		MHD_USE_THREAD_PER_CONNECTION | EXTRA_DAEMON_FLAGS,
