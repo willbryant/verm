@@ -36,7 +36,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 @ENABLE_HTTPS_TRUE@am__append_1 = https
-check_PROGRAMS = daemontest_get$(EXEEXT) \
+check_PROGRAMS = test_start_stop$(EXEEXT) daemontest_get$(EXEEXT) \
 	daemontest_get_sendfile$(EXEEXT) daemontest_urlparse$(EXEEXT) \
 	daemontest_post$(EXEEXT) daemontest_postform$(EXEEXT) \
 	daemontest_post_loop$(EXEEXT) daemontest_put$(EXEEXT) \
@@ -220,6 +220,10 @@ am_test_callback_OBJECTS = test_callback.$(OBJEXT)
 test_callback_OBJECTS = $(am_test_callback_OBJECTS)
 test_callback_DEPENDENCIES =  \
 	$(top_builddir)/src/daemon/libmicrohttpd.la
+am_test_start_stop_OBJECTS = test_start_stop.$(OBJEXT)
+test_start_stop_OBJECTS = $(am_test_start_stop_OBJECTS)
+test_start_stop_DEPENDENCIES =  \
+	$(top_builddir)/src/daemon/libmicrohttpd.la
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -257,7 +261,7 @@ SOURCES = $(libcurl_version_check_a_SOURCES) \
 	$(daemontest_termination_SOURCES) \
 	$(daemontest_timeout_SOURCES) $(daemontest_urlparse_SOURCES) \
 	$(perf_get_SOURCES) $(perf_get_concurrent_SOURCES) \
-	$(test_callback_SOURCES)
+	$(test_callback_SOURCES) $(test_start_stop_SOURCES)
 DIST_SOURCES = $(libcurl_version_check_a_SOURCES) \
 	$(daemon_options_test_SOURCES) \
 	$(daemontest_digestauth_SOURCES) $(daemontest_get_SOURCES) \
@@ -282,7 +286,7 @@ DIST_SOURCES = $(libcurl_version_check_a_SOURCES) \
 	$(daemontest_termination_SOURCES) \
 	$(daemontest_timeout_SOURCES) $(daemontest_urlparse_SOURCES) \
 	$(perf_get_SOURCES) $(perf_get_concurrent_SOURCES) \
-	$(test_callback_SOURCES)
+	$(test_callback_SOURCES) $(test_start_stop_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -379,7 +383,6 @@ LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
-MANIFEST_TOOL = @MANIFEST_TOOL@
 MHD_LIBDEPS = @MHD_LIBDEPS@
 MHD_LIB_LDFLAGS = @MHD_LIB_LDFLAGS@
 MKDIR_P = @MKDIR_P@
@@ -414,7 +417,6 @@ abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
-ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
@@ -447,6 +449,7 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
+lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -478,6 +481,12 @@ TESTS = $(check_PROGRAMS)
 noinst_LIBRARIES = libcurl_version_check.a
 libcurl_version_check_a_SOURCES = \
   curl_version_check.c
+
+test_start_stop_SOURCES = \
+  test_start_stop.c
+
+test_start_stop_LDADD = \
+  $(top_builddir)/src/daemon/libmicrohttpd.la
 
 daemon_options_test_SOURCES = \
   daemon_options_test.c
@@ -848,6 +857,9 @@ perf_get_concurrent$(EXEEXT): $(perf_get_concurrent_OBJECTS) $(perf_get_concurre
 test_callback$(EXEEXT): $(test_callback_OBJECTS) $(test_callback_DEPENDENCIES) 
 	@rm -f test_callback$(EXEEXT)
 	$(LINK) $(test_callback_OBJECTS) $(test_callback_LDADD) $(LIBS)
+test_start_stop$(EXEEXT): $(test_start_stop_OBJECTS) $(test_start_stop_DEPENDENCIES) 
+	@rm -f test_start_stop$(EXEEXT)
+	$(LINK) $(test_start_stop_OBJECTS) $(test_start_stop_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -879,6 +891,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/perf_get.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/perf_get_concurrent.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_callback.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_start_stop.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

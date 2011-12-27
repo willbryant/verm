@@ -1,8 +1,8 @@
 This is microhttpd.info, produced by makeinfo version 4.13 from
 microhttpd.texi.
 
-This manual documents GNU libmicrohttpd version 0.9.16, last updated
-28 September 2011. It is built upon the documentation in the header
+This manual documents GNU libmicrohttpd version 0.9.17, last updated
+27 September 2011. It is built upon the documentation in the header
 file `microhttpd.h'.
 
 Copyright (C) 2007, 2008, 2009, 2010, 2011 Christian Grothoff
@@ -26,8 +26,8 @@ File: microhttpd.info,  Node: Top,  Next: microhttpd-intro,  Up: (dir)
 The GNU libmicrohttpd Library
 *****************************
 
-This manual documents GNU libmicrohttpd version 0.9.16, last updated
-28 September 2011. It is built upon the documentation in the header
+This manual documents GNU libmicrohttpd version 0.9.17, last updated
+27 September 2011. It is built upon the documentation in the header
 file `microhttpd.h'.
 
 Copyright (C) 2007, 2008, 2009, 2010, 2011 Christian Grothoff
