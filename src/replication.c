@@ -170,11 +170,13 @@ void replication_send_file(struct Replicator *replicator, const char *path, size
 		if (bread > 0) {
 			bwritten = send(replicator->socket, &buf, bread, 0);
 			if (bwritten > 0) {
-				// we have successfully written some bytes to the socket.  usually all the bytes we supplied will have been written, but if our
-				// write was interrupted by a signal, it's possible that we have written fewer than we read.  but that's ok - using pread and
-				// specifying the offset means that we will correctly start the next iteration from after the data written, and it's rare enough
-				// for there to be no point adding extra code to handle partial writes, especially since the re-read will in reality be cached.
-				// TODO: check that wmem for TCP is sufficiently large on OS X for this to be acceptable
+				// we have successfully written some bytes to the socket.  because our buffer is smaller than the SO_SNDBUF (on all supported
+				// operating systems - indeed all current OSs use 8k or more, eg. Linux uses 128k - so we don't need to request this ourselves)
+				// and send is a blocking call (it will wait until space becomes available in the buffer if it fills it) usually all the bytes
+				// we supplied will have been written.  but if our write was interrupted by a signal, it's possible that we have written fewer
+				// than we read - bwritten <= bread.  but that's ok - using pread and specifying the offset, which we increment only bwritten,
+				// means that we will correctly start the next iteration from after the data written, and it's rare enough for there to be no
+				// point adding extra code to handle partial writes, especially since the re-read will in reality be cached.
 				offset += bwritten;
 			} else if (errno != EINTR) {
 				fprintf(stderr, "Error writing to %s:%s: %s (%d)\n", replicator->hostname, replicator->service, strerror(errno), errno);
