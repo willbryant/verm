@@ -14,31 +14,6 @@ module Verm
   class TestCase < Test::Unit::TestCase
     undef_method :default_test if instance_methods.include? 'default_test' or
                                   instance_methods.include? :default_test
-    
-    def put_file(options, verm_spawner = VERM_SPAWNER)
-      orig_filename = File.join(File.dirname(__FILE__), 'fixtures', options[:file])
-      file_data = File.read(orig_filename)
-      
-      request = Net::HTTP::Put.new(options[:path])
-      request.content_type = options[:type]
-      request['Content-Encoding'] = options[:encoding] if options[:encoding]
-      
-      http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
-      http.read_timeout = timeout
-      location = http.start do |connection|
-        response = connection.request(request, file_data)
-        response.error! unless response.is_a?(Net::HTTPSuccess)
-        response['location']
-      end
-
-      raise "The location returned was #{location}, but it was supposed to be the requested location #{options[:path]}" if location != options[:path]
-      dest_filename = File.expand_path(File.join(verm_spawner.verm_data, location))
-      dest_filename += '.' + options[:expected_extension_suffix] if options[:expected_extension_suffix]
-      raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
-      saved_data = File.read(dest_filename)
-      raise "The data saved to file doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
-      dest_filename
-    end
 
     def setup
       VERM_SPAWNER.clear_data
@@ -53,6 +28,7 @@ module Verm
     def timeout
       10 # seconds
     end
+    
     
     def get(options)
       verm_spawner = options.delete(:verm) || VERM_SPAWNER
@@ -105,6 +81,32 @@ module Verm
       raise "The data saved to file doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
       location
     end
+    
+    def put_file(options, verm_spawner = VERM_SPAWNER)
+      orig_filename = File.join(File.dirname(__FILE__), 'fixtures', options[:file])
+      file_data = File.read(orig_filename)
+      
+      request = Net::HTTP::Put.new(options[:path])
+      request.content_type = options[:type]
+      request['Content-Encoding'] = options[:encoding] if options[:encoding]
+      
+      http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
+      http.read_timeout = timeout
+      location = http.start do |connection|
+        response = connection.request(request, file_data)
+        response.error! unless response.is_a?(Net::HTTPSuccess)
+        response['location']
+      end
+
+      raise "The location returned was #{location}, but it was supposed to be the requested location #{options[:path]}" if location != options[:path]
+      dest_filename = File.expand_path(File.join(verm_spawner.verm_data, location))
+      dest_filename += '.' + options[:expected_extension_suffix] if options[:expected_extension_suffix]
+      raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
+      saved_data = File.read(dest_filename)
+      raise "The data saved to file doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
+      dest_filename
+    end
+
 
     def get_statistics(options = {})
       response = get(options.merge(:path => "/_statistics", :expected_response_code => 200))
