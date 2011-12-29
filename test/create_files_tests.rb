@@ -23,6 +23,11 @@ module CreateFilesSharedTests
               :file => 'binary_file',
               :type => 'application/octet-stream',
               :expected_extension => nil
+
+    post_file :path => '/foo',
+              :file => 'medium_file',
+              :type => 'application/octet-stream',
+              :expected_extension => nil
   end
   
   def test_saves_unknown_type_files_without_complaining

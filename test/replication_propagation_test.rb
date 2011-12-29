@@ -57,5 +57,12 @@ class ReplicationPropagationTest < Verm::TestCase
                 :type => 'application/octet-stream',
                 :verm => REPLICATION_MASTER_VERM_SPAWNER
     end
+
+    assert_propagates_file(:expected_content => File.read(fixture_file_path('medium_file'))) do
+      post_file :path => '/foo',
+                :file => 'medium_file',
+                :type => 'application/octet-stream',
+                :verm => REPLICATION_MASTER_VERM_SPAWNER
+    end
   end
 end
