@@ -7,7 +7,7 @@
 
 struct Replicator {
 	char* hostname;
-	int port;
+	char* service;
 
 	pthread_t thread;
 	int need_resync;
@@ -32,13 +32,13 @@ static int number_of_replicators = 0;
 static struct Replicator *last_replicator = NULL;
 
 int push_file(struct Replicator *replicator, struct ReplicationFile *file) {
-	fprintf(stdout, "replicating %s to '%s' port %d\n", file->location, replicator->hostname, replicator->port);
+	fprintf(stdout, "replicating %s to %s:%s\n", file->location, replicator->hostname, replicator->service);
 	// TODO: implement HTTP posting
 	return 0;
 }
 
 int resync(struct Replicator *replicator) {
-	fprintf(stdout, "resyncing to '%s' port %d\n", replicator->hostname, replicator->port);
+	fprintf(stdout, "resyncing to %s:%s\n", replicator->hostname, replicator->service);
 	// TODO: implement directory scanning and call push_file
 	return 0;
 }
@@ -65,7 +65,7 @@ void *replication_thread_entry(void *data) {
 	struct Replicator *replicator = (struct Replicator *)data;
 	struct ReplicationFile *file = NULL;
 
-	fprintf(stdout, "replicating to '%s' port %d\n", replicator->hostname, replicator->port);
+	fprintf(stdout, "replicating to '%s' port %s\n", replicator->hostname, replicator->service);
 	if (pthread_mutex_lock(&replication_queue_mutex) < 0) return NULL;
 
 	while (!replication_shutdown) {
@@ -107,7 +107,7 @@ void *replication_thread_entry(void *data) {
 	return NULL;
 }
 
-int add_replication_target(char *hostname, int port) {
+int add_replication_target(char *hostname, char *service) {
 	struct Replicator* replicator = (struct Replicator *)malloc(sizeof(struct Replicator));
 	if (!replicator) return -1;
 
@@ -116,7 +116,7 @@ int add_replication_target(char *hostname, int port) {
 		free(replicator);
 		return -1;
 	}
-	replicator->port = port;
+	replicator->service = service;
 	replicator->next_file = NULL;
 	replicator->next_replicator = last_replicator;
 	if (pthread_create(&replicator->thread, NULL, &replication_thread_entry, replicator) < 0) return -1;
@@ -126,18 +126,16 @@ int add_replication_target(char *hostname, int port) {
 	return 0;
 }
 
-int parse_and_add_replication_target(char *target, int default_port) {
-	int ret, port;
+int parse_and_add_replication_target(char *target, char *default_service) {
+	int ret;
 	char *colon = strchr(target, ':');
 	if (colon) {
-		port = atoi_or_default(colon + 1, 0);
-		if (!port) return EINVAL;
 		*colon = 0;
-		ret = add_replication_target(target, port);
+		ret = add_replication_target(target, colon + 1);
 		*colon = ':';
 		return ret;
 	} else {
-		return add_replication_target(target, default_port);
+		return add_replication_target(target, default_service);
 	}
 }
 

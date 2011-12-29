@@ -1,4 +1,4 @@
-#define DEFAULT_HTTP_PORT 1138
+#define DEFAULT_HTTP_PORT "1138"
 #define HTTP_TIMEOUT 60
 #define POST_BUFFER_SIZE 65536
 #define MAX_DIRECTORY_LENGTH 256
@@ -642,7 +642,7 @@ int help() {
 		"\n"
 		"Options: -d /foo           Sets the root data directory to /foo.  Must be fully-qualified (ie. it must\n"
 		"                           start with a /).  Default: %s.\n"
-		"         -l <port>         Listen on the given port.  Default: %d.\n"
+		"         -l <port>         Listen on the given port.  Default: %s.\n"
 		"         -r <hostname>	Replicate files to the Verm instance running on <hostname>.\n"
 		"            <hostname>:<port>          ... to the Verm instance running on <hostname> listening on <port>.\n"
 		"                           This option may be used multiple times, to replicate to multiple servers concurrently.\n"
@@ -687,7 +687,7 @@ int wait_for_termination() {
 
 int main(int argc, char* argv[]) {
 	struct MHD_Daemon* http_daemon;
-	int port = DEFAULT_HTTP_PORT;
+	int port = atoi(DEFAULT_HTTP_PORT);
 	const char* mime_types_file = default_mime_types_file();
 	int complain_about_mime_types = 0;
 	struct Server server;
