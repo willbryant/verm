@@ -15,7 +15,7 @@ module Verm
     undef_method :default_test if instance_methods.include? 'default_test' or
                                   instance_methods.include? :default_test
     
-    def put_file(options)
+    def put_file(options, verm_spawner = VERM_SPAWNER)
       orig_filename = File.join(File.dirname(__FILE__), 'fixtures', options[:file])
       file_data = File.read(orig_filename)
       
@@ -23,7 +23,7 @@ module Verm
       request.content_type = options[:type]
       request['Content-Encoding'] = options[:encoding] if options[:encoding]
       
-      http = Net::HTTP.new(VERM_SPAWNER.hostname, VERM_SPAWNER.port)
+      http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
       http.read_timeout = timeout
       location = http.start do |connection|
         response = connection.request(request, file_data)
@@ -32,7 +32,7 @@ module Verm
       end
 
       raise "The location returned was #{location}, but it was supposed to be the requested location #{options[:path]}" if location != options[:path]
-      dest_filename = File.expand_path(File.join(VERM_SPAWNER.verm_data, location))
+      dest_filename = File.expand_path(File.join(verm_spawner.verm_data, location))
       dest_filename += '.' + options[:expected_extension_suffix] if options[:expected_extension_suffix]
       raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
       saved_data = File.read(dest_filename)
@@ -55,7 +55,8 @@ module Verm
     end
     
     def get(options)
-      http = Net::HTTP.new(VERM_SPAWNER.hostname, VERM_SPAWNER.port)
+      verm_spawner = options.delete(:verm) || VERM_SPAWNER
+      http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
       http.read_timeout = timeout
       
       response = http.get(options[:path], options[:headers])
@@ -70,6 +71,7 @@ module Verm
     end
     
     def post_file(options)
+      verm_spawner = options.delete(:verm) || VERM_SPAWNER
       orig_filename = File.join(File.dirname(__FILE__), 'fixtures', options[:file])
       file_data = File.read(orig_filename)
       
@@ -83,7 +85,7 @@ module Verm
         request.form_data = {"test" => "bar"}
       end
       
-      http = Net::HTTP.new(VERM_SPAWNER.hostname, VERM_SPAWNER.port)
+      http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
       http.read_timeout = timeout
       location = http.start do |connection|
         if @raw
@@ -96,7 +98,7 @@ module Verm
 
       raise "The location returned was #{location}, but it was supposed to be saved under #{options[:path]}/" if location[0..options[:path].length] != "#{options[:path]}/"
       raise "The location returned was #{location}, but it was supposed to have a #{options[:expected_extension]} extension" if options[:expected_extension] && location[(-options[:expected_extension].length - 1)..-1] != ".#{options[:expected_extension]}"
-      dest_filename = File.expand_path(File.join(VERM_SPAWNER.verm_data, location))
+      dest_filename = File.expand_path(File.join(verm_spawner.verm_data, location))
       dest_filename += '.' + options[:expected_extension_suffix] if options[:expected_extension_suffix]
       raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
       saved_data = File.read(dest_filename)
@@ -104,16 +106,16 @@ module Verm
       location
     end
 
-    def get_statistics
-      response = get :path => "/_statistics", :expected_response_code => 200
+    def get_statistics(options = {})
+      response = get(options.merge(:path => "/_statistics", :expected_response_code => 200))
       lines = response.body.split(/\n/)
       lines.inject({}) {|results, line| name, value = line.split(/ /); results[name.to_sym] = value.to_i; results}
     end
 
-    def statistics_change
-      before = get_statistics
+    def statistics_change(options = {})
+      before = get_statistics(options)
       yield
-      after = get_statistics
+      after = get_statistics(options)
 
       # we take off the change caused by the 'before' request itself so that the calling test doesn't need to embed that knowledge
       after[:get_requests] -= 1
@@ -121,8 +123,8 @@ module Verm
       results = after.inject({}) {|results, (k, v)| results[k] = v - before[k] unless v == before[k]; results}
     end
 
-    def assert_statistics_change(expected_change)
-      change = statistics_change { yield }
+    def assert_statistics_change(expected_change, options = {})
+      change = statistics_change(options) { yield }
       assert_equal expected_change, change
     end
   end
