@@ -1,10 +1,8 @@
-#define DEFAULT_HTTP_PORT "1138"
+#include "settings.h"
+
 #define HTTP_TIMEOUT 60
 #define POST_BUFFER_SIZE 65536
-#define MAX_DIRECTORY_LENGTH 256
-#define MAX_PATH_LENGTH 512 // checked; enough for /data root directory:200/client-requested directory:256/hashed filename:44.extension:8
 #define DIRECTORY_PERMISSION 0777
-#undef  DEBUG
 #undef  DUMP_MIME_TYPES
 
 #define DEFAULT_ROOT "/var/lib/verm"
@@ -24,10 +22,8 @@
 
 #ifdef DEBUG
 	#define EXTRA_DAEMON_FLAGS MHD_USE_DEBUG
-	#define DEBUG_PRINT(...) fprintf(stdout, __VA_ARGS__)
 #else
 	#define EXTRA_DAEMON_FLAGS 0
-	#define DEBUG_PRINT(...) 
 #endif
 
 #define ERR_PUT_TO_WRONG_PATH -2
@@ -718,7 +714,7 @@ int main(int argc, char* argv[]) {
 			
 			case 'r':
 				// note that even if OUR listening port is changed from the default using -r, we still replicate to the default port on the other instance unless a port is explicitly given
-				if (parse_and_add_replication_target(optarg, DEFAULT_HTTP_PORT)) return help();
+				if (parse_and_add_replication_target(optarg)) return help();
 				break;
 			
 			case '?':

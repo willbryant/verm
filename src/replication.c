@@ -1,3 +1,4 @@
+#include "settings.h"
 #include "replication.h"
 #include "str.h"
 
@@ -32,13 +33,13 @@ static int number_of_replicators = 0;
 static struct Replicator *last_replicator = NULL;
 
 int push_file(struct Replicator *replicator, struct ReplicationFile *file) {
-	fprintf(stdout, "replicating %s to %s:%s\n", file->location, replicator->hostname, replicator->service);
+	DEBUG_PRINT("replicating %s to %s:%s\n", file->location, replicator->hostname, replicator->service);
 	// TODO: implement HTTP posting
 	return 0;
 }
 
 int resync(struct Replicator *replicator) {
-	fprintf(stdout, "resyncing to %s:%s\n", replicator->hostname, replicator->service);
+	DEBUG_PRINT("resyncing to %s:%s\n", replicator->hostname, replicator->service);
 	// TODO: implement directory scanning and call push_file
 	return 0;
 }
@@ -65,7 +66,7 @@ void *replication_thread_entry(void *data) {
 	struct Replicator *replicator = (struct Replicator *)data;
 	struct ReplicationFile *file = NULL;
 
-	fprintf(stdout, "replicating to '%s' port %s\n", replicator->hostname, replicator->service);
+	DEBUG_PRINT("replicating to '%s' port %s\n", replicator->hostname, replicator->service);
 	if (pthread_mutex_lock(&replication_queue_mutex) < 0) return NULL;
 
 	while (!replication_shutdown) {
@@ -126,7 +127,7 @@ int add_replication_target(char *hostname, char *service) {
 	return 0;
 }
 
-int parse_and_add_replication_target(char *target, char *default_service) {
+int parse_and_add_replication_target(char *target) {
 	int ret;
 	char *colon = strchr(target, ':');
 	if (colon) {
@@ -135,7 +136,7 @@ int parse_and_add_replication_target(char *target, char *default_service) {
 		*colon = ':';
 		return ret;
 	} else {
-		return add_replication_target(target, default_service);
+		return add_replication_target(target, DEFAULT_HTTP_PORT);
 	}
 }
 
