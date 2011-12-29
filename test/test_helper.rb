@@ -118,9 +118,6 @@ module Verm
       before = get_statistics(options)
       yield
       after = get_statistics(options)
-
-      # we take off the change caused by the 'before' request itself so that the calling test doesn't need to embed that knowledge
-      after[:get_requests] -= 1
       
       results = after.inject({}) {|results, (k, v)| results[k] = v - before[k] unless v == before[k]; results}
     end

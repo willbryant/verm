@@ -35,7 +35,7 @@ int responded(struct MHD_Connection* connection) {
 	return (connection->response != NULL);
 }
 
-int log_response(struct MHD_Connection* connection, int suppress, int new_file_stored) {
+int log_response(struct MHD_Connection* connection, int suppress_log_output, int statistics_request, int new_file_stored) {
 	struct sockaddr* address;
 	char addr[NI_MAXHOST];
 	time_t now;
@@ -46,7 +46,7 @@ int log_response(struct MHD_Connection* connection, int suppress, int new_file_s
 	if (pthread_mutex_lock(&log_mutex) < 0) return -1;
 
 	if (strcmp(connection->method, "GET") == 0) {
-		statistics.get_requests++;
+		if (!statistics_request) statistics.get_requests++;
 		if (connection->responseCode == MHD_HTTP_NOT_FOUND) statistics.get_requests_not_found++;
 
 	} else if (strcmp(connection->method, "POST") == 0) {
@@ -60,7 +60,7 @@ int log_response(struct MHD_Connection* connection, int suppress, int new_file_s
 		if (REQUEST_FAILED(connection)) statistics.put_requests_failed++;
 	}
 
-	if (!suppress) {
+	if (!suppress_log_output) {
 		address = MHD_get_connection_info(connection, MHD_CONNECTION_INFO_CLIENT_ADDRESS)->client_addr;
 		if (getnameinfo(address, SA_LEN(address), addr, sizeof(addr), NULL, 0, NI_NUMERICHOST | NI_NUMERICSERV) < 0) { strncpy(addr, "-", sizeof(addr)); }
 		time(&now);

@@ -50,6 +50,7 @@ struct Upload {
 };
 
 const char* dummy_to_indicate_second_call = "not-null";
+const char* dummy_to_indicate_statistics_request = STATISTICS_PATH;
 
 int handle_get_or_head_request(
 	struct Server* server, struct MHD_Connection* connection,
@@ -75,6 +76,7 @@ int handle_get_or_head_request(
 		return send_upload_page_response(connection);
 
 	} else if (strcmp(path, STATISTICS_PATH) == 0) {
+		*request_data = (void*) dummy_to_indicate_statistics_request;
 		return handle_statistics_request(connection);
 	}
 	
@@ -615,14 +617,14 @@ int handle_request_completed(
 	struct Server* server = (struct Server*) void_server;
 	
 	int new_file_stored = 0;
-	if (*request_data && *request_data != dummy_to_indicate_second_call) {
+	if (*request_data && *request_data != dummy_to_indicate_second_call && *request_data != dummy_to_indicate_statistics_request) {
 		struct Upload *upload = (struct Upload *)*request_data;
 		new_file_stored = upload->new_file_stored;
 		free_upload(upload);
 		*request_data = NULL;
 	}
 
-	log_response(connection, server->quiet, new_file_stored);
+	log_response(connection, server->quiet, *request_data == dummy_to_indicate_statistics_request, new_file_stored);
 	
 	return MHD_YES;
 }
