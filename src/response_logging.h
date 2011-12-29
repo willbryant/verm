@@ -15,6 +15,6 @@ int responded(struct MHD_Connection* connection);
 int log_response(struct MHD_Connection* connection, int suppress_log_output, int statistics_request, int new_file_stored);
 int log_replication_statistic(int successful);
 int copy_log_statistics(struct LogStatistics* dest);
-char* create_log_statistics_string();
+char* create_log_statistics_string(struct MHD_Connection *connection);
 
 #endif

@@ -182,7 +182,7 @@ int handle_statistics_request(struct MHD_Connection* connection) {
 	int ret;
 	char *buffer;
 	
-	buffer = create_log_statistics_string();
+	buffer = create_log_statistics_string(connection);
 	if (buffer == NULL) return MHD_NO;
 	
 	response = MHD_create_response_from_buffer(strlen(buffer), buffer, MHD_RESPMEM_MUST_FREE);
