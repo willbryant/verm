@@ -9,6 +9,7 @@ verm_binary = File.join(File.dirname(__FILE__), '..', 'verm')
 verm_data   = File.join(File.dirname(__FILE__), 'data')
 mime_types_file = File.join(File.dirname(__FILE__), 'fixtures', 'mime.types')
 VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, mime_types_file)
+REPLICATION_MASTER_VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, mime_types_file, VERM_SPAWNER.port + 1, VERM_SPAWNER.host)
 
 module Verm
   class TestCase < Test::Unit::TestCase
@@ -29,7 +30,11 @@ module Verm
       10 # seconds
     end
     
-    
+
+    def fixture_file_path(filename)
+      File.join(File.dirname(__FILE__), 'fixtures', filename)
+    end
+
     def get(options)
       verm_spawner = options.delete(:verm) || VERM_SPAWNER
       http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
@@ -48,7 +53,7 @@ module Verm
     
     def post_file(options)
       verm_spawner = options.delete(:verm) || VERM_SPAWNER
-      orig_filename = File.join(File.dirname(__FILE__), 'fixtures', options[:file])
+      orig_filename = fixture_file_path(options[:file])
       file_data = File.read(orig_filename)
       
       if @raw
@@ -83,7 +88,7 @@ module Verm
     end
     
     def put_file(options, verm_spawner = VERM_SPAWNER)
-      orig_filename = File.join(File.dirname(__FILE__), 'fixtures', options[:file])
+      orig_filename = fixture_file_path(options[:file])
       file_data = File.read(orig_filename)
       
       request = Net::HTTP::Put.new(options[:path])
@@ -114,16 +119,16 @@ module Verm
       lines.inject({}) {|results, line| name, value = line.split(/ /); results[name.to_sym] = value.to_i; results}
     end
 
-    def statistics_change(options = {})
-      before = get_statistics(options)
-      yield
-      after = get_statistics(options)
-      
+    def calculate_statistics_change(before, after)
       results = after.inject({}) {|results, (k, v)| results[k] = v - before[k] unless v == before[k]; results}
     end
 
     def assert_statistics_change(expected_change, options = {})
-      change = statistics_change(options) { yield }
+      before = get_statistics(options)
+      yield
+      after = get_statistics(options)
+
+      change = calculate_statistics_change(before, after)
       assert_equal expected_change, change
     end
   end

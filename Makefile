@@ -35,4 +35,4 @@ clean:
 	cd $(MHD) && make distclean
 
 test_verm: verm
-	testrb test/get_files_test.rb test/create_files_multipart_test.rb test/create_files_raw_test.rb test/replication_put_test.rb
+	testrb test/get_files_test.rb test/create_files_multipart_test.rb test/create_files_raw_test.rb test/replication_put_test.rb test/replication_propagation_test.rb

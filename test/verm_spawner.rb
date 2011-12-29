@@ -6,11 +6,12 @@ class VermSpawner
   
   attr_reader :verm_binary, :verm_data, :mime_types_file
   
-  def initialize(verm_binary, verm_data, mime_types_file, port = nil)
+  def initialize(verm_binary, verm_data, mime_types_file, port = nil, replicate_to = nil)
     @verm_binary = verm_binary
     @verm_data = verm_data
     @mime_types_file = mime_types_file
     @port = port
+    @replicate_to = replicate_to
     raise "Can't see a verm binary at #{verm_binary}" unless File.executable?(verm_binary)
   end
   
@@ -39,6 +40,10 @@ class VermSpawner
   def start_verm
     exec_args = [@verm_binary, "-d", verm_data, "-l", port.to_s, "-m", mime_types_file]
     exec_args << "-q" unless ENV['NOISY']
+
+    if @replicate_to
+      Array(@replicate_to).each {|r| exec_args << '-r'; exec_args << r}
+    end
     
     if ENV['VALGRIND']
       exec_args.unshift "--leak-check=full" if ENV['VALGRIND'] == "full"
