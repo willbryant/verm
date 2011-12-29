@@ -356,13 +356,13 @@ int push_file(struct Replicator *replicator, struct ReplicationFile *file) {
 	if (fd < 0) {
 		fprintf(stderr, "Couldn't open %s: %s (%d)\n", file->path, strerror(errno), errno);
 		replicator->need_resync = 1; // so we flush the queue and scan for files, so we don't get stuck on a disappeared file
-		return;
+		return 0;
 	}
 
 	struct stat st;
 	if (fstat(fd, &st) < 0) {
 		fprintf(stderr, "Couldn't stat %s: %s (%d)\n", file->path, strerror(errno), errno);
-		return;
+		return 0;
 	}
 
 	if (!replicator->socket) replication_open_connection(replicator);
