@@ -172,23 +172,22 @@ void add_replication_file(const char *location, const char *path, const char *en
 	pthread_mutex_unlock(&replication_queue_mutex);
 }
 
-void shutdown_replicator(struct Replicator *replicator) {
+void shutdown_replication() {
+	struct Replicator *replicator, *next;
+	
 	pthread_mutex_lock(&replication_queue_mutex);
 	replication_shutdown = 1;
 	pthread_cond_broadcast(&replication_queue_cond);
 	pthread_mutex_unlock(&replication_queue_mutex);
-	pthread_join(replicator->thread, NULL);
-	free(replicator->hostname);
-	free(replicator);
-}
 
-void shutdown_replication() {
-	struct Replicator *replicator, *next;
-	
 	replicator = last_replicator;
 	while (replicator) {
 		next = replicator->next_replicator;
-		shutdown_replicator(replicator);
+
+		pthread_join(replicator->thread, NULL);
+		free(replicator->hostname);
+		free(replicator);
+
 		replicator = next;
 	}
 }
