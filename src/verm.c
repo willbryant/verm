@@ -63,7 +63,7 @@ int handle_get_or_head_request(
 	int ret;
 	char fs_path[MAX_PATH_LENGTH];
 	const char* request_value;
-	int want_decompressed = 0;
+	int requested_uncompressed = 0;
 
 	// later versions of libmicrohttpd misbehave if we queue a response immediately on receiving the request;
 	// we are supposed to wait until the second call
@@ -112,7 +112,7 @@ int handle_get_or_head_request(
 					}
 					DEBUG_PRINT("opened %s\n", fs_path);
 					
-					want_decompressed = 1;
+					requested_uncompressed = 1;
 				}
 				break;
 			
@@ -144,7 +144,7 @@ int handle_get_or_head_request(
 	// FUTURE: support range requests
 	if (send_data) {
 		// ie. a GET request
-		if (want_decompressed && !accept_gzip_encoding(connection)) {
+		if (requested_uncompressed && !accept_gzip_encoding(connection)) {
 			// the file is compressed, but the client explicitly told us they don't support that, so decompress the file
 			file_size = get_decompressed_file_size(fd, st.st_size);
 			void* decompression = create_file_decompressor(fd);
@@ -155,8 +155,7 @@ int handle_get_or_head_request(
 			response = MHD_create_response_from_fd_at_offset(st.st_size, fd, 0); // fd will be closed by MHD when the response is destroyed
 			
 			// if the file is compressed, then we need to add a header saying so
-			if (want_decompressed && !add_gzip_content_encoding(response)) return MHD_NO; // out of memory
-			want_decompressed = 0;
+			if (requested_uncompressed && !add_gzip_content_encoding(response)) return MHD_NO; // out of memory
 		}
 	} else {
 		// ie. a HEAD request
