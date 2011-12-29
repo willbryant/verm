@@ -6,10 +6,11 @@ class VermSpawner
   
   attr_reader :verm_binary, :verm_data, :mime_types_file
   
-  def initialize(verm_binary, verm_data, mime_types_file)
+  def initialize(verm_binary, verm_data, mime_types_file, port = nil)
     @verm_binary = verm_binary
     @verm_data = verm_data
     @mime_types_file = mime_types_file
+    @port = port
     raise "Can't see a verm binary at #{verm_binary}" unless File.executable?(verm_binary)
   end
   
@@ -19,15 +20,15 @@ class VermSpawner
   
   def port
     # real verm will run on 1138, it's convenient to use another port for test so you can test a new version while the old version is still running
-    1139
+    @port || 1139
   end
-  
-  def server_address
-    @server_address ||= "http://#{hostname}:#{port}"
+
+  def host # following javascript Location naming conventions
+    "#{hostname}:#{port}"
   end
   
   def server_uri
-    @server_uri ||= URI.parse(server_address)
+    @server_uri ||= URI.parse("http://#{host}")
   end
   
   def clear_data
@@ -36,7 +37,8 @@ class VermSpawner
   end
   
   def start_verm
-    exec_args = [@verm_binary, "-d", verm_data, "-l", port.to_s, "-m", mime_types_file, "-q"]
+    exec_args = [@verm_binary, "-d", verm_data, "-l", port.to_s, "-m", mime_types_file]
+    exec_args << "-q" unless ENV['NOISY']
     
     if ENV['VALGRIND']
       exec_args.unshift "--leak-check=full" if ENV['VALGRIND'] == "full"
