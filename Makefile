@@ -7,7 +7,7 @@ LDFLAGS += -lpthread -lcrypto -lz
 
 PLATFORM := $(shell uname -s)
 ifeq ($(PLATFORM),SunOS)
-	CFLAGS += -pthreads -D_POSIX_PTHREAD_SEMANTICS
+	CFLAGS += -pthreads -D_POSIX_PTHREAD_SEMANTICS -DNEED_SA_LEN
 	LDFLAGS += -lsocket
 	MHDFLAGS = LIBS="-lsocket -lnsl"
 else
