@@ -16,6 +16,7 @@
 #include <openssl/sha.h>
 #include "responses.h"
 #include "response_logging.h"
+#include "statistics_reports.h"
 #include "decompression.h"
 #include "str.h"
 #include "mime_types.h"
