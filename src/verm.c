@@ -643,9 +643,10 @@ int help() {
 		"\n"
 		"Options: -d /foo           Sets the root data directory to /foo.  Must be fully-qualified (ie. it must\n"
 		"                           start with a /).  Default: %s.\n"
-		"         -l <port>         Listen on the given port.  Default: %s.\n"
+		"         -l <ip address>   Listen on the given IP address.  Default: listen on all network interfaces.\n"
+		"         -p <port>         Listen on the given port.  Default: %s.\n"
 		"         -r <hostname>	Replicate files to the Verm instance running on <hostname>.\n"
-		"            <hostname>:<port>          ... to the Verm instance running on <hostname> listening on <port>.\n"
+		"            <hostname>:<port>      ... to the Verm instance running on <hostname> listening on <port>.\n"
 		"                           This option may be used multiple times, to replicate to multiple servers concurrently.\n"
 		"         -m <filename>     Load MIME content-types from the given file.  Default: %s.\n"
 		"         -q                Quiet mode.  Don't print startup/shutdown/request log messages to stdout.\n",
@@ -688,15 +689,18 @@ int wait_for_termination() {
 
 int main(int argc, char* argv[]) {
 	struct MHD_Daemon* http_daemon;
+	struct sockaddr_in address;
 	int port = atoi(DEFAULT_HTTP_PORT);
 	const char* mime_types_file = default_mime_types_file();
 	int complain_about_mime_types = 0;
 	struct Server server;
 	server.quiet = 0;
 	server.root_data_directory = DEFAULT_ROOT;
+	address.sin_family = AF_INET;
+	if (inet_pton(AF_INET, "0.0.0.0", &address.sin_addr) < 1) fprintf(stderr, "Couldn't resolve 0.0.0.0\n");
 	
 	int c;
-	while ((c = getopt(argc, argv, "d:l:m:r:q")) != -1) {
+	while ((c = getopt(argc, argv, "d:l:p:m:r:q")) != -1) {
 		switch (c) {
 			case 'd':
 				if (strlen(optarg) <= 1 || *optarg != '/') return help();
@@ -704,6 +708,10 @@ int main(int argc, char* argv[]) {
 				break;
 			
 			case 'l':
+				if (inet_pton(AF_INET, optarg, &address.sin_addr) < 1) return help();
+				break;
+			
+			case 'p':
 				port = atoi(optarg);
 				if (port <= 0) return help();
 				break;
@@ -737,13 +745,15 @@ int main(int argc, char* argv[]) {
 
 	if (ignore_pipe_signals()) return 6;
 	
+	address.sin_port = htons(port); // microhttpd uses this, ignoring the port it requires us to provide below
 	http_daemon = MHD_start_daemon(
 		MHD_USE_THREAD_PER_CONNECTION | EXTRA_DAEMON_FLAGS,
-		port,
+		port, // actually ignored as above, because we supply MHD_OPTION_SOCK_ADDR
 		NULL, NULL, // no connection address check
 		&handle_request, &server,
 		MHD_OPTION_NOTIFY_COMPLETED, &handle_request_completed, &server,
 		MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int) HTTP_TIMEOUT,
+		MHD_OPTION_SOCK_ADDR, &address,
 		MHD_OPTION_END);
 	
 	if (http_daemon == NULL) {

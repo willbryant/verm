@@ -40,7 +40,7 @@ class VermSpawner
   end
   
   def start_verm
-    exec_args = [@verm_binary, "-d", verm_data, "-l", port.to_s, "-m", mime_types_file]
+    exec_args = [@verm_binary, "-d", verm_data, "-p", port.to_s, "-m", mime_types_file]
     exec_args << "-q" unless ENV['NOISY']
 
     if @replicate_to
