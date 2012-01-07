@@ -1,6 +1,8 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
 class ReplicationPropagationTest < Verm::TestCase
+  TIMEOUT_IN_DECISECONDS = 50
+
   def setup
     super
     REPLICATION_MASTER_VERM_SPAWNER.clear_data
@@ -13,6 +15,14 @@ class ReplicationPropagationTest < Verm::TestCase
     super
   end
 
+  def repeatedly_wait_until
+    TIMEOUT_IN_DECISECONDS.times do
+      return if yield
+      sleep 0.1
+    end
+    raise TimeoutError
+  end
+
   def assert_propagates_file(get_options)
     assert_statistics_change(:put_requests => 1, :get_requests => 1) do # on the slave
       before = get_statistics(:verm => REPLICATION_MASTER_VERM_SPAWNER)
@@ -20,11 +30,11 @@ class ReplicationPropagationTest < Verm::TestCase
       location = yield
 
       # wait until replication has been attempted
-      while true
+      changes = nil
+      repeatedly_wait_until do
         after = get_statistics(:verm => REPLICATION_MASTER_VERM_SPAWNER)
         changes = calculate_statistics_change(before, after)
-        break if changes[:replication_push_attempts]
-        sleep 0.1
+        changes[:replication_push_attempts]
       end
 
       assert_equal({:post_requests => 1, :post_requests_new_file_stored => 1, :replication_push_attempts => 1},
