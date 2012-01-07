@@ -641,15 +641,15 @@ int help() {
 		"            be run as the user you want to own the files.\n"
 		"            It can be run as root, but running daemons as root is generally discouraged.\n"
 		"\n"
-		"Options: -d /foo           Sets the root data directory to /foo.  Must be fully-qualified (ie. it must\n"
-		"                           start with a /).  Default: %s.\n"
-		"         -l <ip address>   Listen on the given IP address.  Default: listen on all network interfaces.\n"
-		"         -p <port>         Listen on the given port.  Default: %s.\n"
-		"         -r <hostname>	Replicate files to the Verm instance running on <hostname>.\n"
-		"            <hostname>:<port>      ... to the Verm instance running on <hostname> listening on <port>.\n"
-		"                           This option may be used multiple times, to replicate to multiple servers concurrently.\n"
-		"         -m <filename>     Load MIME content-types from the given file.  Default: %s.\n"
-		"         -q                Quiet mode.  Don't print startup/shutdown/request log messages to stdout.\n",
+		"Options: -d /foo              Sets the root data directory to /foo.  Must be fully-qualified (ie. it must\n"
+		"                              start with a /).  Default: %s.\n"
+		"         -l <ip address>      Listen on the given IP address.  Default: listen on all network interfaces.\n"
+		"         -p <port>            Listen on the given port.  Default: %s.\n"
+		"         -r <hostname>        Replicate files to the Verm instance running on <hostname>.\n"
+		"            <hostname>:<port>             ... to the Verm instance running on <hostname> listening on <port>.\n"
+		"                              This option may be used multiple times, to replicate to multiple servers concurrently.\n"
+		"         -m <filename>        Load MIME content-types from the given file.  Default: %s.\n"
+		"         -q                   Quiet mode.  Don't print startup/shutdown/request log messages to stdout.\n",
 		DEFAULT_ROOT, DEFAULT_HTTP_PORT, default_mime_types_file());
 	return 100;
 }
