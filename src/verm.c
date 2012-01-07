@@ -458,22 +458,18 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 	int dl, sl;
 	
 	if (!upload->location[0]) {
-		// we put each file in a subdirectory off the main root, whose name is the first two characters of the hash.
-		// we don't repeat those characters in the filename.
-		ret = snprintf(upload->location, sizeof(upload->location), "%s/%.2s/%s%s", upload->directory, encoded, encoded + 2, upload->extension);
+		ret = snprintf(upload->location, sizeof(upload->location), "%s/%s%s", upload->directory, encoded, upload->extension);
 	} else {
 		// check that the given location is correct
+		DEBUG_PRINT("checking %s vs %s/%s\n", upload->location, upload->directory, encoded);
 		dl = strlen(upload->directory);
 		sl = strlen(encoded);
-		if (strlen(upload->location) < dl + sl + 2 ||
+		if (strlen(upload->location) < dl + sl + 1 ||
 		    strncmp(upload->location, upload->directory, dl) != 0 ||
 		    *(upload->location + dl) != '/' ||
-		    *(upload->location + dl + 1) != encoded[0] ||
-		    *(upload->location + dl + 2) != encoded[1] ||
-		    *(upload->location + dl + 3) != '/' ||
-		    strncmp(upload->location + dl + 4, encoded + 2, sl - 2) ||
-		    (*(upload->location + dl + sl + 2) != '\0' &&
-		     (*(upload->location + dl + sl + 2) != '.' || strchr(upload->location + dl + sl + 3, '.')))) {
+		    strncmp(upload->location + dl + 1, encoded, sl) ||
+		    (*(upload->location + dl + sl + 1) != '\0' &&
+		     (*(upload->location + dl + sl + 1) != '.' || strchr(upload->location + dl + sl + 2, '.')))) {
 		    // PUT to an incorrect path; return a 409
 	    	return ERR_PUT_TO_WRONG_PATH;
 	    }
@@ -514,7 +510,7 @@ int link_file(struct Upload* upload, const char* root_data_directory, char* enco
 			}
 		
 			// no, different file; loop around and try again, this time with an attempt number appended to the end
-			ret = snprintf(upload->location, sizeof(upload->location), "%s/%.2s/%s_%d%s", upload->directory, encoded, encoded + 2, ++attempt, upload->extension);
+			ret = snprintf(upload->location, sizeof(upload->location), "%s/%s_%d%s", upload->directory, encoded, ++attempt, upload->extension);
 		
 		} else if (errno == ENOENT) {
 			// need to create the parent directory for the file - perfectly normal, since we make 64*64 subdirectories off the requested data directory, but only make them as required
@@ -539,22 +535,38 @@ int complete_upload(struct Upload* upload, const char* root_data_directory) {
 	unsigned char* src = md;
 	unsigned char* end = md + SHA256_DIGEST_LENGTH;
 
-	char encoded[45]; // for 32 input bytes, we need 45 output bytes (ceil(32/3.0)*4, plus a null terminator byte)
+	char encoded[45]; // for 32 input bytes, we need 45 output bytes (3 bytes for the first 2 input bytes, 1 byte for the /, then 30*4/3=40 bytes for the remaining input bytes, one for the NUL termination byte)
 	char* dest = encoded;
 	
 	SHA256_Final(md, &upload->hasher);
 
+	// we have 256 bits to encode, which is not an integral multiple of the 6 bits per character we can encode with
+	// base64.  if we run normal base64, we end up with bits free at the end of the string.  we have chosen to
+	// use the free bits at the start of the directory name and file name instead, to avoid needing to use the -
+	// character (and with it, the last 31 characters in our alphabet) in the first character of these path
+	// components, so making our filenames 'nicer' in that even in the unusual scenario where an admin or user is
+	// in the directory and referring to the subdirectories or files on the command line without qualifying them
+	// (using ./ or the full path name), there is no chance of them being interpreted as command-line option switches.
+	// of course, we'd rather not use - in our alphabet, but the only alternatives get URL-encoded, which is worse.
+	// so we use 5 bits in the first character, the next 6 bits in the second character, then after the /, the next 5
+	// bits in the last special character, so encoding exactly 2 input bytes in 3 output bytes plus one more for the /.
+	*dest++ = encode_chars[((*src & 0xf8) >> 3)];
+	*dest++ = encode_chars[((*src & 0x07) << 3) + ((*(src + 1) & 0xe0) >> 5)];
+	*dest++ = '/'; // we put each file in a subdirectory off the main root, whose name is the first two characters of the hash.
+	*dest++ = encode_chars[((*src & 0x1f))];
+	src += 2;
+
 	while (src < end) {
 		unsigned char s0 = *src++;
-		unsigned char s1 = (src == end) ? 0 : *src++;
-		unsigned char s2 = (src == end) ? 0 : *src++;
-		*dest++ = encode_chars[(s0 & 0xfc) >> 2];
+		unsigned char s1 = *src++; // thanks to the above, we know that we have an exact
+		unsigned char s2 = *src++; // multiple of 3 bytes left to encode in this loop
+		*dest++ = encode_chars[((s0 & 0xfc) >> 2)];
 		*dest++ = encode_chars[((s0 & 0x03) << 4) + ((s1 & 0xf0) >> 4)];
 		*dest++ = encode_chars[((s1 & 0x0f) << 2) + ((s2 & 0xc0) >> 6)];
-		*dest++ = encode_chars[s2 & 0x3f];
+		*dest++ = encode_chars[((s2 & 0x3f))];
 	}
 	*dest = 0;
-
+	
 	DEBUG_PRINT("hashed, encoded filename is %s\n", encoded);
 	return link_file(upload, root_data_directory, encoded);
 }
