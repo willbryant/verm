@@ -268,7 +268,7 @@ int handle_post_data(
 }
 
 void free_upload(struct Upload* upload) {
-	DEBUG_PRINT("freeing upload object\n", NULL);
+	DEBUG_PRINT("freeing upload object\n");
 	int ret;
 
 	if (upload->decompressor) destroy_memory_decompressor(upload->decompressor);
@@ -327,7 +327,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 		return NULL;
 	}
 	
-	DEBUG_PRINT("creating upload object\n", NULL);
+	DEBUG_PRINT("creating upload object\n");
 	struct Upload* upload = malloc(sizeof(struct Upload));
 	if (!upload) {
 		fprintf(stderr, "Couldn't allocate an Upload record! (out of memory?)\n");
@@ -566,7 +566,7 @@ int handle_post_or_put_request(
 	if (*upload_data_size > 0) {
 	 	return process_upload_data(connection, upload, upload_data, upload_data_size);
 	} else {
-		DEBUG_PRINT("completing upload\n", NULL);
+		DEBUG_PRINT("completing upload\n");
 		switch (complete_upload(upload, server->root_data_directory)) {
 			case 0:
 				if (upload->redirect_afterwards) {
@@ -578,11 +578,11 @@ int handle_post_or_put_request(
 				}
 			
 			case ERR_PUT_TO_WRONG_PATH:
-				DEBUG_PRINT("put to wrong path\n", NULL);
+				DEBUG_PRINT("put to wrong path\n");
 				return send_forbidden_wrong_path_response(connection);
 			
 			default:
-				DEBUG_PRINT("completing failed\n", NULL);
+				DEBUG_PRINT("completing failed\n");
 				return MHD_NO;
 		}
 	}
@@ -594,6 +594,7 @@ int handle_request(
     const char* upload_data, size_t* upload_data_size,
 	void** request_data) {
 	struct Server* server = (struct Server*) void_server;
+	if (!*request_data) DEBUG_PRINT("new request %s %s\n", method, path);
 	
 	if (strcmp(method, "GET") == 0) {
 		return handle_get_or_head_request(server, connection, path, request_data, 1);
