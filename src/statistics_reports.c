@@ -5,7 +5,7 @@
 #include "replication.h"
 #include "str.h"
 
-char* create_log_statistics_string(struct MHD_Connection *connection) {
+char* create_log_statistics_string(struct MHD_Connection *connection, const char *suffix) {
 	char* ret = NULL; // most OSs define asprintf as setting ret to NULL themselves if unable to allocate memory, but not all
 
 	struct LogStatistics statistics;
@@ -22,16 +22,18 @@ char* create_log_statistics_string(struct MHD_Connection *connection) {
 		"put_requests_failed %ju\n"
 		"replication_push_attempts %ju\n"
 		"replication_push_attempts_failed %ju\n"
-		"connections_current %ju\n",
+		"connections_current %ju\n"
+		"%s",
 		(uintmax_t)statistics.get_requests, (uintmax_t)statistics.get_requests_not_found,
 		(uintmax_t)statistics.post_requests, (uintmax_t)statistics.post_requests_new_file_stored, (uintmax_t)statistics.post_requests_failed,
 		(uintmax_t)statistics.put_requests, (uintmax_t)statistics.put_requests_new_file_stored, (uintmax_t)statistics.put_requests_failed,
 		(uintmax_t)statistics.replication_push_attempts, (uintmax_t)statistics.replication_push_attempts_failed,
-		(uintmax_t)MHD_count_active_connections(connection)
+		(uintmax_t)MHD_count_active_connections(connection),
+		suffix ? suffix : ""
 	);
 	return ret;
 }
 
 char *create_statistics_string(struct MHD_Connection *connection) {
-	return astrcat_and_free_args(create_log_statistics_string(connection), create_replication_statistics_string());
+	return create_log_statistics_string(connection, create_replication_statistics_string());
 }
