@@ -313,7 +313,7 @@ int push_file(struct Replicator *replicator, struct ReplicationFile *file) {
 int resync(struct Replicator *replicator) {
 	DEBUG_PRINT("resyncing to %s:%s\n", replicator->hostname, replicator->service);
 	// TODO: implement directory scanning and call push_file
-	return 0;
+	return 1;
 }
 
 void *replication_thread_entry(void *data) {
@@ -378,6 +378,7 @@ int add_replication_target(char *hostname, char *service) {
 		return -1;
 	}
 	replicator->service = service;
+	replicator->need_resync = 1;
 	replicator->next_file = NULL;
 	replicator->next_replicator = last_replicator;
 	replicator->failed_push_attempts = 0;
