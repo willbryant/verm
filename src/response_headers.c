@@ -5,7 +5,7 @@
 
 int add_content_length(struct MHD_Response* response, size_t content_length) {
 	char buf[32];
-	snprintf(buf, sizeof(buf), "%lu", content_length);
+	snprintf(buf, sizeof(buf), "%ju", (uintmax_t)content_length);
 	return MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_LENGTH, buf);
 }
 
