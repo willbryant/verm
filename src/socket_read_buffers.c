@@ -1,4 +1,5 @@
 #include "socket_read_buffers.h"
+#include "reallocf.h"
 
 #define READ_BUFFER_ALLOCATION_INCREMENT 8192
 
@@ -12,7 +13,7 @@ char *next_line_from_read_buffer(int socket, struct ReadBuffer *read_buffer) {
 			// if there are no bytes free in the buffer, enlarge it by READ_BUFFER_ALLOCATION_INCREMENT
 			if (read_buffer->buf_allocated_size == read_buffer->buf_data_length) {
 				read_buffer->buf_allocated_size += READ_BUFFER_ALLOCATION_INCREMENT;
-				read_buffer->buf = realloc(read_buffer->buf, read_buffer->buf_allocated_size);
+				read_buffer->buf = reallocf(read_buffer->buf, read_buffer->buf_allocated_size);
 			}
 
 			// if we were unable to allocate memory, return and let the caller print an error based on errno
