@@ -29,7 +29,7 @@ $(MHD_LIBRARY):
 
 $(MHD)/MHD_config.h: $(MHD_LIBRARY)
 
-verm: $(MHD)/MHD_config.h src/verm.o src/responses.o src/response_headers.o src/mhd_patches.o src/response_logging.o src/statistics_reports.o src/replication.o src/decompression.o src/str.o src/mime_types.o $(MHD_LIBRARY)
+verm: $(MHD)/MHD_config.h src/verm.o src/responses.o src/response_headers.o src/mhd_patches.o src/response_logging.o src/socket_read_buffers.o src/statistics_reports.o src/replication.o src/decompression.o src/str.o src/mime_types.o $(MHD_LIBRARY)
 	cc $(LDFLAGS) -o $@ $^
 
 clean_verm:
