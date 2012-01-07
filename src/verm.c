@@ -13,6 +13,7 @@
 
 #include "platform.h"
 #include "microhttpd.h"
+#include "mhd_patches.h"
 #include <openssl/sha.h>
 #include "responses.h"
 #include "response_headers.h"
@@ -558,7 +559,7 @@ int handle_post_or_put_request(
 
 	if (!*request_data) { // new request
 		*request_data = create_upload(connection, server->root_data_directory, path, posting);
-		return (*request_data || responded(connection)) ? MHD_YES : MHD_NO;
+		return (*request_data || MHD_connection_has_response(connection)) ? MHD_YES : MHD_NO;
 	}
 	
 	struct Upload* upload = (struct Upload*) *request_data;

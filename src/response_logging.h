@@ -11,7 +11,6 @@ struct LogStatistics {
 	         replication_push_attempts, replication_push_attempts_failed;
 };
 
-int responded(struct MHD_Connection* connection);
 int log_response(struct MHD_Connection* connection, int suppress_log_output, int statistics_request, int new_file_stored);
 int log_replication_statistic(int successful);
 int copy_log_statistics(struct LogStatistics* dest);
