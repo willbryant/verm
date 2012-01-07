@@ -356,6 +356,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 		separator = strr2ndchr(path + 1, '/');
 		if (separator == NULL || separator == path + 1 || separator - path >= MAX_DIRECTORY_LENGTH || !*(separator + 1) || strstr(path, "//")) {
 			send_forbidden_wrong_path_response(connection);
+			free(upload);
 			return NULL;
 		}
 		snprintf(upload->directory, separator - path + 1, "%s", path);
