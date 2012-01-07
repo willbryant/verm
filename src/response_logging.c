@@ -88,6 +88,7 @@ int log_replication_statistic(int successful) {
 	statistics.replication_push_attempts++;
 	if (!successful) statistics.replication_push_attempts_failed++;
 	if (pthread_mutex_unlock(&log_mutex) < 0) return -1;
+	return 0;
 }
 
 int copy_log_statistics(struct LogStatistics* dest) {

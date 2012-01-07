@@ -1,7 +1,8 @@
-#include "settings.h"
 #include "replication.h"
+
 #include "settings.h"
 #include "str.h"
+#include "response_logging.h" /* for log_replication_statistic */
 
 #define BACKOFF_BASE_TIME 1
 #define BACKOFF_MAX_TIME 60
@@ -44,7 +45,7 @@ void replication_backoff(struct Replicator *replicator) {
 
 	// we use binary exponential backoff times, but after 1 failed push attempt we want to retry immediately, and
 	// only after 2 failed push attempts wait the base backoff time, and thereafter double that time after each failure
-	int backoff_time = BACKOFF_BASE_TIME*(2 << replicator->failed_push_attempts - 3);
+	int backoff_time = BACKOFF_BASE_TIME*(2 << (replicator->failed_push_attempts - 3));
 	if (backoff_time > BACKOFF_MAX_TIME) backoff_time = BACKOFF_MAX_TIME;
 
 	gettimeofday(&tv, NULL);
@@ -56,7 +57,7 @@ void replication_backoff(struct Replicator *replicator) {
 
 void replication_free_queue(struct Replicator *replicator) {
 	struct ReplicationFile *file;
-	while (file = replicator->next_file) {
+	while ((file = replicator->next_file)) {
 		replicator->next_file = file->next_file;
 		free(file);
 	}
@@ -115,7 +116,7 @@ void replication_send_data(struct Replicator *replicator, const char *data, int 
 			len -= result;
 			data += result;
 		} else if (errno != EINTR) {
-			fprintf(stderr, "Couldn't write to %s:s: %s\n", replicator->hostname, replicator->service, strerror(errno));
+			fprintf(stderr, "Couldn't write to %s:%s: %s\n", replicator->hostname, replicator->service, strerror(errno));
 			replication_close_connection(replicator);
 		}
 	}

@@ -17,6 +17,8 @@ else
 	CFLAGS += -pthread
 endif
 
+CFLAGS += -std=c99 -Wall -pedantic
+
 default: verm
 
 install: verm
@@ -30,8 +32,10 @@ $(MHD)/MHD_config.h: $(MHD_LIBRARY)
 verm: $(MHD)/MHD_config.h src/verm.o src/responses.o src/response_headers.o src/mhd_patches.o src/response_logging.o src/statistics_reports.o src/replication.o src/decompression.o src/str.o src/mime_types.o $(MHD_LIBRARY)
 	cc $(LDFLAGS) -o $@ $^
 
-clean:
+clean_verm:
 	rm -f src/*.o verm
+
+clean: clean_verm
 	cd $(MHD) && make distclean
 
 test_verm: verm

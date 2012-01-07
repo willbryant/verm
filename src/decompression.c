@@ -81,7 +81,7 @@ ssize_t decompress_memory_chunk(void *decompression_info, const char **in_buf, s
 
 	strm->next_in = (void*) *in_buf;
 	strm->avail_in = *in_size;
-	strm->next_out = out_buf;
+	strm->next_out = (unsigned char*)out_buf;
 	strm->avail_out = out_size;
 
 	ret = inflate(strm, Z_SYNC_FLUSH);
@@ -94,7 +94,7 @@ ssize_t decompress_memory_chunk(void *decompression_info, const char **in_buf, s
 			return -1;
 	}
 
-	*in_buf = strm->next_in;
+	*in_buf = (char*)strm->next_in;
 	*in_size = strm->avail_in;
 	return out_size - strm->avail_out;
 }

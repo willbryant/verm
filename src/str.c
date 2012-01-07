@@ -1,6 +1,7 @@
 #include "str.h"
 
 #include <string.h>
+#include <stdlib.h>
 
 int strendswith(const char *str, const char *ending) {
 	const char *s = str + strlen(str) - strlen(ending);

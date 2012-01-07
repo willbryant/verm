@@ -1,6 +1,7 @@
 #include "statistics_reports.h"
 
 #include "response_logging.h"
+#include "mhd_patches.h"
 
 char* create_log_statistics_string(struct MHD_Connection *connection) {
 	char* ret = NULL; // most OSs define asprintf as setting ret to NULL themselves if unable to allocate memory, but not all

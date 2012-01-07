@@ -1,4 +1,6 @@
 #include "response_headers.h"
+
+#include <ctype.h> /* for isspace */
 #include "mime_types.h"
 
 int add_content_length(struct MHD_Response* response, size_t content_length) {

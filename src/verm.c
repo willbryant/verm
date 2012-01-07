@@ -15,7 +15,9 @@
 #include "microhttpd.h"
 #include <openssl/sha.h>
 #include "responses.h"
+#include "response_headers.h"
 #include "response_logging.h"
+#include "replication.h"
 #include "statistics_reports.h"
 #include "decompression.h"
 #include "str.h"
@@ -52,6 +54,21 @@ struct Upload {
 
 const char* dummy_to_indicate_second_call = "not-null";
 const char* dummy_to_indicate_statistics_request = STATISTICS_PATH;
+
+int handle_statistics_request(struct MHD_Connection* connection) {
+	struct MHD_Response* response;
+	int ret;
+	char *buffer;
+	
+	buffer = create_log_statistics_string(connection);
+	if (buffer == NULL) return MHD_NO;
+	
+	response = MHD_create_response_from_buffer(strlen(buffer), buffer, MHD_RESPMEM_MUST_FREE);
+	ret = MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, "text/plain") &&
+		  MHD_queue_response(connection, MHD_HTTP_OK, response); // cleanly returns MHD_NO if response was NULL for any reason
+	MHD_destroy_response(response); // does nothing if response was NULL for any reason
+	return ret;
+}
 
 int handle_get_or_head_request(
 	struct Server* server, struct MHD_Connection* connection,
@@ -175,21 +192,6 @@ int handle_get_or_head_request(
 	      MHD_add_response_header(response, MHD_HTTP_HEADER_EXPIRES, "Tue, 19 Jan 2038 00:00:00"), // essentially never expires
 	      MHD_queue_response(connection, MHD_HTTP_OK, response); // does nothing and returns our desired MHD_NO if response is NULL
 	MHD_destroy_response(response); // does nothing if response is NULL
-	return ret;
-}
-
-int handle_statistics_request(struct MHD_Connection* connection) {
-	struct MHD_Response* response;
-	int ret;
-	char *buffer;
-	
-	buffer = create_log_statistics_string(connection);
-	if (buffer == NULL) return MHD_NO;
-	
-	response = MHD_create_response_from_buffer(strlen(buffer), buffer, MHD_RESPMEM_MUST_FREE);
-	ret = MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, "text/plain") &&
-		  MHD_queue_response(connection, MHD_HTTP_OK, response); // cleanly returns MHD_NO if response was NULL for any reason
-	MHD_destroy_response(response); // does nothing if response was NULL for any reason
 	return ret;
 }
 
@@ -344,7 +346,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	
 	if (posting) {
 		strncpy(upload->directory, path, sizeof(upload->directory)); // length was checked above, but easier to audit if we never call strcpy!
-		while (s = strstr(upload->directory, "//")) memmove(s, s + 1, strlen(s)); // replace a//b with a/b
+		while ((s = strstr(upload->directory, "//"))) memmove(s, s + 1, strlen(s)); // replace a//b with a/b
 	} else {
 		separator = strr2ndchr(path + 1, '/');
 		if (separator == NULL || separator == path + 1 || separator - path >= MAX_DIRECTORY_LENGTH || !*(separator + 1) || strstr(path, "//")) {
@@ -630,7 +632,7 @@ int handle_request_completed(
 }
 
 int help() {
-	fprintf(stderr, "%s",
+	fprintf(stderr,
 		"Usage: verm\n"
 		"          - Runs Verm.\n"
 		"\n"

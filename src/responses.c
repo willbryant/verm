@@ -54,17 +54,17 @@ int send_redirect(struct MHD_Connection* connection, unsigned int status_code, c
 }
 
 int send_redirected_response(struct MHD_Connection* connection, char* location) {
-	send_redirect(connection, MHD_HTTP_SEE_OTHER, location, REDIRECT_PAGE);
+	return send_redirect(connection, MHD_HTTP_SEE_OTHER, location, REDIRECT_PAGE);
 }
 
 int send_created_response(struct MHD_Connection* connection, char* location) {
-	send_redirect(connection, MHD_HTTP_CREATED, location, CREATED_PAGE);
+	return send_redirect(connection, MHD_HTTP_CREATED, location, CREATED_PAGE);
 }
 
 int send_forbidden_wrong_path_response(struct MHD_Connection* connection) {
-	send_static_page_response(connection, MHD_HTTP_FORBIDDEN, WRONG_PATH_PAGE);
+	return send_static_page_response(connection, MHD_HTTP_FORBIDDEN, WRONG_PATH_PAGE);
 }
 
 int send_conflict_response(struct MHD_Connection* connection) {
-	send_static_page_response(connection, MHD_HTTP_CONFLICT, CONFLICT_PAGE);
+	return send_static_page_response(connection, MHD_HTTP_CONFLICT, CONFLICT_PAGE);
 }
