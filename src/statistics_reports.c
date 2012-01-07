@@ -35,5 +35,8 @@ char* create_log_statistics_string(struct MHD_Connection *connection, const char
 }
 
 char *create_statistics_string(struct MHD_Connection *connection) {
-	return create_log_statistics_string(connection, create_replication_statistics_string());
+	char *replication_statistics = create_replication_statistics_string();
+	char *statistics = create_log_statistics_string(connection, replication_statistics);
+	free(replication_statistics);
+	return statistics;
 }
