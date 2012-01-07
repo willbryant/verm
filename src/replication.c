@@ -251,7 +251,7 @@ char *next_line_from_read_buffer(int socket, struct ReadBuffer *read_buffer) {
 			// the next call should start from the byte after our newline (which may be the byte after the end of the buffer, indicating it's consumed)
 			read_buffer->buf_position += 1;
 
-			// return the line start, which is now a null-terminated string
+			// return the line start, which is now a NUL-terminated string
 			return read_buffer->buf + line_position;
 		}
 

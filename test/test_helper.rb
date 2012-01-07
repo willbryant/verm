@@ -119,7 +119,7 @@ module Verm
         lines = response.body.split(/\n/)
         results = lines.inject({}) {|results, line| name, value = line.split(/ /); results[name.to_sym] = value.to_i; results}
 
-        # all our ruby test code is single-threaded, so if there's more than one connection active in the,
+        # all our ruby test code is single-threaded, so if there's more than one connection active in the
         # verm instance at a time, it means the previous request our test code made has been responded to
         # and our test code has moved on but the server hasn't yet finished logging and cleaning up the
         # connection.  we need to wait until we have the finished statistics or else we'll get intermittent
