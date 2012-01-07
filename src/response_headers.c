@@ -3,10 +3,16 @@
 #include <ctype.h> /* for isspace */
 #include "mime_types.h"
 
+static int add_response_header(struct MHD_Response* response, const char *header, const char *content) {
+	int result = MHD_add_response_header(response, header, content);
+	if (result == MHD_NO) fprintf(stderr, "Couldn't add response header (out of memory?)\n");
+	return result;
+}
+
 int add_content_length(struct MHD_Response* response, size_t content_length) {
 	char buf[32];
 	snprintf(buf, sizeof(buf), "%ju", (uintmax_t)content_length);
-	return MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_LENGTH, buf);
+	return add_response_header(response, MHD_HTTP_HEADER_CONTENT_LENGTH, buf);
 }
 
 int add_last_modified(struct MHD_Response* response, time_t last_modified) {
@@ -14,7 +20,7 @@ int add_last_modified(struct MHD_Response* response, time_t last_modified) {
 	struct tm t;
 	gmtime_r(&last_modified, &t);
 	strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S GMT", &t);
-	return MHD_add_response_header(response, MHD_HTTP_HEADER_LAST_MODIFIED, buf);
+	return add_response_header(response, MHD_HTTP_HEADER_LAST_MODIFIED, buf);
 }
 
 int add_content_type(struct MHD_Response* response, const char* filename) {
@@ -30,7 +36,7 @@ int add_content_type(struct MHD_Response* response, const char* filename) {
 	// and if an extension is indeed present, lookup and add the mime type for that extension (if any)
 	if (found) {
 		found = mime_type_for_extension(found);
-		if (found) return MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, found);
+		if (found) return add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, found);
 	}
 
 	// no extension or no corresponding mime type definition, don't add a content-type header but carry on
@@ -38,7 +44,7 @@ int add_content_type(struct MHD_Response* response, const char* filename) {
 }
 
 int add_gzip_content_encoding(struct MHD_Response* response) {
-	return MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_ENCODING, "gzip");
+	return add_response_header(response, MHD_HTTP_HEADER_CONTENT_ENCODING, "gzip");
 }
 
 int accept_gzip_encoding(struct MHD_Connection* connection) {

@@ -62,7 +62,10 @@ int handle_statistics_request(struct MHD_Connection* connection) {
 	char *buffer;
 	
 	buffer = create_statistics_string(connection);
-	if (buffer == NULL) return MHD_NO;
+	if (!buffer) {
+		fprintf(stderr, "Couldn't create statistics string (out of memory?)\n");
+		return MHD_NO;
+	}
 	
 	response = MHD_create_response_from_buffer(strlen(buffer), buffer, MHD_RESPMEM_MUST_FREE);
 	ret = MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, "text/plain") &&
@@ -167,14 +170,14 @@ int handle_get_or_head_request(
 			// the file is compressed, but the client explicitly told us they don't support that, so decompress the file
 			file_size = get_decompressed_file_size(fd, st.st_size);
 			void* decompression = create_file_decompressor(fd);
-			if (!decompression) return MHD_NO; // out of memory
+			if (!decompression) return MHD_NO; // out of memory; error already printed
 			response = MHD_create_response_from_callback(file_size, DECOMPRESSION_CHUNK, &decompress_file_chunk, decompression, &destroy_file_decompressor);
 		} else {
 			// the file is either not compressed, or is compressed and the client supports that, so we can serve the file as-is
 			response = MHD_create_response_from_fd_at_offset(st.st_size, fd, 0); // fd will be closed by MHD when the response is destroyed
 			
 			// if the file is compressed, then we need to add a header saying so
-			if (requested_uncompressed && !add_gzip_content_encoding(response)) return MHD_NO; // out of memory
+			if (requested_uncompressed && !add_gzip_content_encoding(response)) return MHD_NO; // out of memory; error already printed
 		}
 	} else {
 		// ie. a HEAD request
@@ -193,6 +196,7 @@ int handle_get_or_head_request(
 	      MHD_add_response_header(response, MHD_HTTP_HEADER_EXPIRES, "Tue, 19 Jan 2038 00:00:00"), // essentially never expires
 	      MHD_queue_response(connection, MHD_HTTP_OK, response); // does nothing and returns our desired MHD_NO if response is NULL
 	MHD_destroy_response(response); // does nothing if response is NULL
+	if (ret == MHD_NO) fprintf(stderr, "Couldn't set up response (out of memory?)\n");
 	return ret;
 }
 
@@ -242,7 +246,7 @@ int handle_post_data(
 		// write to the tempfile
 		DEBUG_PRINT("uploading into %s: %s, %s, %s, %s (%llu, %ld)\n", upload->tempfile_fs_path, key, filename, content_type, content_encoding, offset, size);
 		if (upload->decompressor) {
-			if (decompress_and_update_upload_hash(upload, data, size)) return MHD_NO;
+			if (decompress_and_update_upload_hash(upload, data, size)) return MHD_NO; // error already printed
 		} else {
 			update_upload_hash(upload, data, size);
 		}
@@ -268,7 +272,7 @@ int handle_post_data(
 }
 
 void free_upload(struct Upload* upload) {
-	DEBUG_PRINT("freeing upload object\n");
+	DEBUG_PRINT("freeing upload object %p\n", (void*)upload);
 	int ret;
 
 	if (upload->decompressor) destroy_memory_decompressor(upload->decompressor);
@@ -327,12 +331,12 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 		return NULL;
 	}
 	
-	DEBUG_PRINT("creating upload object\n");
 	struct Upload* upload = malloc(sizeof(struct Upload));
 	if (!upload) {
 		fprintf(stderr, "Couldn't allocate an Upload record! (out of memory?)\n");
 		return NULL;
 	}
+	DEBUG_PRINT("created upload object %p\n", (void*)upload);
 	upload->tempfile_fs_path[0] = 0;
 	upload->tempfile_fd = -1;
 	upload->size = 0;
@@ -409,7 +413,10 @@ int process_upload_data(struct MHD_Connection* connection, struct Upload* upload
 
 	if (upload->pp) {
 		// encoded form
-		if (MHD_post_process(upload->pp, upload_data, *upload_data_size) != MHD_YES) return MHD_NO;
+		if (MHD_post_process(upload->pp, upload_data, *upload_data_size) != MHD_YES) {
+			fprintf(stderr, "Unexpected error processing encoded upload content\n");
+			return MHD_NO;
+		}
 	} else {
 		// raw POST
 		if (upload->size == 0) {
@@ -418,7 +425,10 @@ int process_upload_data(struct MHD_Connection* connection, struct Upload* upload
 			content_encoding = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_ENCODING);
 		}
 		if (handle_post_data(upload, MHD_POSTDATA_KIND, UPLOADED_FILE_FIELD_NAME, NULL, content_type, content_encoding,
-		                     upload_data, upload->size, *upload_data_size) != MHD_YES) return MHD_NO;
+		                     upload_data, upload->size, *upload_data_size) != MHD_YES) {
+			fprintf(stderr, "Unexpected error processing upload content\n");
+			return MHD_NO;
+		}
 	}
 	*upload_data_size = 0;
 	return MHD_YES;
@@ -555,7 +565,7 @@ int handle_post_or_put_request(
 	void **request_data,
 	int posting) {
 	
-	DEBUG_PRINT("handle_post_request to %s with %ld bytes, request_data set %d, upload_data set %d, %s\n", path, *upload_data_size, (*request_data ? 1 : 0), (upload_data ? 1 : 0), posting ? "posting" : "putting");
+	DEBUG_PRINT("handle_post_request to %s with %ld bytes, request_data %p, upload_data %s, %s\n", path, *upload_data_size, *request_data, (upload_data ? "set" : "not set"), posting ? "posting" : "putting");
 
 	if (!*request_data) { // new request
 		*request_data = create_upload(connection, server->root_data_directory, path, posting);
@@ -566,7 +576,7 @@ int handle_post_or_put_request(
 	if (*upload_data_size > 0) {
 	 	return process_upload_data(connection, upload, upload_data, upload_data_size);
 	} else {
-		DEBUG_PRINT("completing upload\n");
+		DEBUG_PRINT("completing upload %p\n", (void*)upload);
 		switch (complete_upload(upload, server->root_data_directory)) {
 			case 0:
 				if (upload->redirect_afterwards) {
@@ -578,11 +588,11 @@ int handle_post_or_put_request(
 				}
 			
 			case ERR_PUT_TO_WRONG_PATH:
-				DEBUG_PRINT("put to wrong path\n");
+				DEBUG_PRINT("put to wrong path %s\n", path);
 				return send_forbidden_wrong_path_response(connection);
 			
 			default:
-				DEBUG_PRINT("completing failed\n");
+				DEBUG_PRINT("completing failed\n"); // only in debug mode because an error should already have been printed
 				return MHD_NO;
 		}
 	}
@@ -609,6 +619,7 @@ int handle_request(
 		return handle_post_or_put_request(server, connection, path, upload_data, upload_data_size, request_data, 0);
 		
 	} else {
+		fprintf(stderr, "Refusing unexpected '%s %s' request\n", method, path);
 		return MHD_NO;
 	}
 }
@@ -619,6 +630,7 @@ int handle_request_completed(
 	void** request_data,
 	enum MHD_RequestTerminationCode toe) {
 	struct Server* server = (struct Server*) void_server;
+	DEBUG_PRINT("Finished serving '%s %s' request %p\n", MHD_connection_get_method(connection), MHD_connection_get_url(connection), (void*)*request_data);
 	
 	int new_file_stored = 0;
 	if (*request_data && *request_data != dummy_to_indicate_second_call && *request_data != dummy_to_indicate_statistics_request) {
