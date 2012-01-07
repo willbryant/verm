@@ -4,14 +4,16 @@ require 'net/http'
 class VermSpawner
   STARTUP_TIMEOUT = 10 # seconds
   
-  attr_reader :verm_binary, :verm_data, :mime_types_file
+  attr_reader :verm_binary, :verm_data, :mime_types_file, :capture_stdout_in, :capture_stderr_in
   
-  def initialize(verm_binary, verm_data, mime_types_file, port = nil, replicate_to = nil)
+  def initialize(verm_binary, verm_data, mime_types_file, options = {})
     @verm_binary = verm_binary
     @verm_data = verm_data
     @mime_types_file = mime_types_file
-    @port = port
-    @replicate_to = replicate_to
+    @port = options[:port]
+    @replicate_to = options[:replicate_to]
+    @capture_stdout_in = options[:capture_stdout_in]
+    @capture_stderr_in = options[:capture_stderr_in]
     raise "Can't see a verm binary at #{verm_binary}" unless File.executable?(verm_binary)
   end
   
@@ -50,7 +52,16 @@ class VermSpawner
       exec_args.unshift "valgrind"
     end
     
-    @verm_child_pid = fork { exec *exec_args }
+    @verm_child_pid = fork do
+      begin
+        STDOUT.reopen(@capture_stdout_in, "wb") if @capture_stdout_in
+        STDERR.reopen(@capture_stderr_in, "wb") if @capture_stderr_in
+      rescue => e
+        puts e
+        exit 1
+      end
+      exec *exec_args
+    end
   end
   
   def server_available?
@@ -67,7 +78,7 @@ class VermSpawner
       return if server_available?
       sleep(0.1)
     end
-    raise "Can't connect to our verm instance on #{server_address}"
+    raise "Can't connect to our verm instance on #{host}"
   end
   
   def stop_verm

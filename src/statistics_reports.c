@@ -2,6 +2,8 @@
 
 #include "response_logging.h"
 #include "mhd_patches.h"
+#include "replication.h"
+#include "str.h"
 
 char* create_log_statistics_string(struct MHD_Connection *connection) {
 	char* ret = NULL; // most OSs define asprintf as setting ret to NULL themselves if unable to allocate memory, but not all
@@ -28,4 +30,8 @@ char* create_log_statistics_string(struct MHD_Connection *connection) {
 		(uintmax_t)MHD_count_active_connections(connection)
 	);
 	return ret;
+}
+
+char *create_statistics_string(struct MHD_Connection *connection) {
+	return astrcat_and_free_args(create_log_statistics_string(connection), create_replication_statistics_string());
 }

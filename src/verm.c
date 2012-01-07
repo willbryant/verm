@@ -61,7 +61,7 @@ int handle_statistics_request(struct MHD_Connection* connection) {
 	int ret;
 	char *buffer;
 	
-	buffer = create_log_statistics_string(connection);
+	buffer = create_statistics_string(connection);
 	if (buffer == NULL) return MHD_NO;
 	
 	response = MHD_create_response_from_buffer(strlen(buffer), buffer, MHD_RESPMEM_MUST_FREE);
@@ -747,7 +747,7 @@ int main(int argc, char* argv[]) {
 		MHD_OPTION_END);
 	
 	if (http_daemon == NULL) {
-		fprintf(stderr, "Couldn't start HTTP daemon");
+		fprintf(stderr, "Couldn't start HTTP daemon\n");
 		return 1;
 	}
 	

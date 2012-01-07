@@ -7,5 +7,6 @@ int add_replication_target(char *hostname, char *service);
 int parse_and_add_replication_target(char *target);
 void add_replication_file(const char *location, const char *path, const char *encoding);
 void shutdown_replication();
+char *create_replication_statistics_string();
 
 #endif

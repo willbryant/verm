@@ -477,7 +477,7 @@ int parse_and_add_replication_target(char *target) {
 
 void add_replication_file(const char *location, const char *path, const char *encoding) {
 	struct Replicator *replicator;
-	pthread_mutex_lock(&replication_queue_mutex);
+	if (pthread_mutex_lock(&replication_queue_mutex) < 0) return;
 
 	for (replicator = last_replicator; replicator != NULL; replicator = replicator->next_replicator) {
 		if (replicator->need_resync) continue;
@@ -525,4 +525,39 @@ void shutdown_replication() {
 
 		replicator = next;
 	}
+}
+
+int replication_queue_length(struct Replicator *replicator) {
+	struct ReplicationFile *file;
+	int result = 0;
+
+	for (file = replicator->next_file; file != NULL; file = file->next_file) result++;
+
+	return result;
+}
+
+int replication_seconds_behind(struct Replicator *replicator) {
+	if (!replicator->next_file) return 0;
+
+	return time(NULL) - replicator->next_file->queued_at;
+}
+
+char *create_replication_statistics_string() {
+	struct Replicator *replicator;
+	char *temp, *result = NULL;
+
+	if (pthread_mutex_lock(&replication_queue_mutex) < 0) return NULL;
+
+	for (replicator = last_replicator; replicator != NULL; replicator = replicator->next_replicator) {
+		temp = NULL;
+		asprintf(&temp, "%sreplication_%s_%s_queue_length %d\nreplication_%s_%s_seconds_behind %d\n",
+			result ? result : "",
+			replicator->hostname, replicator->service, replication_queue_length(replicator),
+			replicator->hostname, replicator->service, replication_seconds_behind(replicator));
+		free(result);
+		result = temp;
+	}
+	
+	pthread_mutex_unlock(&replication_queue_mutex);
+	return result ? result : strdup("");
 }

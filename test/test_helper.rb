@@ -1,5 +1,6 @@
 require 'rubygems'
 require 'test/unit'
+require 'fileutils'
 require 'ruby-debug'
 
 require File.expand_path(File.join(File.dirname(__FILE__), 'net_http_multipart_post'))
@@ -7,9 +8,11 @@ require File.expand_path(File.join(File.dirname(__FILE__), 'verm_spawner'))
 
 verm_binary = File.join(File.dirname(__FILE__), '..', 'verm')
 verm_data   = File.join(File.dirname(__FILE__), 'data')
-mime_types_file = File.join(File.dirname(__FILE__), 'fixtures', 'mime.types')
-VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, mime_types_file)
-REPLICATION_MASTER_VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, mime_types_file, VERM_SPAWNER.port + 1, VERM_SPAWNER.host)
+mime_types_filename = File.join(File.dirname(__FILE__), 'fixtures', 'mime.types')
+captured_stderr_filename = File.join(File.dirname(__FILE__), 'tmp', 'captured_stderr')
+FileUtils.mkdir_p(File.join(File.dirname(__FILE__), 'tmp'))
+VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, mime_types_filename)
+REPLICATION_MASTER_VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, mime_types_filename, :port => VERM_SPAWNER.port + 1, :replicate_to => VERM_SPAWNER.host, :capture_stderr_in => captured_stderr_filename)
 
 module Verm
   class TestCase < Test::Unit::TestCase

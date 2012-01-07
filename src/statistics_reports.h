@@ -3,6 +3,7 @@
 
 #include "microhttpd.h"
 
-char* create_log_statistics_string(struct MHD_Connection *connection);
+char *create_log_statistics_string(struct MHD_Connection *connection);
+char *create_statistics_string(struct MHD_Connection *connection);
 
 #endif
