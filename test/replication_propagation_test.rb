@@ -75,7 +75,9 @@ class ReplicationPropagationTest < Verm::TestCase
                 :verm => REPLICATION_MASTER_VERM_SPAWNER
     end
 
-    assert_equal "", File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in)
+    unless ENV['VALGRIND']
+      assert_equal "", File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in)
+    end
   end
 
   def test_retries_propagation_if_slave_unavailable
@@ -106,7 +108,9 @@ class ReplicationPropagationTest < Verm::TestCase
       :"replication_#{VERM_SPAWNER.hostname}_#{VERM_SPAWNER.port}_queue_length" => 1,
     }, changes)
 
-    assert_equal ["Couldn't connect to #{VERM_SPAWNER.host}: Connection refused"], File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in).split(/\n/).uniq
+    unless ENV['VALGRIND']
+      assert_equal ["Couldn't connect to #{VERM_SPAWNER.host}: Connection refused"], File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in).split(/\n/).uniq
+    end
 
     VERM_SPAWNER.start_verm
     VERM_SPAWNER.wait_until_available
