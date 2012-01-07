@@ -45,8 +45,21 @@ void replication_backoff(struct Replicator *replicator) {
 
 	// we use binary exponential backoff times, but after 1 failed push attempt we want to retry immediately, and
 	// only after 2 failed push attempts wait the base backoff time, and thereafter double that time after each failure
-	int backoff_time = BACKOFF_BASE_TIME*(2 << (replicator->failed_push_attempts - 3));
-	if (backoff_time > BACKOFF_MAX_TIME) backoff_time = BACKOFF_MAX_TIME;
+	int backoff_time;
+	switch (replicator->failed_push_attempts) {
+		case 0: /* should not occur */
+		case 1:
+			backoff_time = 0;
+			break;
+
+		case 2:
+			backoff_time = BACKOFF_BASE_TIME;
+			break;
+
+		default:
+			backoff_time = BACKOFF_BASE_TIME*(2 << (replicator->failed_push_attempts - 3));
+			if (backoff_time > BACKOFF_MAX_TIME) backoff_time = BACKOFF_MAX_TIME;
+	}
 
 	gettimeofday(&tv, NULL);
 	ts.tv_sec = tv.tv_sec + backoff_time;
