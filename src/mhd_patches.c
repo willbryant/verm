@@ -30,7 +30,7 @@ unsigned int MHD_count_active_connections(struct MHD_Connection *connection) {
 	struct MHD_Daemon *daemon = connection->daemon;
 	unsigned int result = 0;
 	if (pthread_mutex_lock(&daemon->cleanup_connection_mutex) != 0) return 0;
-	while (connection->prev) connection = connection->prev;
+	connection = daemon->connections_head;
 	while (connection) { connection = connection->next; result++; }
 	if (pthread_mutex_unlock(&daemon->cleanup_connection_mutex) != 0) return 0;
 	return result;
