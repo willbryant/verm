@@ -9,6 +9,7 @@ const char *MHD_connection_get_url(struct MHD_Connection* connection);
 int MHD_connection_has_response(struct MHD_Connection* connection);
 unsigned int MHD_connection_get_response_code(struct MHD_Connection* connection);
 uint64_t MHD_connection_get_response_bytes_sent(struct MHD_Connection* connection);
-unsigned int MHD_count_active_connections(struct MHD_Connection *connection);
+
+unsigned int MHD_count_active_connections(struct MHD_Daemon *daemon);
 
 #endif

@@ -28,7 +28,7 @@ char* create_log_statistics_string(struct MHD_Connection *connection, const char
 		(uintmax_t)statistics.post_requests, (uintmax_t)statistics.post_requests_new_file_stored, (uintmax_t)statistics.post_requests_failed,
 		(uintmax_t)statistics.put_requests, (uintmax_t)statistics.put_requests_new_file_stored, (uintmax_t)statistics.put_requests_failed,
 		(uintmax_t)statistics.replication_push_attempts, (uintmax_t)statistics.replication_push_attempts_failed,
-		(uintmax_t)MHD_count_active_connections(connection),
+		(uintmax_t)MHD_count_active_connections(MHD_get_connection_info(connection, MHD_CONNECTION_INFO_DAEMON)->daemon),
 		suffix ? suffix : ""
 	);
 	return ret;
