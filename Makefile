@@ -1,5 +1,6 @@
 MHD = vendor/libmicrohttpd
 MHD_LIBRARY = $(MHD)/src/daemon/.libs/libmicrohttpd.a
+OBJS = src/verm.o src/responses.o src/response_headers.o src/mhd_patches.o src/response_logging.o src/statistics_reports.o src/socket_read_buffers.o src/replication.o src/decompression.o src/str.o src/mime_types.o $(MHD_LIBRARY)
 
 CFLAGS += -D_GNU_SOURCE -g
 CFLAGS += -I$(MHD) -I$(MHD)/src/include -I$(MHD)/src/include/plibc -Ivendor/khash
@@ -29,7 +30,9 @@ $(MHD_LIBRARY):
 
 $(MHD)/MHD_config.h: $(MHD_LIBRARY)
 
-verm: $(MHD)/MHD_config.h src/verm.o src/responses.o src/response_headers.o src/mhd_patches.o src/response_logging.o src/socket_read_buffers.o src/statistics_reports.o src/replication.o src/decompression.o src/str.o src/mime_types.o $(MHD_LIBRARY)
+$(OBJS): $(MHD)/MHD_config.h
+
+verm: $(OBJS)
 	cc $(LDFLAGS) -o $@ $^
 
 clean_verm:
