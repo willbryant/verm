@@ -1,8 +1,6 @@
 require 'rubygems'
 require 'test/unit'
 require 'fileutils'
-require 'ruby-debug'
-
 require File.expand_path(File.join(File.dirname(__FILE__), 'net_http_multipart_post'))
 require File.expand_path(File.join(File.dirname(__FILE__), 'verm_spawner'))
 
