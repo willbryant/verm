@@ -1,7 +1,11 @@
 package verm
 
 import "log"
+import "mime"
 import "net/http"
+import "os"
+import "path"
+import "path/filepath"
 import "sync/atomic"
 
 type vermServer struct {
@@ -21,11 +25,52 @@ func (server vermServer) ServeRoot(w http.ResponseWriter, req *http.Request) {
 }
 
 func (server vermServer) ServeFile(w http.ResponseWriter, req *http.Request) {
-	var file_server = http.FileServer(server.RootDataDir)
-	file_server.ServeHTTP(w, req)
-
 	atomic.AddUint64(&server.Statistics.get_requests, 1)
-	// TODO: implement get_requests_not_found
+
+	// deal with '/..' etc.
+	path := path.Clean(req.URL.Path)
+
+	// try and open the file
+	file, stat, err := server.openFile(path)
+	if err != nil {
+		atomic.AddUint64(&server.Statistics.get_requests_not_found, 1)
+		http.NotFound(w, req)
+		return
+	}
+	defer file.Close()
+
+	// infer the content-type from the filename extension
+	contenttype := mime.TypeByExtension(filepath.Ext(path))
+
+	// because verm files are immutable, we can use the path as a constant etag for the file
+	etag := path
+
+	// if the client supplied cache-checking header, test them
+	if checkLastModified(w, req, stat.ModTime()) || checkETag(w, req, etag) {
+		// the client is up-to-date
+		w.Header().Del("Content-Length")
+		w.WriteHeader(http.StatusNotModified)
+	} else {
+		// send the file
+		w.Header().Set("etag", path)
+		w.Header().Set("Last-Modified", stat.ModTime().UTC().Format(http.TimeFormat))
+		serveContent(w, req, contenttype, stat.Size(), file)
+	}
+}
+
+func (server vermServer) openFile(path string) (http.File, os.FileInfo, error) {
+	file, openerr := server.RootDataDir.Open(path)
+	if openerr != nil {
+		return nil, nil, openerr
+	}
+
+	stat, staterr := file.Stat()
+	if staterr != nil || stat.IsDir() {
+		file.Close()
+		return nil, nil, staterr
+	}
+
+	return file, stat, nil
 }
 
 func (server vermServer) ServeHTTPGetOrHead(w http.ResponseWriter, req *http.Request) {
