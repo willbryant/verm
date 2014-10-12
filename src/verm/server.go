@@ -1,5 +1,6 @@
 package verm
 
+import "io"
 import "log"
 import "mime"
 import "net/http"
@@ -9,14 +10,21 @@ import "path/filepath"
 import "sync/atomic"
 
 type vermServer struct {
-	RootDataDir http.Dir
+	RootDataDir string
+	RootHttpDir http.Dir
 	Statistics *LogStatistics
 	Quiet bool
 }
 
 func VermServer(root string, mime_types_file string, quiet bool) vermServer {
 	loadMimeFile(mime_types_file)
-	return vermServer{RootDataDir: http.Dir(root), Statistics: &LogStatistics{}, Quiet: quiet}
+
+	return vermServer{
+		RootDataDir: root,
+		RootHttpDir: http.Dir(root),
+		Statistics: &LogStatistics{},
+		Quiet: quiet,
+	}
 }
 
 func (server vermServer) serveRoot(w http.ResponseWriter, req *http.Request) {
@@ -79,7 +87,7 @@ func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
 }
 
 func (server vermServer) openFile(path string) (http.File, os.FileInfo, error) {
-	file, openerr := server.RootDataDir.Open(path)
+	file, openerr := server.RootHttpDir.Open(path)
 	if openerr != nil {
 		return nil, nil, openerr
 	}
@@ -103,12 +111,45 @@ func (server vermServer) serveHTTPGetOrHead(w http.ResponseWriter, req *http.Req
 	}
 }
 
+func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request) {
+	defer atomic.AddUint64(&server.Statistics.post_requests, 1)
+
+	uploader, err := server.FileUploader(w, req)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	defer uploader.Close()
+
+	_, err = io.Copy(uploader, req.Body)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	var location string
+	var new_file bool
+	location, new_file, err = uploader.Finish()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	if new_file {
+		atomic.AddUint64(&server.Statistics.post_requests_new_file_stored, 1)
+	}
+
+	w.Header().Set("Location", location)
+	w.WriteHeader(http.StatusCreated)
+}
+
 func (server vermServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	atomic.AddUint64(&server.Statistics.connections_current, 1)
 	defer atomic.AddUint64(&server.Statistics.connections_current, ^uint64(0))
 
 	if req.Method == "GET" || req.Method == "HEAD" {
 		server.serveHTTPGetOrHead(w, req)
+	} else if req.Method == "POST" {
+		server.serveHTTPPost(w, req)
 	} else {
 		http.Error(w, "Method not supported", 405)
 	}
