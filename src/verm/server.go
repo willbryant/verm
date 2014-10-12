@@ -25,8 +25,6 @@ func (server vermServer) serveRoot(w http.ResponseWriter, req *http.Request) {
 }
 
 func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
-	atomic.AddUint64(&server.Statistics.get_requests, 1)
-
 	// deal with '/..' etc.
 	path := path.Clean(req.URL.Path)
 
@@ -38,11 +36,13 @@ func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
 		stored_compressed = true
 	}
 	if err != nil {
+		atomic.AddUint64(&server.Statistics.get_requests, 1)
 		atomic.AddUint64(&server.Statistics.get_requests_not_found, 1)
 		http.NotFound(w, req)
 		return
 	}
 	defer file.Close()
+	defer atomic.AddUint64(&server.Statistics.get_requests, 1)
 
 	// if the client supplied cache-checking header, test them
 	// because verm files are immutable, we can use the path as a constant etag for the file
