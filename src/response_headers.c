@@ -39,8 +39,8 @@ int add_content_type(struct MHD_Response* response, const char* filename) {
 		if (found) return add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, found);
 	}
 
-	// no extension or no corresponding mime type definition, don't add a content-type header but carry on
-	return MHD_YES;
+	// no extension or no corresponding mime type definition, add a generic content-type header
+	return add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, "application/octet-stream");
 }
 
 int add_gzip_content_encoding(struct MHD_Response* response) {

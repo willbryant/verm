@@ -24,16 +24,16 @@ class GetFilesTest < Verm::TestCase
     end
   end
   
-  def test_serves_files_with_no_extension_without_content_type
+  def test_serves_files_with_no_extension_with_generic_content_type
     copy_file_to('somefiles', nil)
     get :path => "/somefiles/#{@filename}",
-        :expected_content_type => nil
+        :expected_content_type => "application/octet-stream"
   end
   
-  def test_serves_files_with_unknown_extension_without_content_type
+  def test_serves_files_with_unknown_extension_with_generic_content_type
     copy_file_to('somefiles', 'foobarext')
     get :path => "/somefiles/#{@filename}",
-        :expected_content_type => nil
+        :expected_content_type => "application/octet-stream"
   end
   
   def test_serves_files_with_txt_extension_as_text_plain
