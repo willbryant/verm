@@ -110,7 +110,7 @@ func (server vermServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if req.Method == "GET" || req.Method == "HEAD" {
 		server.serveHTTPGetOrHead(w, req)
 	} else {
-		http.Error(w, "Method not supported", 500)
+		http.Error(w, "Method not supported", 405)
 	}
 
 	if !server.Quiet {
