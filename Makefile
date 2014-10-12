@@ -1,7 +1,7 @@
-verm: src/*.go
-	go build src/verm.go
+verm: src/**/*.go
+	GOPATH=`pwd` go build src/verm.go
 
-clean: clean_verm
+clean:
 	rm -f verm
 
 test_verm: verm

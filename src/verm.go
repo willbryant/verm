@@ -5,6 +5,7 @@ import "fmt"
 import "log"
 import "net/http"
 import "os"
+import "verm"
 
 const default_root = "/var/lib/verm"
 const default_directory_if_not_given_by_client = "/default" // rather than letting people upload directly into the root directory, which in practice is a PITA to administer.  no command-line option for this because it should be provided by the client, so letting admins change it implies mis-use by the client which would be a problem down the track.
@@ -24,9 +25,10 @@ func main() {
 	flag.Parse()
 
 	if !quiet {
-		fmt.Printf("Verm listening on http://%s:%s, writing to %s, mime types in %s\n", listen_address, port, root_data_directory, mime_types_file)
+		fmt.Printf("Verm listening on http://%s:%s, data in %s\n", listen_address, port, root_data_directory)
 	}
 
+	http.Handle("/", verm.VermServer(root_data_directory, mime_types_file, quiet))
 	log.Fatal(http.ListenAndServe(listen_address + ":" + port, nil))
 
 	os.Exit(0)
