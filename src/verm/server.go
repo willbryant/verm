@@ -19,12 +19,12 @@ func VermServer(root string, mime_types_file string, quiet bool) vermServer {
 	return vermServer{RootDataDir: http.Dir(root), Statistics: &LogStatistics{}, Quiet: quiet}
 }
 
-func (server vermServer) ServeRoot(w http.ResponseWriter, req *http.Request) {
+func (server vermServer) serveRoot(w http.ResponseWriter, req *http.Request) {
 	// TODO: implement upload form
 	http.Error(w, "Nothing to see here yet", 404)
 }
 
-func (server vermServer) ServeFile(w http.ResponseWriter, req *http.Request) {
+func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
 	atomic.AddUint64(&server.Statistics.get_requests, 1)
 
 	// deal with '/..' etc.
@@ -32,6 +32,11 @@ func (server vermServer) ServeFile(w http.ResponseWriter, req *http.Request) {
 
 	// try and open the file
 	file, stat, err := server.openFile(path)
+	stored_compressed := false
+	if err != nil {
+		file, stat, err = server.openFile(path + ".gz")
+		stored_compressed = true
+	}
 	if err != nil {
 		atomic.AddUint64(&server.Statistics.get_requests_not_found, 1)
 		http.NotFound(w, req)
@@ -39,22 +44,37 @@ func (server vermServer) ServeFile(w http.ResponseWriter, req *http.Request) {
 	}
 	defer file.Close()
 
-	// infer the content-type from the filename extension
-	contenttype := mime.TypeByExtension(filepath.Ext(path))
-
-	// because verm files are immutable, we can use the path as a constant etag for the file
-	etag := path
-
 	// if the client supplied cache-checking header, test them
-	if checkLastModified(w, req, stat.ModTime()) || checkETag(w, req, etag) {
+	// because verm files are immutable, we can use the path as a constant etag for the file
+	if checkLastModified(w, req, stat.ModTime()) || checkETag(w, req, path) {
 		// the client is up-to-date
 		w.Header().Del("Content-Length")
 		w.WriteHeader(http.StatusNotModified)
 	} else {
-		// send the file
-		w.Header().Set("etag", path)
 		w.Header().Set("Last-Modified", stat.ModTime().UTC().Format(http.TimeFormat))
-		serveContent(w, req, contenttype, stat.Size(), file)
+		w.Header().Set("ETag", path)
+
+		// infer the content-type from the filename extension
+		contenttype := mime.TypeByExtension(filepath.Ext(path))
+		if contenttype != "" {
+			w.Header().Set("Content-Type", contenttype)
+		}
+
+		// send the file
+		if !stored_compressed {
+			serveContent(w, req, stat.Size(), file)
+
+		} else if gzipAccepted(req) {
+			w.Header().Set("Content-Encoding", "gzip")
+			serveContent(w, req, stat.Size(), file)
+
+		} else {
+			w.WriteHeader(http.StatusOK)
+
+			if req.Method != "HEAD" {
+				unpackAndServeContent(w, file)
+			}
+		}
 	}
 }
 
@@ -73,13 +93,13 @@ func (server vermServer) openFile(path string) (http.File, os.FileInfo, error) {
 	return file, stat, nil
 }
 
-func (server vermServer) ServeHTTPGetOrHead(w http.ResponseWriter, req *http.Request) {
+func (server vermServer) serveHTTPGetOrHead(w http.ResponseWriter, req *http.Request) {
 	if req.URL.Path == "/" {
-		server.ServeRoot(w, req)
+		server.serveRoot(w, req)
 	} else if req.URL.Path == "/_statistics" {
-		server.ServeStatistics(w, req)
+		server.serveStatistics(w, req)
 	} else {
-		server.ServeFile(w, req)
+		server.serveFile(w, req)
 	}
 }
 
@@ -88,7 +108,7 @@ func (server vermServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer atomic.AddUint64(&server.Statistics.connections_current, ^uint64(0))
 
 	if req.Method == "GET" || req.Method == "HEAD" {
-		server.ServeHTTPGetOrHead(w, req)
+		server.serveHTTPGetOrHead(w, req)
 	} else {
 		http.Error(w, "Method not supported", 500)
 	}

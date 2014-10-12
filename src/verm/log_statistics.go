@@ -11,7 +11,7 @@ type LogStatistics struct {
 	connections_current uint64
 }
 
-func (server vermServer) ServeStatistics(w http.ResponseWriter, req *http.Request) {
+func (server vermServer) serveStatistics(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w,
 		"get_requests %d\n" +
 		"get_requests_not_found %d\n" +

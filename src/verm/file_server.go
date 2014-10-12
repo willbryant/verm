@@ -21,12 +21,8 @@ import (
 )
 
 // content must be seeked to the beginning of the file.
-func serveContent(w http.ResponseWriter, r *http.Request, contenttype string, size int64, content io.ReadSeeker) {
+func serveContent(w http.ResponseWriter, r *http.Request, size int64, content io.ReadSeeker) {
 	code := http.StatusOK
-
-	if contenttype != "" {
-		w.Header().Set("Content-Type", contenttype)
-	}
 
 	// handle Content-Range header.
 	sendSize := size
@@ -72,7 +68,7 @@ func serveContent(w http.ResponseWriter, r *http.Request, contenttype string, si
 					return
 				}
 			}
-			sendSize = rangesMIMESize(ranges, contenttype, size)
+			sendSize = rangesMIMESize(ranges, w.Header().Get("Content-Type"), size)
 			code = http.StatusPartialContent
 
 			pr, pw := io.Pipe()
@@ -82,7 +78,7 @@ func serveContent(w http.ResponseWriter, r *http.Request, contenttype string, si
 			defer pr.Close() // cause writing goroutine to fail and exit if CopyN doesn't finish.
 			go func() {
 				for _, ra := range ranges {
-					part, err := mw.CreatePart(ra.mimeHeader(contenttype, size))
+					part, err := mw.CreatePart(ra.mimeHeader(w.Header().Get("Content-Type"), size))
 					if err != nil {
 						pw.CloseWithError(err)
 						return
