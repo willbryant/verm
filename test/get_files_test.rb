@@ -112,6 +112,7 @@ class GetFilesTest < Verm::TestCase
     copy_file_to('somefiles', 'vermtest1', true)
     File.open(@original_file, 'rb') do |f|
       get :path => "/somefiles/#{@filename.gsub('.gz', '')}",
+          :headers => {'accept-encoding' => ''}, # unfortunately a default accept-encoding was added in net::http, so this is the best we can do to test this
           :expected_content_encoding => 'gzip', # compressed
           :expected_content_type => 'application/verm-test-file',
           :expected_content => f.read
