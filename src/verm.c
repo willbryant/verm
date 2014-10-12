@@ -553,7 +553,7 @@ int complete_upload(struct Upload* upload, const char* root_data_directory) {
 	*dest++ = encode_chars[((*src & 0xf8) >> 3)];
 	*dest++ = encode_chars[((*src & 0x07) << 3) + ((*(src + 1) & 0xe0) >> 5)];
 	*dest++ = '/'; // we put each file in a subdirectory off the main root, whose name is the first two characters of the hash.
-	*dest++ = encode_chars[((*src & 0x1f))];
+	*dest++ = encode_chars[((*(src + 1) & 0x1f))];
 	src += 2;
 
 	while (src < end) {
