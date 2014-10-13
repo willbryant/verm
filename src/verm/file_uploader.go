@@ -24,6 +24,7 @@ type fileUpload struct {
 }
 
 const directory_permission = 0777
+const default_directory_if_not_given_by_client = "/default"
 const uploaded_file_field = "uploaded_file"
 
 func (upload *fileUpload) Close() {
@@ -114,8 +115,13 @@ func (upload *fileUpload) encodeHash() (string, string) {
 func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request) (*fileUpload, error) {
 	// deal with '/..' etc.
 	path := path.Clean(req.URL.Path)
-	// TODO: trim trailing /, enforce leading /
 
+	// don't allow uploads to the root directory itself, which would be unmanageable
+	if len(path) <= 1 {
+		path = default_directory_if_not_given_by_client
+	}
+
+	// make a tempfile in the requested (or default, as above) directory
 	directory := server.RootDataDir + path
 	err := os.MkdirAll(directory, directory_permission)
 	if err != nil {

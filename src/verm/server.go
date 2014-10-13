@@ -1,5 +1,6 @@
 package verm
 
+import "io"
 import "log"
 import "mimeext"
 import "net/http"
@@ -27,8 +28,16 @@ func VermServer(root string, mime_types_file string, quiet bool) vermServer {
 }
 
 func (server vermServer) serveRoot(w http.ResponseWriter, req *http.Request) {
-	// TODO: implement upload form
-	http.Error(w, "Nothing to see here yet", 404)
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w,
+		"<!DOCTYPE html><html><head><title>Verm - Upload</title></head><body>" +
+		"<!-- this form will let you test out verm manually.  don't emulate it in API clients - it's simpler to use raw posts.  you should also insist on posting to an application-specific directory name. -->" +
+		"<form method='post' enctype='multipart/form-data'>" +
+		"<input type='hidden' name='redirect' value='1'/>" /* redirect instead of returning 201 (as APIs want) */ +
+		"<input type='file' name='uploaded_file'/>" +
+		"<input type='submit' value='Upload'/>" +
+		"</form>" +
+		"</body></html>\n")
 }
 
 func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
