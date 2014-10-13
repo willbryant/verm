@@ -4,6 +4,7 @@ import "bytes"
 import "hash"
 import "crypto/sha256"
 import "io/ioutil"
+import "mimeext"
 import "net/http"
 import "os"
 import "path"
@@ -11,6 +12,7 @@ import "path"
 type fileUpload struct {
 	root string
 	path string
+	content_type string
 	hasher hash.Hash
 	tempFile *os.File
 }
@@ -37,8 +39,8 @@ func (upload *fileUpload) Finish() (string, bool, error) {
 	// build the subdirectory and filename from the hash
 	dir, dst := upload.encodeHash()
 
-	// TODO add extension
-	extension := ""
+	// determine the appropriate extension from the content type
+	extension := mimeext.ExtensionByType(upload.content_type)
 
 	// create the directory
 	subpath := upload.path + dir
@@ -63,7 +65,7 @@ func (upload *fileUpload) Finish() (string, bool, error) {
 		new_file = false
 	}
 
-	os.Remove(upload.tempFile.Name()) // ignore errors, moot at this point
+	os.Remove(upload.tempFile.Name()) // ignore errors, the tempfile is moot at this point
 
 	return location, new_file, nil
 }
@@ -126,6 +128,7 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request) 
 	return &fileUpload{
 		root: server.RootDataDir,
 		path: path,
+		content_type: req.Header.Get("Content-Type"),
 		hasher: sha256.New(),
 		tempFile: tempFile,
 	}, nil

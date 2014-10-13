@@ -2,7 +2,7 @@ package verm
 
 import "io"
 import "log"
-import "mime"
+import "mimeext"
 import "net/http"
 import "os"
 import "path"
@@ -17,7 +17,7 @@ type vermServer struct {
 }
 
 func VermServer(root string, mime_types_file string, quiet bool) vermServer {
-	loadMimeFile(mime_types_file)
+	mimeext.LoadMimeFile(mime_types_file)
 
 	return vermServer{
 		RootDataDir: root,
@@ -63,7 +63,7 @@ func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("ETag", path)
 
 		// infer the content-type from the filename extension
-		contenttype := mime.TypeByExtension(filepath.Ext(path))
+		contenttype := mimeext.TypeByExtension(filepath.Ext(path))
 		if contenttype != "" {
 			w.Header().Set("Content-Type", contenttype)
 		}
