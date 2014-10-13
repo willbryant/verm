@@ -133,11 +133,16 @@ func (upload *fileUpload) Finish() (string, bool, error) {
 	new_file := true
 	err = os.Link(upload.tempFile.Name(), filename)
 	if err != nil {
-		// this most often means the path already exists; since we don't get a nice EEXIST code back, we have to check
+		// this most often means the path already exists
+		if !os.IsExist(err) {
+			return "", false, err
+		}
+
+		// check it's a regular file
 		stat, staterr := os.Lstat(filename)
 
 		if staterr != nil || !stat.Mode().IsRegular() {
-			// no, doesn't exist or isn't a file, so return the original error
+			// no, can't stat or isn't a file, so return the original error
 			return "", false, err
 		}
 		// TODO: check file contents match?
