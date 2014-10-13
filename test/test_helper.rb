@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'test/unit'
 require 'fileutils'
+require 'byebug'
 require File.expand_path(File.join(File.dirname(__FILE__), 'net_http_multipart_post'))
 require File.expand_path(File.join(File.dirname(__FILE__), 'verm_spawner'))
 
@@ -69,15 +70,17 @@ module Verm
       
       http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
       http.read_timeout = timeout
-      location = http.start do |connection|
+      response = http.start do |connection|
         if @raw
-          response = connection.request(request, file_data)
+          connection.request(request, file_data)
         else
-          response = connection.request(request)
+          connection.request(request)
         end
-        response['location']
       end
+      assert_equal options[:expected_response_code] || 201, response.code.to_i, "The response didn't have the expected code (got #{response.code}, #{response.body.chomp})"
 
+      location = response['location']
+      raise "No location was returned, it was supposed to be saved under #{options[:path]}/" if location.nil?
       raise "The location returned was #{location}, but it was supposed to be saved under #{options[:path]}/" if location[0..options[:path].length] != "#{options[:path]}/"
       raise "The location returned was #{location}, but it was supposed to have a #{options[:expected_extension]} extension" if options[:expected_extension] && location[(-options[:expected_extension].length - 1)..-1] != ".#{options[:expected_extension]}"
       dest_filename = File.expand_path(File.join(verm_spawner.verm_data, location))

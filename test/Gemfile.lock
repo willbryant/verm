@@ -1,9 +1,17 @@
 GEM
   specs:
+    byebug (3.4.0)
+      columnize (~> 0.8)
+      debugger-linecache (~> 1.2)
+      slop (~> 3.6)
+    columnize (0.8.9)
+    debugger-linecache (1.2.0)
     minitest (4.3.2)
+    slop (3.6.0)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
+  byebug
   minitest (~> 4.0)
