@@ -12,7 +12,7 @@ module Net
         chrs = "0123456789abcdefghijklmnopqrstuvwxyz"
         random_str = (0..11).collect { chrs[rand(36)] }.join
         @boundary = ".multipart_boundary_#{random_str}.".freeze
-        self.set_content_type "multipart/form-data", :boundary => @boundary
+        self.set_content_type "multipart/form-data", :boundary => "\"#{@boundary}\"" # set_content_type doesn't quote as it should
         self.body = ""
       end
       

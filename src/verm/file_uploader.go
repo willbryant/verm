@@ -6,7 +6,9 @@ import "crypto/sha256"
 import "hash"
 import "io"
 import "io/ioutil"
+import "mime"
 import "mimeext"
+import "net/textproto"
 import "net/http"
 import "os"
 import "path"
@@ -16,11 +18,13 @@ type fileUpload struct {
 	path string
 	content_type string
 	gzipped bool
+	input io.Reader
 	hasher hash.Hash
 	tempFile *os.File
 }
 
 const directory_permission = 0777
+const uploaded_file_field = "uploaded_file"
 
 func (upload *fileUpload) Close() {
 	upload.tempFile.Close();
@@ -124,11 +128,38 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request) 
 		return nil, err
 	}
 
+	// if the upload is a raw post, the input stream is the request body
+	var input io.Reader = req.Body
+
+	// but if the upload is a browser form, the input stream needs multipart decoding
+	content_type := mediaTypeOrDefault(textproto.MIMEHeader(req.Header))
+	if content_type == "multipart/form-data" {
+		file, mpheader, mperr := req.FormFile(uploaded_file_field)
+		if mperr != nil {
+			return nil, mperr
+		}
+		input = file
+		content_type = mediaTypeOrDefault(mpheader.Header)
+	}
+
+	// as we read from the stream, copy it raw (without uncompressing) into the tempfile
+	input = io.TeeReader(input, tempFile)
+
+	// but uncompress the stream before feeding it to the hasher
+	gzipped := req.Header.Get("Content-Encoding") == "gzip"
+	if gzipped {
+		input, err = gzip.NewReader(input)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &fileUpload{
 		root: server.RootDataDir,
 		path: path,
-		content_type: req.Header.Get("Content-Type"),
-		gzipped: req.Header.Get("Content-Encoding") == "gzip",
+		content_type: content_type,
+		gzipped: gzipped,
+		input: input,
 		hasher: sha256.New(),
 		tempFile: tempFile,
 	}, nil
@@ -141,21 +172,19 @@ func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request) (s
 	}
 	defer uploader.Close()
 
-	// as we read from the stream, copy it raw (without uncompressing) into the tempfile
-	input := io.TeeReader(req.Body, uploader.tempFile)
-
-	if uploader.gzipped {
-		input, err = gzip.NewReader(input)
-		if err != nil {
-			return "", false, err
-		}
-	}
-
 	// read it in to the hasher
-	_, err = io.Copy(uploader.hasher, input)
+	_, err = io.Copy(uploader.hasher, uploader.input)
 	if err != nil {
 		return "", false, err
 	}
 
 	return uploader.Finish()
+}
+
+func mediaTypeOrDefault(header textproto.MIMEHeader) string {
+	media_type, _, err := mime.ParseMediaType(header.Get("Content-Type"))
+	if err != nil {
+		return "application/octet-stream"
+	}
+	return media_type
 }
