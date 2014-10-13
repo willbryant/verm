@@ -123,7 +123,11 @@ func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request)
 	}
 
 	w.Header().Set("Location", location)
-	w.WriteHeader(http.StatusCreated)
+	if req.FormValue("redirect") == "1" {
+		w.WriteHeader(http.StatusSeeOther)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
 }
 
 func (server vermServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
