@@ -27,6 +27,81 @@ const directory_permission = 0777
 const default_directory_if_not_given_by_client = "/default"
 const uploaded_file_field = "uploaded_file"
 
+func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request) (string, bool, error) {
+	uploader, err := server.FileUploader(w, req)
+	if err != nil {
+		return "", false, err
+	}
+	defer uploader.Close()
+
+	// read it in to the hasher
+	_, err = io.Copy(uploader.hasher, uploader.input)
+	if err != nil {
+		return "", false, err
+	}
+
+	return uploader.Finish()
+}
+
+func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request) (*fileUpload, error) {
+	// deal with '/..' etc.
+	path := path.Clean(req.URL.Path)
+
+	// don't allow uploads to the root directory itself, which would be unmanageable
+	if len(path) <= 1 {
+		path = default_directory_if_not_given_by_client
+	}
+
+	// make a tempfile in the requested (or default, as above) directory
+	directory := server.RootDataDir + path
+	err := os.MkdirAll(directory, directory_permission)
+	if err != nil {
+		return nil, err
+	}
+
+	var tempFile *os.File
+	tempFile, err = ioutil.TempFile(directory, "_upload")
+	if err != nil {
+		return nil, err
+	}
+
+	// if the upload is a raw post, the input stream is the request body
+	var input io.Reader = req.Body
+
+	// but if the upload is a browser form, the input stream needs multipart decoding
+	content_type := mediaTypeOrDefault(textproto.MIMEHeader(req.Header))
+	if content_type == "multipart/form-data" {
+		file, mpheader, mperr := req.FormFile(uploaded_file_field)
+		if mperr != nil {
+			return nil, mperr
+		}
+		input = file
+		content_type = mediaTypeOrDefault(mpheader.Header)
+	}
+
+	// as we read from the stream, copy it raw (without uncompressing) into the tempfile
+	input = io.TeeReader(input, tempFile)
+
+	// but uncompress the stream before feeding it to the hasher
+	gzipped := req.Header.Get("Content-Encoding") == "gzip"
+	if gzipped {
+		input, err = gzip.NewReader(input)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &fileUpload{
+		root: server.RootDataDir,
+		path: path,
+		content_type: content_type,
+		gzipped: gzipped,
+		input: input,
+		hasher: sha256.New(),
+		tempFile: tempFile,
+	}, nil
+}
+
 func (upload *fileUpload) Close() {
 	upload.tempFile.Close();
 }
@@ -110,81 +185,6 @@ func (upload *fileUpload) encodeHash() (string, string) {
 	}
 
 	return dir.String(), dst.String()
-}
-
-func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request) (*fileUpload, error) {
-	// deal with '/..' etc.
-	path := path.Clean(req.URL.Path)
-
-	// don't allow uploads to the root directory itself, which would be unmanageable
-	if len(path) <= 1 {
-		path = default_directory_if_not_given_by_client
-	}
-
-	// make a tempfile in the requested (or default, as above) directory
-	directory := server.RootDataDir + path
-	err := os.MkdirAll(directory, directory_permission)
-	if err != nil {
-		return nil, err
-	}
-
-	var tempFile *os.File
-	tempFile, err = ioutil.TempFile(directory, "_upload")
-	if err != nil {
-		return nil, err
-	}
-
-	// if the upload is a raw post, the input stream is the request body
-	var input io.Reader = req.Body
-
-	// but if the upload is a browser form, the input stream needs multipart decoding
-	content_type := mediaTypeOrDefault(textproto.MIMEHeader(req.Header))
-	if content_type == "multipart/form-data" {
-		file, mpheader, mperr := req.FormFile(uploaded_file_field)
-		if mperr != nil {
-			return nil, mperr
-		}
-		input = file
-		content_type = mediaTypeOrDefault(mpheader.Header)
-	}
-
-	// as we read from the stream, copy it raw (without uncompressing) into the tempfile
-	input = io.TeeReader(input, tempFile)
-
-	// but uncompress the stream before feeding it to the hasher
-	gzipped := req.Header.Get("Content-Encoding") == "gzip"
-	if gzipped {
-		input, err = gzip.NewReader(input)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return &fileUpload{
-		root: server.RootDataDir,
-		path: path,
-		content_type: content_type,
-		gzipped: gzipped,
-		input: input,
-		hasher: sha256.New(),
-		tempFile: tempFile,
-	}, nil
-}
-
-func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request) (string, bool, error) {
-	uploader, err := server.FileUploader(w, req)
-	if err != nil {
-		return "", false, err
-	}
-	defer uploader.Close()
-
-	// read it in to the hasher
-	_, err = io.Copy(uploader.hasher, uploader.input)
-	if err != nil {
-		return "", false, err
-	}
-
-	return uploader.Finish()
 }
 
 func mediaTypeOrDefault(header textproto.MIMEHeader) string {
