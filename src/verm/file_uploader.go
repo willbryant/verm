@@ -3,6 +3,7 @@ package verm;
 import "bytes"
 import "hash"
 import "crypto/sha256"
+import "io"
 import "io/ioutil"
 import "mimeext"
 import "net/http"
@@ -132,4 +133,19 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request) 
 		hasher: sha256.New(),
 		tempFile: tempFile,
 	}, nil
+}
+
+func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request) (string, bool, error) {
+	uploader, err := server.FileUploader(w, req)
+	if err != nil {
+		return "", false, err
+	}
+	defer uploader.Close()
+
+	_, err = io.Copy(uploader, req.Body)
+	if err != nil {
+		return "", false, err
+	}
+
+	return uploader.Finish()
 }

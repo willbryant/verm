@@ -1,6 +1,5 @@
 package verm
 
-import "io"
 import "log"
 import "mimeext"
 import "net/http"
@@ -114,22 +113,7 @@ func (server vermServer) serveHTTPGetOrHead(w http.ResponseWriter, req *http.Req
 func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request) {
 	defer atomic.AddUint64(&server.Statistics.post_requests, 1)
 
-	uploader, err := server.FileUploader(w, req)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	defer uploader.Close()
-
-	_, err = io.Copy(uploader, req.Body)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
-	var location string
-	var new_file bool
-	location, new_file, err = uploader.Finish()
+	location, new_file, err := server.UploadFile(w, req)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
