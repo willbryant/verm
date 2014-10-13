@@ -1,8 +1,9 @@
 package verm;
 
 import "bytes"
-import "hash"
+import "compress/gzip"
 import "crypto/sha256"
+import "hash"
 import "io"
 import "io/ioutil"
 import "mimeext"
@@ -14,6 +15,7 @@ type fileUpload struct {
 	root string
 	path string
 	content_type string
+	gzipped bool
 	hasher hash.Hash
 	tempFile *os.File
 }
@@ -22,18 +24,6 @@ const directory_permission = 0777
 
 func (upload *fileUpload) Close() {
 	upload.tempFile.Close();
-}
-
-func (upload *fileUpload) Write(p []byte) (int, error) {
-	n, err := upload.hasher.Write(p)
-	if err != nil {
-		return n, err
-	}
-	n, err = upload.tempFile.Write(p)
-	if err != nil {
-		return n, err
-	}
-	return n, nil
 }
 
 func (upload *fileUpload) Finish() (string, bool, error) {
@@ -50,13 +40,21 @@ func (upload *fileUpload) Finish() (string, bool, error) {
 		return "", false, err
 	}
 
+	// compose the filename; if the upload was itself compressed, tack on the gzip suffix -
+	// but note that this changes only the filename and not the returned location
+	location := subpath + dst + extension
+	filename := upload.root + location
+
+	if upload.gzipped {
+		filename += ".gz"
+	}
+
 	// hardlink the file into place
 	new_file := true
-	location := subpath + dst + extension
-	err = os.Link(upload.tempFile.Name(), upload.root + location)
+	err = os.Link(upload.tempFile.Name(), filename)
 	if err != nil {
 		// this most often means the path already exists; since we don't get a nice EEXIST code back, we have to check
-		stat, staterr := os.Lstat(upload.root + location)
+		stat, staterr := os.Lstat(filename)
 
 		if staterr != nil || !stat.Mode().IsRegular() {
 			// no, doesn't exist or isn't a file, so return the original error
@@ -130,6 +128,7 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request) 
 		root: server.RootDataDir,
 		path: path,
 		content_type: req.Header.Get("Content-Type"),
+		gzipped: req.Header.Get("Content-Encoding") == "gzip",
 		hasher: sha256.New(),
 		tempFile: tempFile,
 	}, nil
@@ -142,7 +141,18 @@ func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request) (s
 	}
 	defer uploader.Close()
 
-	_, err = io.Copy(uploader, req.Body)
+	// as we read from the stream, copy it raw (without uncompressing) into the tempfile
+	input := io.TeeReader(req.Body, uploader.tempFile)
+
+	if uploader.gzipped {
+		input, err = gzip.NewReader(input)
+		if err != nil {
+			return "", false, err
+		}
+	}
+
+	// read it in to the hasher
+	_, err = io.Copy(uploader.hasher, input)
 	if err != nil {
 		return "", false, err
 	}
