@@ -46,21 +46,21 @@ class ReplicationPropagationTest < Verm::TestCase
   end
 
   def test_propagates_new_files_to_slave
-    assert_propagates_file(:expected_content => File.read(fixture_file_path('simple_text_file'))) do
+    assert_propagates_file(:expected_content => File.read(fixture_file_path('simple_text_file'), :mode => 'rb')) do
       post_file :path => '/foo',
                 :file => 'simple_text_file',
                 :type => 'text/plain',
                 :verm => REPLICATION_MASTER_VERM_SPAWNER
     end
 
-    assert_propagates_file(:expected_content => File.read(fixture_file_path('binary_file'))) do
+    assert_propagates_file(:expected_content => File.read(fixture_file_path('binary_file'), :mode => 'rb')) do
       post_file :path => '/foo',
                 :file => 'binary_file',
                 :type => 'application/octet-stream',
                 :verm => REPLICATION_MASTER_VERM_SPAWNER
     end
 
-    assert_propagates_file(:expected_content => File.read(fixture_file_path('binary_file.gz')), :expected_encoding => 'gzip') do
+    assert_propagates_file(:expected_content => File.read(fixture_file_path('binary_file.gz'), :mode => 'rb'), :expected_encoding => 'gzip') do
       post_file :path => '/foo',
                 :file => 'binary_file.gz',
                 :encoding => 'gzip',
@@ -68,7 +68,7 @@ class ReplicationPropagationTest < Verm::TestCase
                 :verm => REPLICATION_MASTER_VERM_SPAWNER
     end
 
-    assert_propagates_file(:expected_content => File.read(fixture_file_path('medium_file'))) do
+    assert_propagates_file(:expected_content => File.read(fixture_file_path('medium_file'), :mode => 'rb')) do
       post_file :path => '/foo',
                 :file => 'medium_file',
                 :type => 'application/octet-stream',
@@ -131,6 +131,6 @@ class ReplicationPropagationTest < Verm::TestCase
     # :"replication_#{VERM_SPAWNER.hostname}_#{VERM_SPAWNER.port}_seconds_behind" are both now back to 0, so no change from the 'before' numbers
 
     # check the slave now has it
-    get :path => location, :expected_content => File.read(fixture_file_path('simple_text_file'))
+    get :path => location, :expected_content => File.read(fixture_file_path('simple_text_file'), :mode => 'rb')
   end
 end
