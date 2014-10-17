@@ -3,6 +3,7 @@ package verm;
 import "bytes"
 import "compress/gzip"
 import "crypto/sha256"
+import "fmt"
 import "hash"
 import "io"
 import "io/ioutil"
@@ -122,31 +123,47 @@ func (upload *fileUpload) Finish() (string, bool, error) {
 
 	// compose the filename; if the upload was itself compressed, tack on the gzip suffix -
 	// but note that this changes only the filename and not the returned location
-	location := subpath + dst + extension
-	filename := upload.root + location
-
-	if upload.gzipped {
-		filename += ".gz"
-	}
+	location := fmt.Sprintf("%s%s%s", subpath, dst, extension)
 
 	// hardlink the file into place
 	new_file := true
-	err = os.Link(upload.tempFile.Name(), filename)
-	if err != nil {
-		// this most often means the path already exists
+	attempt := 1
+	for {
+		filename := upload.root + location
+		if upload.gzipped {
+			filename += ".gz"
+		}
+
+		err = os.Link(upload.tempFile.Name(), filename)
+		if err == nil {
+			// success
+			break
+		}
+
+		// the most common error is that the path already exists, which would be normal if it's the same file, but any other error is definitely an error
 		if !os.IsExist(err) {
+			// some other error, return it
 			return "", false, err
 		}
 
-		// check it's a regular file
-		stat, staterr := os.Lstat(filename)
-
-		if staterr != nil || !stat.Mode().IsRegular() {
-			// no, can't stat or isn't a file, so return the original error
+		// check the file contents match
+		existing, openerr := os.Open(filename)
+		if openerr != nil {
+			// can't open the existing file - may not be a regular file, or not accessible to us; return the original error
 			return "", false, err
 		}
-		// TODO: check file contents match?
-		new_file = false
+		defer existing.Close()
+		upload.tempFile.Seek(0, 0)
+
+		if sameContents(upload.tempFile, existing) {
+			// success
+			new_file = false
+			break
+		}
+
+		// contents don't match, which in practice means corruption since the chance of finding a sha256 hash collision is low! but we assume the best and use a suffix on the filename
+		attempt++
+		location = fmt.Sprintf("%s%s_%d%s", subpath, dst, attempt, extension)
 	}
 
 	os.Remove(upload.tempFile.Name()) // ignore errors, the tempfile is moot at this point
@@ -198,4 +215,39 @@ func mediaTypeOrDefault(header textproto.MIMEHeader) string {
 		return "application/octet-stream"
 	}
 	return media_type
+}
+
+func sameContents(file1, file2 io.Reader) bool {
+	var contents1 = make([]byte, 65536)
+	var contents2 = make([]byte, 65536)
+	for {
+		// try to read some bytes from file1, then try to read the same number of bytes (exactly) from file2
+		len1, err1 := file1.Read(contents1)
+
+		if len1 > 0 {
+			len2, err2 := io.ReadFull(file2, contents2[0:len1])
+
+			if err2 != nil || !bytes.Equal(contents1[0:len1], contents2[0:len2]) {
+				// hit an error or premature EOF (ie. file lengths didn't match), or the file contents weren't
+				// the same, so again failed/conflicted
+				return false
+			}
+
+		} else if err1 == io.EOF {
+			// normal EOF on the first file; check the second file is at EOF too - we can't use the normal
+			// ReadFull code above and just test err2 because ReadFull with a 0-long slice is a noop and will
+			// always return no error, so read a 1-long slice instead and see what happens
+			len2, err2 := file2.Read(contents2[0:1])
+
+			// if we reached the end of one file but not the other (or had another read error from it),
+			// return a failure/conflict; otherwise return success
+			return len2 == 0 && err2 == io.EOF
+
+		// "Implementations of Read are discouraged from returning a zero byte count with a nil error,
+		// and callers should treat that situation as a no-op."
+		} else if err1 != nil {
+			// hit an error, treated as failed/conflict
+			return false
+		}
+	}
 }
