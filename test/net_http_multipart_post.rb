@@ -9,7 +9,8 @@ module Net
       def initialize(*args)
         super(*args)
 
-        random_str = Base64.encode64((0..11).collect {rand(255)}.pack("C*")).chomp
+        chrs = "0123456789abcdefghijklmnopqrstuvwxyz"
+        random_str = (0..11).collect { chrs[rand(36)] }.join
         @boundary = ".multipart_boundary_#{random_str}.".freeze
         self.set_content_type "multipart/form-data", :boundary => @boundary
         self.body = ""
