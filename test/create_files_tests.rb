@@ -84,5 +84,50 @@ module CreateFilesSharedTests
       
       assert_not_equal first_file_location, different_file_location
     end
+
+    def test_rejects_mismatching_files
+      location =
+        post_file(:path => '/foo',
+                  :file => 'simple_text_file',
+                  :type => 'text/plain',
+                  :expected_extension => nil)
+      dest_filename = expected_filename(location)
+      File.open(dest_filename, "wb") {|f| f.write("different")}
+      assert_equal location.gsub(".txt", "_2.txt"),
+        post_file(:path => '/foo',
+                  :file => 'simple_text_file',
+                  :type => 'text/plain',
+                  :expected_extension => nil)
+    end
+
+    def test_rejects_mismatching_shorter_files
+      location =
+        post_file(:path => '/foo',
+                  :file => 'simple_text_file',
+                  :type => 'text/plain',
+                  :expected_extension => nil)
+      dest_filename = expected_filename(location)
+      File.open(dest_filename, "wb") {|f| f.truncate(20)}
+      assert_equal location.gsub(".txt", "_2.txt"),
+        post_file(:path => '/foo',
+                  :file => 'simple_text_file',
+                  :type => 'text/plain',
+                  :expected_extension => nil)
+    end
+
+    def test_rejects_mismatching_longer_files
+      location =
+        post_file(:path => '/foo',
+                  :file => 'simple_text_file',
+                  :type => 'text/plain',
+                  :expected_extension => nil)
+      dest_filename = expected_filename(location)
+      File.open(dest_filename, "ab") {|f| f.write("extra")}
+      assert_equal location.gsub(".txt", "_2.txt"),
+        post_file(:path => '/foo',
+                  :file => 'simple_text_file',
+                  :type => 'text/plain',
+                  :expected_extension => nil)
+    end
   end
 end

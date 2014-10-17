@@ -52,6 +52,13 @@ module Verm
       
       response
     end
+
+    def expected_filename(location, options = {})
+      verm_spawner = options.delete(:verm) || VERM_SPAWNER
+      dest_filename = File.expand_path(File.join(verm_spawner.verm_data, location))
+      dest_filename += '.' + options[:expected_extension_suffix] if options[:expected_extension_suffix]
+      dest_filename
+    end
     
     def post_file(options)
       verm_spawner = options.delete(:verm) || VERM_SPAWNER
@@ -77,14 +84,14 @@ module Verm
           connection.request(request)
         end
       end
+      response.error! unless response.is_a?(Net::HTTPSuccess)
       assert_equal options[:expected_response_code] || 201, response.code.to_i, "The response didn't have the expected code (got #{response.code}, #{response.body.chomp})"
 
       location = response['location']
       raise "No location was returned, it was supposed to be saved under #{options[:path]}/" if location.nil?
       raise "The location returned was #{location}, but it was supposed to be saved under #{options[:path]}/" if location[0..options[:path].length] != "#{options[:path]}/"
       raise "The location returned was #{location}, but it was supposed to have a #{options[:expected_extension]} extension" if options[:expected_extension] && location[(-options[:expected_extension].length - 1)..-1] != ".#{options[:expected_extension]}"
-      dest_filename = File.expand_path(File.join(verm_spawner.verm_data, location))
-      dest_filename += '.' + options[:expected_extension_suffix] if options[:expected_extension_suffix]
+      dest_filename = expected_filename(location, options)
       raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
       saved_data = File.read(dest_filename)
       raise "The data saved to file doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
@@ -101,15 +108,14 @@ module Verm
       
       http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
       http.read_timeout = timeout
-      location = http.start do |connection|
-        response = connection.request(request, file_data)
-        response.error! unless response.is_a?(Net::HTTPSuccess)
-        response['location']
+      response = http.start do |connection|
+        connection.request(request, file_data)
       end
+      response.error! unless response.is_a?(Net::HTTPSuccess)
 
+      location = response['location']
       raise "The location returned was #{location}, but it was supposed to be the requested location #{options[:path]}" if location != options[:path]
-      dest_filename = File.expand_path(File.join(verm_spawner.verm_data, location))
-      dest_filename += '.' + options[:expected_extension_suffix] if options[:expected_extension_suffix]
+      dest_filename = expected_filename(location, options)
       raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
       saved_data = File.read(dest_filename)
       raise "The data saved to file doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
