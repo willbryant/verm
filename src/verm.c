@@ -327,7 +327,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	
 	if (path[0] != '/' || strstr(path, "/..") || strlen(path) >= (posting ? MAX_DIRECTORY_LENGTH : MAX_PATH_LENGTH)) {
 		fprintf(stderr, "Refusing %s to a suspicious path: '%s'\n", posting ? "post" : "put", path);
-		send_forbidden_wrong_path_response(connection);
+		send_unprocessable_wrong_path_response(connection);
 		return NULL;
 	}
 	
@@ -355,7 +355,7 @@ struct Upload* create_upload(struct MHD_Connection *connection, const char* root
 	} else {
 		separator = strr2ndchr(path + 1, '/');
 		if (separator == NULL || separator == path + 1 || separator - path >= MAX_DIRECTORY_LENGTH || !*(separator + 1) || strstr(path, "//")) {
-			send_forbidden_wrong_path_response(connection);
+			send_unprocessable_wrong_path_response(connection);
 			free(upload);
 			return NULL;
 		}
@@ -602,7 +602,7 @@ int handle_post_or_put_request(
 			
 			case ERR_PUT_TO_WRONG_PATH:
 				DEBUG_PRINT("put to wrong path %s\n", path);
-				return send_forbidden_wrong_path_response(connection);
+				return send_unprocessable_wrong_path_response(connection);
 			
 			default:
 				DEBUG_PRINT("completing failed\n"); // only in debug mode because an error should already have been printed

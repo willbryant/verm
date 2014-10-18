@@ -61,8 +61,8 @@ int send_created_response(struct MHD_Connection* connection, char* location) {
 	return send_redirect(connection, MHD_HTTP_CREATED, location, CREATED_PAGE);
 }
 
-int send_forbidden_wrong_path_response(struct MHD_Connection* connection) {
-	return send_static_page_response(connection, MHD_HTTP_FORBIDDEN, WRONG_PATH_PAGE);
+int send_unprocessable_wrong_path_response(struct MHD_Connection* connection) {
+	return send_static_page_response(connection, MHD_HTTP_UNPROCESSABLE_ENTITY, WRONG_PATH_PAGE);
 }
 
 int send_conflict_response(struct MHD_Connection* connection) {
