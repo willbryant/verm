@@ -122,7 +122,7 @@ func (server vermServer) serveHTTPGetOrHead(w http.ResponseWriter, req *http.Req
 func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request) {
 	defer atomic.AddUint64(&server.Statistics.post_requests, 1)
 
-	location, new_file, err := server.UploadFile(w, req)
+	location, new_file, err := server.UploadFile(w, req, false)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -139,6 +139,28 @@ func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request)
 	}
 }
 
+func (server vermServer) serveHTTPPut(w http.ResponseWriter, req *http.Request) {
+	defer atomic.AddUint64(&server.Statistics.put_requests, 1)
+
+	location, new_file, err := server.UploadFile(w, req, true)
+	if err != nil {
+		atomic.AddUint64(&server.Statistics.put_requests_failed, 1)
+		switch err.(type) {
+		case *WrongLocationError:
+			http.Error(w, err.Error(), 422)
+		default:
+			http.Error(w, err.Error(), 500)
+		}
+		return
+	}
+	if new_file {
+		atomic.AddUint64(&server.Statistics.put_requests_new_file_stored, 1)
+	}
+
+	w.Header().Set("Location", location)
+	w.WriteHeader(http.StatusCreated)
+}
+
 func (server vermServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	atomic.AddUint64(&server.Statistics.connections_current, 1)
 	defer atomic.AddUint64(&server.Statistics.connections_current, ^uint64(0))
@@ -147,6 +169,8 @@ func (server vermServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		server.serveHTTPGetOrHead(w, req)
 	} else if req.Method == "POST" {
 		server.serveHTTPPost(w, req)
+	} else if req.Method == "PUT" {
+		server.serveHTTPPut(w, req)
 	} else {
 		http.Error(w, "Method not supported", 405)
 	}

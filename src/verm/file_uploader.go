@@ -13,10 +13,12 @@ import "net/textproto"
 import "net/http"
 import "os"
 import "path"
+import "strings"
 
 type fileUpload struct {
 	root string
 	path string
+	location string
 	content_type string
 	gzipped bool
 	input io.Reader
@@ -28,8 +30,8 @@ const directory_permission = 0777
 const default_directory_if_not_given_by_client = "/default"
 const uploaded_file_field = "uploaded_file"
 
-func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request) (string, bool, error) {
-	uploader, err := server.FileUploader(w, req)
+func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request, replicating bool) (string, bool, error) {
+	uploader, err := server.FileUploader(w, req, replicating)
 	if err != nil {
 		return "", false, err
 	}
@@ -44,9 +46,17 @@ func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request) (s
 	return uploader.Finish()
 }
 
-func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request) (*fileUpload, error) {
+func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, replicating bool) (*fileUpload, error) {
 	// deal with '/..' etc.
 	path := path.Clean(req.URL.Path)
+
+	location := ""
+	if replicating {
+		location = path
+
+		last_slash := strings.LastIndex(path, "/")
+		path = path[0:last_slash - 3]
+	}
 
 	// don't allow uploads to the root directory itself, which would be unmanageable
 	if len(path) <= 1 {
@@ -95,6 +105,7 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request) 
 	return &fileUpload{
 		root: server.RootDataDir,
 		path: path,
+		location: location,
 		content_type: content_type,
 		gzipped: gzipped,
 		input: input,
@@ -123,7 +134,15 @@ func (upload *fileUpload) Finish() (string, bool, error) {
 
 	// compose the filename; if the upload was itself compressed, tack on the gzip suffix -
 	// but note that this changes only the filename and not the returned location
-	location := fmt.Sprintf("%s%s%s", subpath, dst, extension)
+	location := upload.location
+
+	if location == "" {
+		location = fmt.Sprintf("%s%s%s", subpath, dst, extension)
+	} else if !strings.HasPrefix(location, subpath + dst) ||
+			  strings.Contains(location[len(subpath) + len(dst):], "/") {
+		// can't recreate the path; this is effectively a checksum failure
+		return "", false, &WrongLocationError{location}
+	}
 
 	// hardlink the file into place
 	new_file := true
@@ -250,4 +269,12 @@ func sameContents(file1, file2 io.Reader) bool {
 			return false
 		}
 	}
+}
+
+type WrongLocationError struct {
+	location string
+}
+
+func (e *WrongLocationError) Error() string {
+	return e.location + " is not the correct location, is the file corrupt?"
 }
