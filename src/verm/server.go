@@ -12,17 +12,23 @@ import "sync/atomic"
 type vermServer struct {
 	RootDataDir string
 	RootHttpDir http.Dir
+	Targets *ReplicationTargets
 	Statistics *LogStatistics
 	Quiet bool
 }
 
-func VermServer(root string, mime_types_file string, quiet bool) vermServer {
+func VermServer(root string, mime_types_file string, replication_targets *ReplicationTargets, quiet bool) vermServer {
 	mimeext.LoadMimeFile(mime_types_file)
+
+	statistics := &LogStatistics{}
+
+	replication_targets.Start(statistics)
 
 	return vermServer{
 		RootDataDir: root,
 		RootHttpDir: http.Dir(root),
-		Statistics: &LogStatistics{},
+		Targets: replication_targets,
+		Statistics: statistics,
 		Quiet: quiet,
 	}
 }
@@ -113,7 +119,7 @@ func (server vermServer) serveHTTPGetOrHead(w http.ResponseWriter, req *http.Req
 	if req.URL.Path == "/" {
 		server.serveRoot(w, req)
 	} else if req.URL.Path == "/_statistics" {
-		server.serveStatistics(w, req)
+		server.serveStatistics(w, req, server.Targets)
 	} else {
 		server.serveFile(w, req)
 	}

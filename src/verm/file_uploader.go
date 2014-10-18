@@ -1,7 +1,6 @@
 package verm;
 
 import "bytes"
-import "compress/gzip"
 import "crypto/sha256"
 import "fmt"
 import "hash"
@@ -20,15 +19,11 @@ type fileUpload struct {
 	path string
 	location string
 	content_type string
-	gzipped bool
+	encoding string
 	input io.Reader
 	hasher hash.Hash
 	tempFile *os.File
 }
-
-const directory_permission = 0777
-const default_directory_if_not_given_by_client = "/default"
-const uploaded_file_field = "uploaded_file"
 
 func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request, replicating bool) (string, bool, error) {
 	uploader, err := server.FileUploader(w, req, replicating)
@@ -43,7 +38,7 @@ func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request, re
 		return "", false, err
 	}
 
-	return uploader.Finish()
+	return uploader.Finish(server.Targets)
 }
 
 func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, replicating bool) (*fileUpload, error) {
@@ -60,12 +55,12 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 
 	// don't allow uploads to the root directory itself, which would be unmanageable
 	if len(path) <= 1 {
-		path = default_directory_if_not_given_by_client
+		path = DEFAULT_DIRECTORY_IF_NOT_GIVEN_BY_CLIENT
 	}
 
 	// make a tempfile in the requested (or default, as above) directory
 	directory := server.RootDataDir + path
-	err := os.MkdirAll(directory, directory_permission)
+	err := os.MkdirAll(directory, DIRECTORY_PERMISSION)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +77,7 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 	// but if the upload is a browser form, the input stream needs multipart decoding
 	content_type := mediaTypeOrDefault(textproto.MIMEHeader(req.Header))
 	if content_type == "multipart/form-data" {
-		file, mpheader, mperr := req.FormFile(uploaded_file_field)
+		file, mpheader, mperr := req.FormFile(UPLOADED_FILE_FIELD)
 		if mperr != nil {
 			return nil, mperr
 		}
@@ -94,12 +89,10 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 	input = io.TeeReader(input, tempFile)
 
 	// but uncompress the stream before feeding it to the hasher
-	gzipped := req.Header.Get("Content-Encoding") == "gzip"
-	if gzipped {
-		input, err = gzip.NewReader(input)
-		if err != nil {
-			return nil, err
-		}
+	encoding := req.Header.Get("Content-Encoding")
+	input, err = EncodingDecoder(encoding, input)
+	if err != nil {
+		return nil, err
 	}
 
 	return &fileUpload{
@@ -107,7 +100,7 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 		path: path,
 		location: location,
 		content_type: content_type,
-		gzipped: gzipped,
+		encoding: encoding,
 		input: input,
 		hasher: sha256.New(),
 		tempFile: tempFile,
@@ -118,7 +111,7 @@ func (upload *fileUpload) Close() {
 	upload.tempFile.Close();
 }
 
-func (upload *fileUpload) Finish() (string, bool, error) {
+func (upload *fileUpload) Finish(targets *ReplicationTargets) (string, bool, error) {
 	// build the subdirectory and filename from the hash
 	dir, dst := upload.encodeHash()
 
@@ -127,13 +120,12 @@ func (upload *fileUpload) Finish() (string, bool, error) {
 
 	// create the directory
 	subpath := upload.path + dir
-	err := os.MkdirAll(upload.root + subpath, directory_permission)
+	err := os.MkdirAll(upload.root + subpath, DIRECTORY_PERMISSION)
 	if err != nil {
 		return "", false, err
 	}
 
-	// compose the filename; if the upload was itself compressed, tack on the gzip suffix -
-	// but note that this changes only the filename and not the returned location
+	// compose the location
 	location := upload.location
 
 	if location == "" {
@@ -148,10 +140,9 @@ func (upload *fileUpload) Finish() (string, bool, error) {
 	new_file := true
 	attempt := 1
 	for {
-		filename := upload.root + location
-		if upload.gzipped {
-			filename += ".gz"
-		}
+		// compose the filename; if the upload was itself compressed, tack on the gzip suffix -
+		// but note that this changes only the filename and not the returned location
+		filename := upload.root + location + EncodingSuffix(upload.encoding)
 
 		err = os.Link(upload.tempFile.Name(), filename)
 		if err == nil {
@@ -186,6 +177,8 @@ func (upload *fileUpload) Finish() (string, bool, error) {
 	}
 
 	os.Remove(upload.tempFile.Name()) // ignore errors, the tempfile is moot at this point
+
+	targets.Enqueue(ReplicationJob{location: location, filename: upload.root + location, content_type: upload.content_type, encoding: upload.encoding})
 
 	return location, new_file, nil
 }

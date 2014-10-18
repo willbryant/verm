@@ -11,7 +11,7 @@ type LogStatistics struct {
 	connections_current uint64
 }
 
-func (server vermServer) serveStatistics(w http.ResponseWriter, req *http.Request) {
+func (server vermServer) serveStatistics(w http.ResponseWriter, req *http.Request, replication_targets *ReplicationTargets) {
 	fmt.Fprintf(w,
 		"get_requests %d\n" +
 		"get_requests_not_found %d\n" +
@@ -23,7 +23,8 @@ func (server vermServer) serveStatistics(w http.ResponseWriter, req *http.Reques
 		"put_requests_failed %d\n" +
 		"replication_push_attempts %d\n" +
 		"replication_push_attempts_failed %d\n" +
-		"connections_current %d\n",
+		"connections_current %d\n" +
+		"%s",
 		server.Statistics.get_requests,
 		server.Statistics.get_requests_not_found,
 		server.Statistics.post_requests,
@@ -34,5 +35,6 @@ func (server vermServer) serveStatistics(w http.ResponseWriter, req *http.Reques
 		server.Statistics.put_requests_failed,
 		server.Statistics.replication_push_attempts,
 		server.Statistics.replication_push_attempts_failed,
-		server.Statistics.connections_current)
+		server.Statistics.connections_current,
+		replication_targets.StatisticsString())
 }
