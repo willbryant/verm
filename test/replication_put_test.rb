@@ -5,7 +5,8 @@ class ReplicationPutTest < Verm::TestCase
     yield
     fail "Expected a 422 Unprocessable Entity error"
   rescue Net::HTTPServerException => e
-    assert e.response.is_a?(Net::HTTPUnprocessableEntity)
+    assert e.response.is_a?(Net::HTTPUnprocessableEntity),
+      "Expected a 422 Unprocessable Entity error but was #{e.response}"
   end
 
   def test_saves_files_under_requested_path
@@ -107,6 +108,12 @@ class ReplicationPutTest < Verm::TestCase
 
     assert_wrong_path do
       put_file :path => '/foo/Sn/Ui3p5f7Ht82wQtJ_PG7ostrwGnYwPZatsV0T3HBOwy',
+               :file => 'simple_text_file',
+               :type => 'application/octet-stream'
+    end
+
+    assert_wrong_path do
+      put_file :path => '/foo/Sn/Ei3p5f7Ht82wQtJ_PG7ostrwGnYwPZatsV0T3HBOw/x',
                :file => 'simple_text_file',
                :type => 'application/octet-stream'
     end
