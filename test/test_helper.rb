@@ -8,7 +8,7 @@ require File.expand_path(File.join(File.dirname(__FILE__), 'verm_spawner'))
 verm_binary = File.join(File.dirname(__FILE__), '..', 'verm')
 verm_data   = File.join(File.dirname(__FILE__), 'data')
 mime_types_filename = File.join(File.dirname(__FILE__), 'fixtures', 'mime.types')
-captured_stderr_filename = File.join(File.dirname(__FILE__), 'tmp', 'captured_stderr')
+captured_stderr_filename = File.join(File.dirname(__FILE__), 'tmp', 'captured_stderr') unless ENV['NO_CAPTURE_STDERR'].to_i > 0
 FileUtils.mkdir_p(File.join(File.dirname(__FILE__), 'tmp'))
 VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, mime_types_filename)
 REPLICATION_MASTER_VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, mime_types_filename, :port => VERM_SPAWNER.port + 1, :replicate_to => VERM_SPAWNER.host, :capture_stderr_in => captured_stderr_filename)

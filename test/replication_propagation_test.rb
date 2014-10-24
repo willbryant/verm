@@ -75,7 +75,7 @@ class ReplicationPropagationTest < Verm::TestCase
                 :verm => REPLICATION_MASTER_VERM_SPAWNER
     end
 
-    unless ENV['VALGRIND']
+    unless ENV['VALGRIND'] || ENV['NO_CAPTURE_STDERR'].to_i > 0
       assert_equal "", File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in)
     end
   end
@@ -108,8 +108,9 @@ class ReplicationPropagationTest < Verm::TestCase
       :"replication_#{VERM_SPAWNER.hostname}_#{VERM_SPAWNER.port}_queue_length" => 1,
     }, changes)
 
-    unless ENV['VALGRIND']
-      assert_equal ["Couldn't connect to #{VERM_SPAWNER.host}: Connection refused"], File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in).split(/\n/).uniq
+    unless ENV['VALGRIND'] || ENV['NO_CAPTURE_STDERR'].to_i > 0
+      assert File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in).downcase.include?("#{VERM_SPAWNER.port}: connection refused"),
+        "replication error was not logged"
     end
 
     VERM_SPAWNER.start_verm
