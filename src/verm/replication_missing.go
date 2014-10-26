@@ -9,7 +9,13 @@ import "net/http"
 func (server vermServer) serveMissing(w http.ResponseWriter, req *http.Request) error {
 	w.Header().Set("Content-Type", "text/plain")
 
-	scanner := bufio.NewScanner(req.Body)
+	encoding := req.Header.Get("Content-Encoding")
+	input, err := EncodingDecoder(encoding, req.Body)
+	if err != nil {
+		return err
+	}
+
+	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
 		line := scanner.Text()
 
