@@ -90,7 +90,7 @@ class GetFilesTest < Verm::TestCase
     copy_file_to('somefiles', 'vermtest1', false)
     File.open(@original_file, 'rb') do |f|
       get :path => "/somefiles/#{@filename}",
-          :headers => {'accept-encoding' => 'gzip, deflate'},
+          :accept_encoding => 'gzip, deflate',
           :expected_content_encoding => nil, # not compressed
           :expected_content_type => 'application/verm-test-file',
           :expected_content => f.read
@@ -101,7 +101,7 @@ class GetFilesTest < Verm::TestCase
     copy_file_to('somefiles', 'vermtest1', true)
     File.open(@original_file, 'rb') do |f|
       get :path => "/somefiles/#{@filename.gsub('.gz', '')}",
-          :headers => {'accept-encoding' => 'gzip, deflate'},
+          :accept_encoding => 'gzip, deflate',
           :expected_content_encoding => 'gzip', # compressed
           :expected_content_type => 'application/verm-test-file',
           :expected_content => f.read
@@ -112,7 +112,7 @@ class GetFilesTest < Verm::TestCase
     copy_file_to('somefiles', 'vermtest1', true)
     File.open(@original_file, 'rb') do |f|
       get :path => "/somefiles/#{@filename.gsub('.gz', '')}",
-          :headers => {'accept-encoding' => ''}, # unfortunately a default accept-encoding was added in net::http, so this is the best we can do to test this
+          :accept_encoding => nil,
           :expected_content_encoding => 'gzip', # compressed
           :expected_content_type => 'application/verm-test-file',
           :expected_content => f.read
@@ -123,7 +123,7 @@ class GetFilesTest < Verm::TestCase
     copy_file_to('somefiles', 'vermtest1', true)
     File.open(@original_file.gsub('.gz', ''), 'rb') do |f|
       get :path => "/somefiles/#{@filename.gsub('.gz', '')}",
-          :headers => {'accept-encoding' => 'foo'},
+          :accept_encoding => 'foo',
           :expected_content_encoding => nil,
           :expected_content_type => 'application/verm-test-file',
           :expected_content => f.read

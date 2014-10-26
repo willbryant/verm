@@ -42,8 +42,15 @@ module Verm
       http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
       http.read_timeout = timeout
       
-      response = http.get(options[:path], options[:headers])
-      
+      request = Net::HTTP::Get.new(options[:path])
+      options[:headers].each {|k, v| request[k] = v} if options[:headers]
+      request['Accept-Encoding'] = options[:accept_encoding] # even if not set, write a nil to disable decode_content
+      assert !request.decode_content, "disabling decode_content failed!"
+
+      response = http.start do |connection|
+        connection.request(request)
+      end
+
       assert_equal options[:expected_response_code] || 200, response.code.to_i, "The response didn't have the expected code"
       assert_equal options[:expected_content_type], response.content_type, "The response had an incorrect content-type" if options.has_key?(:expected_content_type)
       assert_equal options[:expected_content_length], response.content_length, "The response had an incorrect content-length" if options.has_key?(:expected_content_length)
@@ -74,6 +81,8 @@ module Verm
         request.content_type = options[:type]
         request['Content-Encoding'] = options[:encoding] if options[:encoding]
       end
+      request['Accept-Encoding'] = options[:accept_encoding] # even if not set, write a nil to disable decode_content
+      assert !request.decode_content, "disabling decode_content failed!"
       
       http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
       http.read_timeout = timeout
@@ -105,6 +114,8 @@ module Verm
       request = Net::HTTP::Put.new(options[:path])
       request.content_type = options[:type]
       request['Content-Encoding'] = options[:encoding] if options[:encoding]
+      request['Accept-Encoding'] = options[:accept_encoding] # even if not set, write a nil to disable decode_content
+      assert !request.decode_content, "disabling decode_content failed!"
       
       http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
       http.read_timeout = timeout
