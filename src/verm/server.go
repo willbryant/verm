@@ -148,6 +148,11 @@ func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request)
 func (server vermServer) serveHTTPPut(w http.ResponseWriter, req *http.Request) {
 	defer atomic.AddUint64(&server.Statistics.put_requests, 1)
 
+	if req.URL.Path == "/_missing" {
+		server.serveMissing(w, req)
+		return
+	}
+
 	location, new_file, err := server.UploadFile(w, req, true)
 	if err != nil {
 		atomic.AddUint64(&server.Statistics.put_requests_failed, 1)
