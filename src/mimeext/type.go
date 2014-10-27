@@ -28,6 +28,7 @@ var mimeTypes = map[string]string{
 	".csv":   "text/csv; charset=utf-8",
 	".eml":   "message/rfc822",
 	".gif":   "image/gif",
+	".gz":    "application/gzip", // strictly speaking under MIME gzip would only be used as an encoding, not a content-type, but it's common to have .gz files
 	".htm":   "text/html; charset=utf-8",
 	".html":  "text/html; charset=utf-8",
 	".jpg":   "image/jpeg",
@@ -52,6 +53,8 @@ var mimeExtensions = map[string]string{
 	"application/javascript": ".js",
 	"application/x-javascript": ".js",
 	"application/json": ".json",
+	"application/gzip": ".gz", // strictly speaking under MIME gzip would only be used as an encoding, not a content-type, but it's common to have .gz files
+	"application/x-gzip": ".gz",
 	"application/tar": ".tar",
 	"application/xhtml+xml": ".xhtml",
 	"application/zip": ".zip",

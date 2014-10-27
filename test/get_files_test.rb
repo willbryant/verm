@@ -129,4 +129,14 @@ class GetFilesTest < Verm::TestCase
           :expected_content => f.read
     end
   end
+
+  def test_serves_files_compressed_if_client_requests_gz
+    copy_file_to('somefiles', 'vermtest1', true)
+    File.open(@original_file, 'rb') do |f|
+      get :path => "/somefiles/#{@filename}",
+          :expected_content_encoding => nil,
+          :expected_content_type => 'application/gzip',
+          :expected_content => f.read
+    end
+  end
 end
