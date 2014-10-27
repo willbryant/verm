@@ -2,11 +2,6 @@ require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 require File.expand_path(File.join(File.dirname(__FILE__), 'create_files_tests'))
 
 class CreateFilesRawTest < Verm::TestCase
-  def setup
-    super
-    @raw = true
-  end
-
   include CreateFilesSharedTests
 
   def test_saves_gzip_content_encoded_files_as_gzipped_but_returns_non_gzipped_path

@@ -65,23 +65,23 @@ module Verm
       orig_filename = fixture_file_path(options[:file])
       file_data = File.read(orig_filename)
       
-      if @raw
-        request = Net::HTTP::Post.new(options[:path])
-        request.content_type = options[:type]
-        request['Content-Encoding'] = options[:encoding] if options[:encoding]
-      else
+      if @multipart
         request = Net::HTTP::MultipartPost.new(options[:path])
         request.attach 'uploaded_file', file_data, options[:file], options[:type]
         request.form_data = {"test" => "bar"}
+      else
+        request = Net::HTTP::Post.new(options[:path])
+        request.content_type = options[:type]
+        request['Content-Encoding'] = options[:encoding] if options[:encoding]
       end
       
       http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
       http.read_timeout = timeout
       response = http.start do |connection|
-        if @raw
-          connection.request(request, file_data)
-        else
+        if @multipart
           connection.request(request)
+        else
+          connection.request(request, file_data)
         end
       end
       response.error! unless response.is_a?(Net::HTTPSuccess)
