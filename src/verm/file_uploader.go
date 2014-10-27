@@ -1,6 +1,7 @@
 package verm;
 
 import "bytes"
+import "compress/gzip"
 import "crypto/sha256"
 import "fmt"
 import "hash"
@@ -19,6 +20,7 @@ type fileUpload struct {
 	path string
 	location string
 	content_type string
+	extension string
 	encoding string
 	input io.Reader
 	hasher hash.Hash
@@ -85,6 +87,9 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 		content_type = mediaTypeOrDefault(mpheader.Header)
 	}
 
+	// determine the appropriate extension from the content type
+	extension := mimeext.ExtensionByType(content_type)
+
 	// as we read from the stream, copy it raw (without uncompressing) into the tempfile
 	input = io.TeeReader(input, tempFile)
 
@@ -95,11 +100,24 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 		return nil, err
 	}
 
+	// in addition to handling gzip content-encoding, if an actual .gz file is uploaded,
+	// we need to decompressed it and hash its contents rather than the raw file itself;
+	// otherwise there would be an ambiguity between application/octet-stream files with
+	// gzip on-disk compression and application/gzip files with no compression, and they
+	// would appear to have different hashes, which would break replication
+	if extension == ".gz" {
+		input, err = gzip.NewReader(input)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &fileUpload{
 		root: server.RootDataDir,
 		path: path,
 		location: location,
 		content_type: content_type,
+		extension: extension,
 		encoding: encoding,
 		input: input,
 		hasher: sha256.New(),
@@ -115,9 +133,6 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (string, bool, err
 	// build the subdirectory and filename from the hash
 	dir, dst := upload.encodeHash()
 
-	// determine the appropriate extension from the content type
-	extension := mimeext.ExtensionByType(upload.content_type)
-
 	// create the directory
 	subpath := upload.path + dir
 	err := os.MkdirAll(upload.root + subpath, DIRECTORY_PERMISSION)
@@ -129,7 +144,7 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (string, bool, err
 	location := upload.location
 
 	if location == "" {
-		location = fmt.Sprintf("%s%s%s", subpath, dst, extension)
+		location = fmt.Sprintf("%s%s%s", subpath, dst, upload.extension)
 	} else if !strings.HasPrefix(location, subpath + dst) ||
 			  strings.Contains(location[len(subpath) + len(dst):], "/") {
 		// can't recreate the path; this is effectively a checksum failure
@@ -173,7 +188,7 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (string, bool, err
 
 		// contents don't match, which in practice means corruption since the chance of finding a sha256 hash collision is low! but we assume the best and use a suffix on the filename
 		attempt++
-		location = fmt.Sprintf("%s%s_%d%s", subpath, dst, attempt, extension)
+		location = fmt.Sprintf("%s%s_%d%s", subpath, dst, attempt, upload.extension)
 	}
 
 	os.Remove(upload.tempFile.Name()) // ignore errors, the tempfile is moot at this point

@@ -86,6 +86,23 @@ module CreateFilesSharedTests
     end
   end
 
+  # see also test_saves_gzip_content_encoded_files_as_gzipped_but_returns_non_gzipped_path in
+  # create_files_raw_test.rb, which is about gzip content encoding rather than gzip files
+  def test_saves_gzip_files_as_gzipped_but_returns_non_gzipped_path
+    location_uncompressed =
+      post_file :path => '/foo',
+                :file => 'simple_text_file',
+                :type => 'application/octet-stream'
+
+    location_compressed =
+      post_file :path => '/foo',
+                :file => 'simple_text_file.gz',
+                :type => 'application/x-gzip',
+                :expected_extension => 'gz'
+
+    assert_equal location_uncompressed + ".gz", location_compressed # hash must be based on the content, not the encoded content
+  end
+
   def test_rejects_mismatching_files
     location =
       post_file(:path => '/foo',
