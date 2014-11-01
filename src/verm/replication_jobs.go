@@ -10,20 +10,24 @@ type ReplicationJob struct {
 	location string
 	filename string
 	content_type string
-	encoding string
 }
 
 func (job *ReplicationJob) Put(hostname, port string) bool {
-	file, err := os.Open(job.filename)
+	encoding := "gzip"
+	input, err := os.Open(job.filename + ".gz")
 	if err != nil {
-		log.Fatal(err)
+		input, err = os.Open(job.filename)
+		if err != nil {
+			log.Fatal(err)
+		}
+		encoding = ""
 	}
-	defer file.Close()
+	defer input.Close()
 
-	req, err := http.NewRequest("PUT", fmt.Sprintf("http://%s:%s%s", hostname, port, job.location), file)
+	req, err := http.NewRequest("PUT", fmt.Sprintf("http://%s:%s%s", hostname, port, job.location), input)
 	req.Header.Add("Content-Type", job.content_type)
-	if job.encoding != "" {
-		req.Header.Add("Content-Encoding", job.encoding)
+	if encoding != "" {
+		req.Header.Add("Content-Encoding", encoding)
 	}
 
 	client := &http.Client{}

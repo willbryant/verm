@@ -154,11 +154,10 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (string, bool, err
 	// hardlink the file into place
 	new_file := true
 	attempt := 1
-	var filename string
 	for {
 		// compose the filename; if the upload was itself compressed, tack on the gzip suffix -
 		// but note that this changes only the filename and not the returned location
-		filename = upload.root + location + EncodingSuffix(upload.encoding)
+		filename := upload.root + location + EncodingSuffix(upload.encoding)
 
 		err = os.Link(upload.tempFile.Name(), filename)
 		if err == nil {
@@ -194,7 +193,7 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (string, bool, err
 
 	os.Remove(upload.tempFile.Name()) // ignore errors, the tempfile is moot at this point
 
-	targets.Enqueue(ReplicationJob{location: location, filename: filename, content_type: upload.content_type, encoding: upload.encoding})
+	targets.Enqueue(ReplicationJob{location: location, filename: upload.root + location, content_type: upload.content_type})
 
 	return location, new_file, nil
 }
