@@ -107,12 +107,11 @@ module Verm
       location
     end
     
-    def put_file(options, verm_spawner = VERM_SPAWNER)
-      orig_filename = fixture_file_path(options[:file])
-      file_data = File.read(orig_filename)
+    def put(options, verm_spawner = VERM_SPAWNER)
+      file_data = options[:data]
       
       request = Net::HTTP::Put.new(options[:path])
-      request.content_type = options[:type]
+      request.content_type = options[:type] if options[:type]
       request['Content-Encoding'] = options[:encoding] if options[:encoding]
       request['Accept-Encoding'] = options[:accept_encoding] # even if not set, write a nil to disable decode_content
       assert !request.decode_content, "disabling decode_content failed!"
@@ -123,7 +122,12 @@ module Verm
         connection.request(request, file_data)
       end
       response.error! unless response.is_a?(Net::HTTPSuccess)
+      response
+    end
 
+    def put_file(options, verm_spawner = VERM_SPAWNER)
+      file_data = File.read(fixture_file_path(options[:file]))
+      response = put(options.merge(:data => file_data), verm_spawner)
       location = response['location']
       raise "The location returned was #{location}, but it was supposed to be the requested location #{options[:path]}" if location != options[:path]
       dest_filename = expected_filename(location, options)
