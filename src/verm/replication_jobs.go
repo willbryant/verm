@@ -42,7 +42,7 @@ func (job *ReplicationJob) Put(hostname, port string) bool {
 
 	} else if resp.StatusCode != 201 {
 		body, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("Couldn't replicate %s to %s (%d): %s\n", job.location, hostname, resp.StatusCode, body)
+		log.Printf("Couldn't replicate %s to %s:%s (%d): %s\n", job.location, hostname, port, resp.StatusCode, body)
 		return false
 
 	} else {
