@@ -30,7 +30,7 @@ class ReplicationPropagationTest < Verm::TestCase
       location = yield
 
       # wait until replication has been attempted
-      changes = nil
+      after = changes = nil
       repeatedly_wait_until do
         after = get_statistics(:verm => REPLICATION_MASTER_VERM_SPAWNER)
         changes = calculate_statistics_change(before, after)
@@ -39,6 +39,7 @@ class ReplicationPropagationTest < Verm::TestCase
 
       assert_equal({:post_requests => 1, :post_requests_new_file_stored => 1, :replication_push_attempts => 1},
                    changes)
+      assert_equal 0, after[:"replication_#{VERM_SPAWNER.hostname}_#{VERM_SPAWNER.port}_queue_length"]
 
       # check the slave now has it
       get get_options.merge(:path => location)
@@ -60,17 +61,26 @@ class ReplicationPropagationTest < Verm::TestCase
                 :verm => REPLICATION_MASTER_VERM_SPAWNER
     end
 
-    assert_propagates_file(:expected_content => File.read(fixture_file_path('binary_file.gz'), :mode => 'rb'), :expected_encoding => 'gzip') do
+    assert_propagates_file(:expected_content => File.read(fixture_file_path('medium_file'), :mode => 'rb')) do
       post_file :path => '/foo',
-                :file => 'binary_file.gz',
-                :encoding => 'gzip',
+                :file => 'medium_file',
                 :type => 'application/octet-stream',
                 :verm => REPLICATION_MASTER_VERM_SPAWNER
     end
 
-    assert_propagates_file(:expected_content => File.read(fixture_file_path('medium_file'), :mode => 'rb')) do
+    unless ENV['VALGRIND'] || ENV['NO_CAPTURE_STDERR'].to_i > 0
+      assert_equal "", File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in)
+    end
+  end
+
+  def test_propagates_compressed_files
+    assert_propagates_file(:expected_content => File.read(fixture_file_path('binary_file.gz'), :mode => 'rb'),
+                           :expected_content_type => "application/octet-stream",
+                           :expected_content_encoding => 'gzip') do
       post_file :path => '/foo',
-                :file => 'medium_file',
+                :file => 'binary_file.gz',
+                :encoding => 'gzip',
+                :expected_extension_suffix => 'gz',
                 :type => 'application/octet-stream',
                 :verm => REPLICATION_MASTER_VERM_SPAWNER
     end
