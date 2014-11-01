@@ -5,6 +5,7 @@ import "io/ioutil"
 import "log"
 import "os"
 import "net/http"
+import "time"
 
 func Put(hostname, port, location, root_data_directory string) bool {
 	encoding := "gzip"
@@ -24,7 +25,7 @@ func Put(hostname, port, location, root_data_directory string) bool {
 		req.Header.Add("Content-Encoding", encoding)
 	}
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: HTTP_CLIENT_TIMEOUT * time.Second}
 	resp, err := client.Do(req)
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
