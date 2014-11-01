@@ -23,6 +23,7 @@ func VermServer(root_data_directory string, mime_types_file string, replication_
 	statistics := &LogStatistics{}
 
 	replication_targets.Start(root_data_directory, statistics)
+	replication_targets.EnqueueResync()
 
 	return vermServer{
 		RootDataDir: root_data_directory,
@@ -152,7 +153,7 @@ func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request)
 func (server vermServer) serveHTTPPut(w http.ResponseWriter, req *http.Request) {
 	defer atomic.AddUint64(&server.Statistics.put_requests, 1)
 
-	if req.URL.Path == "/_missing" {
+	if req.URL.Path == MISSING_FILES_PATH {
 		server.serveMissing(w, req)
 		return
 	}

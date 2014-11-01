@@ -5,6 +5,8 @@ import "fmt"
 import "log"
 import "net/http"
 import "os"
+import "os/signal"
+import "syscall"
 import "verm"
 
 func main() {
@@ -24,8 +26,18 @@ func main() {
 		fmt.Printf("Verm listening on http://%s:%s, data in %s\n", listen_address, port, root_data_directory)
 	}
 
+	go waitForSignals(&replication_targets)
 	http.Handle("/", verm.VermServer(root_data_directory, mime_types_file, &replication_targets, quiet))
 	log.Fatal(http.ListenAndServe(listen_address + ":" + port, nil))
 
 	os.Exit(0)
+}
+
+func waitForSignals(targets *verm.ReplicationTargets) {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGUSR1)
+	for {
+		<- signals
+		targets.EnqueueResync()
+	}
 }

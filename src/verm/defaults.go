@@ -11,3 +11,6 @@ const UPLOADED_FILE_FIELD = "uploaded_file"
 const REPLICATION_BACKLOG = 10000
 const BACKOFF_BASE_TIME = 1
 const BACKOFF_MAX_TIME = 60
+
+const MISSING_FILES_PATH = "/_missing"
+const MISSING_FILES_BATCH_SIZE = 256*1024 // bytes, but only approximate

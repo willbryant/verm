@@ -111,27 +111,42 @@ class ReplicationPropagationTest < Verm::TestCase
 
     before = get_statistics(:verm => REPLICATION_MASTER_VERM_SPAWNER)
 
-    location =
-      post_file :path => '/foo',
-                :file => 'simple_text_file',
+    locations = [
+      post_file(:path => '/foo',
+                :file => 'another_text_file',
                 :type => 'text/plain',
-                :verm => REPLICATION_MASTER_VERM_SPAWNER
+                :expected_extension => "txt",
+                :verm => REPLICATION_MASTER_VERM_SPAWNER),
+      post_file(:path => '/foo',
+                :file => 'medium_file',
+                :type => 'image/jpeg',
+                :expected_extension => "jpg",
+                :verm => REPLICATION_MASTER_VERM_SPAWNER),
+      post_file(:path => '/foo',
+                :file => 'binary_file.gz',
+                :encoding => 'gzip',
+                :expected_extension_suffix => 'gz',
+                :type => 'application/octet-stream',
+                :verm => REPLICATION_MASTER_VERM_SPAWNER),
+      post_file(:path => '/foo',
+                :file => 'simple_text_file.gz',
+                :type => 'application/x-gzip',
+                :expected_extension => 'gz', # note not expected_extension_suffix - we uploaded as a gzip file not a content-encoded plain file
+                :verm => REPLICATION_MASTER_VERM_SPAWNER),
+    ]
 
-    changes = nil
+    after = changes = nil
     repeatedly_wait_until do
       after = get_statistics(:verm => REPLICATION_MASTER_VERM_SPAWNER)
-      changes = calculate_statistics_change(before, after)
-      changes[:replication_push_attempts]
+      after[:replication_push_attempts]
     end
 
-    attempts = changes.delete(:replication_push_attempts)
-    assert_equal changes.delete(:replication_push_attempts_failed), attempts
-
-    assert (0..10).include?(changes.delete(:"replication_#{VERM_SPAWNER.hostname}_#{VERM_SPAWNER.port}_seconds_behind") || 0)
+    changes = calculate_statistics_change(before, after)
+    assert_equal changes.delete(:replication_push_attempts_failed), changes.delete(:replication_push_attempts)
 
     assert_equal({
-      :post_requests => 1, :post_requests_new_file_stored => 1,
-      :"replication_#{VERM_SPAWNER.hostname}_#{VERM_SPAWNER.port}_queue_length" => 1,
+      :post_requests => locations.size, :post_requests_new_file_stored => locations.size,
+      :"replication_#{VERM_SPAWNER.hostname}_#{VERM_SPAWNER.port}_queue_length" => locations.size,
     }, changes)
 
     unless ENV['VALGRIND'] || ENV['NO_CAPTURE_STDERR'].to_i > 0
@@ -144,20 +159,60 @@ class ReplicationPropagationTest < Verm::TestCase
 
     repeatedly_wait_until do
       after = get_statistics(:verm => REPLICATION_MASTER_VERM_SPAWNER)
-      changes = calculate_statistics_change(before, after)
-      changes[:replication_push_attempts] > changes[:replication_push_attempts_failed]
+      after[:replication_push_attempts] == after[:replication_push_attempts_failed] + locations.size
     end
 
-    attempts = changes.delete(:replication_push_attempts)
-    assert_equal attempts - 1, changes.delete(:replication_push_attempts_failed) || 0
+    # check the slave now has the files in the same locations
+    get :path => locations.shift, :expected_content => File.read(fixture_file_path('another_text_file'), :mode => 'rb'), :expected_content_type => "text/plain", :expected_content_encoding => nil
+    get :path => locations.shift, :expected_content => File.read(fixture_file_path('medium_file'), :mode => 'rb'), :expected_content_type => "image/jpeg", :expected_content_encoding => nil
+    get :path => locations.shift, :expected_content => File.read(fixture_file_path('binary_file.gz'), :mode => 'rb'), :expected_content_type => "application/octet-stream", :expected_content_encoding => "gzip"
+    get :path => locations.shift, :expected_content => File.read(fixture_file_path('simple_text_file.gz'), :mode => 'rb'), :expected_content_type => "application/gzip", :expected_content_encoding => nil
+  end
 
-    assert_equal({
-      :post_requests => 1, :post_requests_new_file_stored => 1,
-    }, changes)
-    # :"replication_#{VERM_SPAWNER.hostname}_#{VERM_SPAWNER.port}_queue_length" and
-    # :"replication_#{VERM_SPAWNER.hostname}_#{VERM_SPAWNER.port}_seconds_behind" are both now back to 0, so no change from the 'before' numbers
+  def test_propagates_missing_files_if_restarted
+    locations = [
+      post_file(:path => '/foo',
+                :file => 'another_text_file',
+                :type => 'text/plain',
+                :expected_extension => "txt",
+                :verm => REPLICATION_MASTER_VERM_SPAWNER),
+      post_file(:path => '/foo',
+                :file => 'medium_file',
+                :type => 'image/jpeg',
+                :expected_extension => "jpg",
+                :verm => REPLICATION_MASTER_VERM_SPAWNER),
+      post_file(:path => '/foo',
+                :file => 'binary_file.gz',
+                :encoding => 'gzip',
+                :expected_extension_suffix => 'gz',
+                :type => 'application/octet-stream',
+                :verm => REPLICATION_MASTER_VERM_SPAWNER),
+      post_file(:path => '/foo',
+                :file => 'simple_text_file.gz',
+                :type => 'application/x-gzip',
+                :expected_extension => 'gz', # note not expected_extension_suffix - we uploaded as a gzip file not a content-encoded plain file
+                :verm => REPLICATION_MASTER_VERM_SPAWNER),
+    ]
 
-    # check the slave now has it
-    get :path => location, :expected_content => File.read(fixture_file_path('simple_text_file'), :mode => 'rb')
+    REPLICATION_MASTER_VERM_SPAWNER.stop_verm
+    VERM_SPAWNER.clear_data
+    REPLICATION_MASTER_VERM_SPAWNER.start_verm
+    REPLICATION_MASTER_VERM_SPAWNER.wait_until_available
+
+    after = nil
+    repeatedly_wait_until do
+      after = get_statistics(:verm => REPLICATION_MASTER_VERM_SPAWNER)
+      after[:replication_push_attempts] == locations.size
+    end
+
+    assert_equal 4, after[:replication_push_attempts]
+    assert_equal 0, after[:replication_push_attempts_failed]
+    assert_equal 0, after[:"replication_#{VERM_SPAWNER.hostname}_#{VERM_SPAWNER.port}_queue_length"]
+
+    # check the slave now has the files
+    get :path => locations.shift, :expected_content => File.read(fixture_file_path('another_text_file'), :mode => 'rb'), :expected_content_type => "text/plain", :expected_content_encoding => nil
+    get :path => locations.shift, :expected_content => File.read(fixture_file_path('medium_file'), :mode => 'rb'), :expected_content_type => "image/jpeg", :expected_content_encoding => nil
+    get :path => locations.shift, :expected_content => File.read(fixture_file_path('binary_file.gz'), :mode => 'rb'), :expected_content_type => "application/octet-stream", :expected_content_encoding => "gzip"
+    get :path => locations.shift, :expected_content => File.read(fixture_file_path('simple_text_file.gz'), :mode => 'rb'), :expected_content_type => "application/gzip", :expected_content_encoding => nil
   end
 end

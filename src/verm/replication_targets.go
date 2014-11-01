@@ -19,7 +19,12 @@ func parseTarget(value string) (string, string) {
 
 func (targets *ReplicationTargets) Set(value string) error {
 	hostname, port := parseTarget(value)
-	target := ReplicationTarget{hostname: hostname, port: port, jobs: make(chan string, REPLICATION_BACKLOG)}
+	target := ReplicationTarget{
+		hostname: hostname,
+		port: port,
+		jobs: make(chan string, REPLICATION_BACKLOG),
+		resync: make(chan struct{}, 1),
+	}
 	targets.targets = append(targets.targets, target)
 	return nil
 }
@@ -33,13 +38,20 @@ func (targets *ReplicationTargets) Start(root_data_directory string, statistics 
 	for _, target := range targets.targets {
 		target.root_data_directory = root_data_directory
 		target.statistics = statistics
-		go target.Replicate()
+		go target.replicateFromQueue()
+		go target.resyncFromQueue()
 	}
 }
 
-func (targets *ReplicationTargets) Enqueue(job string) {
+func (targets *ReplicationTargets) EnqueueJob(job string) {
 	for _, target := range targets.targets {
-		target.jobs <- job
+		target.enqueueJob(job)
+	}
+}
+
+func (targets *ReplicationTargets) EnqueueResync() {
+	for _, target := range targets.targets {
+		target.enqueueResync()
 	}
 }
 

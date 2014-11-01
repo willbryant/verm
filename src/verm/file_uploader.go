@@ -196,9 +196,9 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (string, bool, err
 	if upload.extension == ".gz" {
 		// for the sake of replication, we can treat it as a gzip-encoded binary file rather than a raw gzip file;
 		// this is how we will interpret the filename when we restart and resync, so it's better to always do this
-		targets.Enqueue(location[:len(location) - len(upload.extension)])
+		targets.EnqueueJob(location[:len(location) - len(upload.extension)])
 	} else {
-		targets.Enqueue(location)
+		targets.EnqueueJob(location)
 	}
 
 	return location, new_file, nil

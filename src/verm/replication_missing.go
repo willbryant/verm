@@ -20,8 +20,9 @@ func (server vermServer) serveMissing(w http.ResponseWriter, req *http.Request) 
 		w.Header().Set("Content-Encoding", "gzip")
 		w.Header().Set("Content-Type", "text/plain")
 		compressor := gzip.NewWriter(w)
+		defer compressor.Close()
 		server.listMissingFiles(input, compressor)
-		compressor.Close()
+		compressor.Flush()
 	} else {
 		server.listMissingFiles(input, w)
 	}
