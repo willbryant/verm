@@ -6,16 +6,11 @@ import "log"
 import "os"
 import "net/http"
 
-type ReplicationJob struct {
-	location string
-	filename string
-}
-
-func (job *ReplicationJob) Put(hostname, port string) bool {
+func Put(hostname, port, location, root_data_directory string) bool {
 	encoding := "gzip"
-	input, err := os.Open(job.filename + ".gz")
+	input, err := os.Open(root_data_directory + location + ".gz")
 	if err != nil {
-		input, err = os.Open(job.filename)
+		input, err = os.Open(root_data_directory + location)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -23,7 +18,7 @@ func (job *ReplicationJob) Put(hostname, port string) bool {
 	}
 	defer input.Close()
 
-	req, err := http.NewRequest("PUT", fmt.Sprintf("http://%s:%s%s", hostname, port, job.location), input)
+	req, err := http.NewRequest("PUT", fmt.Sprintf("http://%s:%s%s", hostname, port, location), input)
 	req.Header.Add("Content-Type", "application/octet-stream") // don't need to know the original type, just replicate the filename
 	if encoding != "" {
 		req.Header.Add("Content-Encoding", encoding)
@@ -41,7 +36,7 @@ func (job *ReplicationJob) Put(hostname, port string) bool {
 
 	} else if resp.StatusCode != 201 {
 		body, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("Couldn't replicate %s to %s:%s (%d): %s\n", job.location, hostname, port, resp.StatusCode, body)
+		log.Printf("Couldn't replicate %s to %s:%s (%d): %s\n", location, hostname, port, resp.StatusCode, body)
 		return false
 
 	} else {
