@@ -70,7 +70,7 @@ module Verm
     def post_file(options)
       verm_spawner = options[:verm] || VERM_SPAWNER
       orig_filename = fixture_file_path(options[:file])
-      file_data = File.read(orig_filename)
+      file_data = File.read(orig_filename, :mode => 'rb')
       
       if @multipart
         request = Net::HTTP::MultipartPost.new(options[:path])
@@ -102,7 +102,7 @@ module Verm
       raise "The location returned was #{location}, but it was supposed to have a #{options[:expected_extension]} extension" if options[:expected_extension] && location[(-options[:expected_extension].length - 1)..-1] != ".#{options[:expected_extension]}"
       dest_filename = expected_filename(location, options)
       raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
-      saved_data = File.read(dest_filename)
+      saved_data = File.read(dest_filename, :mode => 'rb')
       raise "The data saved to file doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
       location
     end
@@ -126,13 +126,13 @@ module Verm
     end
 
     def put_file(options, verm_spawner = VERM_SPAWNER)
-      file_data = File.read(fixture_file_path(options[:file]))
+      file_data = File.read(fixture_file_path(options[:file]), :mode => 'rb')
       response = put(options.merge(:data => file_data), verm_spawner)
       location = response['location']
       raise "The location returned was #{location}, but it was supposed to be the requested location #{options[:path]}" if location != options[:path]
       dest_filename = expected_filename(location, options)
       raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
-      saved_data = File.read(dest_filename)
+      saved_data = File.read(dest_filename, :mode => 'rb')
       raise "The data saved to file doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
       dest_filename
     end
