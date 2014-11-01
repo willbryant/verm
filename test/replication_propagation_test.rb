@@ -24,7 +24,7 @@ class ReplicationPropagationTest < Verm::TestCase
   end
 
   def assert_propagates_file(get_options)
-    assert_statistics_change(:put_requests => 1, :get_requests => 1) do # on the slave
+    assert_statistics_change(:put_requests => 1, :put_requests_new_file_stored => 1, :get_requests => 1) do # on the slave
       before = get_statistics(:verm => REPLICATION_MASTER_VERM_SPAWNER)
   
       location = yield

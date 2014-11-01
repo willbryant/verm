@@ -11,7 +11,7 @@ mime_types_filename = File.join(File.dirname(__FILE__), 'fixtures', 'mime.types'
 captured_stderr_filename = File.join(File.dirname(__FILE__), 'tmp', 'captured_stderr') unless ENV['NO_CAPTURE_STDERR'].to_i > 0
 FileUtils.mkdir_p(File.join(File.dirname(__FILE__), 'tmp'))
 VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, mime_types_filename)
-REPLICATION_MASTER_VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, mime_types_filename, :port => VERM_SPAWNER.port + 1, :replicate_to => VERM_SPAWNER.host, :capture_stderr_in => captured_stderr_filename)
+REPLICATION_MASTER_VERM_SPAWNER = VermSpawner.new(verm_binary, "#{verm_data}_replica", mime_types_filename, :port => VERM_SPAWNER.port + 1, :replicate_to => VERM_SPAWNER.host, :capture_stderr_in => captured_stderr_filename)
 
 module Verm
   class TestCase < Test::Unit::TestCase
@@ -38,7 +38,7 @@ module Verm
     end
 
     def get(options)
-      verm_spawner = options.delete(:verm) || VERM_SPAWNER
+      verm_spawner = options[:verm] || VERM_SPAWNER
       http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
       http.read_timeout = timeout
       
@@ -54,14 +54,14 @@ module Verm
     end
 
     def expected_filename(location, options = {})
-      verm_spawner = options.delete(:verm) || VERM_SPAWNER
+      verm_spawner = options[:verm] || VERM_SPAWNER
       dest_filename = File.expand_path(File.join(verm_spawner.verm_data, location))
       dest_filename += '.' + options[:expected_extension_suffix] if options[:expected_extension_suffix]
       dest_filename
     end
     
     def post_file(options)
-      verm_spawner = options.delete(:verm) || VERM_SPAWNER
+      verm_spawner = options[:verm] || VERM_SPAWNER
       orig_filename = fixture_file_path(options[:file])
       file_data = File.read(orig_filename)
       
