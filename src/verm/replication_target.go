@@ -4,12 +4,12 @@ import "sync/atomic"
 import "time"
 
 type ReplicationTarget struct {
-	hostname string
-	port string
-	jobs chan string
-	resync chan struct{}
+	hostname            string
+	port                string
+	jobs                chan string
+	resync              chan struct{}
 	root_data_directory string
-	statistics *LogStatistics
+	statistics          *LogStatistics
 }
 
 func (target *ReplicationTarget) enqueueJob(job string) {
@@ -19,7 +19,7 @@ func (target *ReplicationTarget) enqueueJob(job string) {
 func (target *ReplicationTarget) replicateFromQueue() {
 	var failures uint
 	for {
-		location := <- target.jobs
+		location := <-target.jobs
 
 		ok := Put(target.hostname, target.port, location, target.root_data_directory)
 

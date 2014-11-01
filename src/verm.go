@@ -37,7 +37,7 @@ func waitForSignals(targets *verm.ReplicationTargets) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGUSR1)
 	for {
-		<- signals
+		<-signals
 		targets.EnqueueResync()
 	}
 }

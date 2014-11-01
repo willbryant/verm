@@ -35,7 +35,7 @@ func (target *ReplicationTarget) enumerateSubdirectory(directory string, locatio
 			}
 		}
 
-		for _, fileinfo := range(list) {
+		for _, fileinfo := range list {
 			expanded := fmt.Sprintf("%s%c%s", directory, os.PathSeparator, fileinfo.Name())
 			if fileinfo.Mode().IsRegular() {
 				locations <- strings.TrimSuffix(expanded, ".gz")
@@ -52,7 +52,7 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 	var buf bytes.Buffer
 	var compressor = gzip.NewWriter(&buf)
 
-	for location := range(locations) {
+	for location := range locations {
 		// the request bodies are simply a list of all the locations, one per line.
 		io.WriteString(compressor, location)
 		io.WriteString(compressor, "\r\n")

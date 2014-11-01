@@ -12,9 +12,9 @@ import "sync/atomic"
 type vermServer struct {
 	RootDataDir string
 	RootHttpDir http.Dir
-	Targets *ReplicationTargets
-	Statistics *LogStatistics
-	Quiet bool
+	Targets     *ReplicationTargets
+	Statistics  *LogStatistics
+	Quiet       bool
 }
 
 func VermServer(root_data_directory string, mime_types_file string, replication_targets *ReplicationTargets, quiet bool) vermServer {

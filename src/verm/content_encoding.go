@@ -5,24 +5,24 @@ import "io"
 
 func EncodingDecoder(encoding string, input io.Reader) (io.Reader, error) {
 	switch encoding {
-		case "":
-			return input, nil
+	case "":
+		return input, nil
 
-		case "gzip":
-			return gzip.NewReader(input)
+	case "gzip":
+		return gzip.NewReader(input)
 
-		default:
-			return nil, &EncodingError{encoding: encoding}
+	default:
+		return nil, &EncodingError{encoding: encoding}
 	}
 }
 
 func EncodingSuffix(encoding string) string {
 	switch encoding {
-		case "gzip":
-			return ".gz"
+	case "gzip":
+		return ".gz"
 
-		default:
-			return ""
+	default:
+		return ""
 	}
 }
 

@@ -1,4 +1,4 @@
-package verm;
+package verm
 
 import "bytes"
 import "compress/gzip"
@@ -16,15 +16,15 @@ import "path"
 import "strings"
 
 type fileUpload struct {
-	root string
-	path string
-	location string
+	root         string
+	path         string
+	location     string
 	content_type string
-	extension string
-	encoding string
-	input io.Reader
-	hasher hash.Hash
-	tempFile *os.File
+	extension    string
+	encoding     string
+	input        io.Reader
+	hasher       hash.Hash
+	tempFile     *os.File
 }
 
 func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request, replicating bool) (string, bool, error) {
@@ -52,7 +52,7 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 		location = path
 
 		last_slash := strings.LastIndex(path, "/")
-		path = path[0:last_slash - 3]
+		path = path[0 : last_slash-3]
 	}
 
 	// don't allow uploads to the root directory itself, which would be unmanageable
@@ -113,20 +113,20 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 	}
 
 	return &fileUpload{
-		root: server.RootDataDir,
-		path: path,
-		location: location,
+		root:         server.RootDataDir,
+		path:         path,
+		location:     location,
 		content_type: content_type,
-		extension: extension,
-		encoding: encoding,
-		input: input,
-		hasher: sha256.New(),
-		tempFile: tempFile,
+		extension:    extension,
+		encoding:     encoding,
+		input:        input,
+		hasher:       sha256.New(),
+		tempFile:     tempFile,
 	}, nil
 }
 
 func (upload *fileUpload) Close() {
-	upload.tempFile.Close();
+	upload.tempFile.Close()
 }
 
 func (upload *fileUpload) Finish(targets *ReplicationTargets) (string, bool, error) {
