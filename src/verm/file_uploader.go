@@ -193,7 +193,13 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (string, bool, err
 
 	os.Remove(upload.tempFile.Name()) // ignore errors, the tempfile is moot at this point
 
-	targets.Enqueue(ReplicationJob{location: location, filename: upload.root + location, content_type: upload.content_type})
+	replicate_location := location
+	if upload.extension == ".gz" {
+		// for the sake of replication, we can treat it as a gzip-encoded binary file rather than a raw gzip file;
+		// this is how we will interpret the filename when we restart and resync, so it's better to always do this
+		replicate_location = location[:len(location) - len(upload.extension)]
+	}
+	targets.Enqueue(ReplicationJob{location: replicate_location, filename: upload.root + replicate_location})
 
 	return location, new_file, nil
 }

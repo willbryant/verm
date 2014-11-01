@@ -9,7 +9,6 @@ import "net/http"
 type ReplicationJob struct {
 	location string
 	filename string
-	content_type string
 }
 
 func (job *ReplicationJob) Put(hostname, port string) bool {
@@ -25,7 +24,7 @@ func (job *ReplicationJob) Put(hostname, port string) bool {
 	defer input.Close()
 
 	req, err := http.NewRequest("PUT", fmt.Sprintf("http://%s:%s%s", hostname, port, job.location), input)
-	req.Header.Add("Content-Type", job.content_type)
+	req.Header.Add("Content-Type", "application/octet-stream") // don't need to know the original type, just replicate the filename
 	if encoding != "" {
 		req.Header.Add("Content-Encoding", encoding)
 	}
