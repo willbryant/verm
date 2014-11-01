@@ -90,6 +90,22 @@ class ReplicationPropagationTest < Verm::TestCase
     end
   end
 
+  def test_propagates_uploaded_gzip_files
+    assert_propagates_file(:expected_content => File.read(fixture_file_path('simple_text_file.gz'), :mode => 'rb'),
+                           :expected_content_type => "application/gzip",
+                           :expected_content_encoding => nil) do
+      post_file :path => '/foo',
+                :file => 'simple_text_file.gz',
+                :type => 'application/x-gzip',
+                :expected_extension => 'gz', # note not expected_extension_suffix - we uploaded as a gzip file not a content-encoded plain file
+                :verm => REPLICATION_MASTER_VERM_SPAWNER
+    end
+
+    unless ENV['VALGRIND'] || ENV['NO_CAPTURE_STDERR'].to_i > 0
+      assert_equal "", File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in)
+    end
+  end
+
   def test_retries_propagation_if_slave_unavailable
     VERM_SPAWNER.stop_verm
 

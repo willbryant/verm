@@ -78,7 +78,11 @@ func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
 
 		// infer the content-type from the filename extension
 		contenttype := mimeext.TypeByExtension(filepath.Ext(path))
-		if contenttype != "" {
+		if contenttype == "" {
+			// we must set a header to avoid go sniffing the content and setting the header for us, which leads to
+			// problems like gzip content-encoded data getting also described as having application/x-gzip content type
+			w.Header().Set("Content-Type", "application/octet-stream")
+		} else {
 			w.Header().Set("Content-Type", contenttype)
 		}
 

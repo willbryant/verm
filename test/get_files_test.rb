@@ -119,6 +119,17 @@ class GetFilesTest < Verm::TestCase
     end
   end
   
+  def test_serves_files_compressed_without_content_type_if_no_extension_and_file_is_compressed
+    copy_file_to('somefiles', nil, true)
+    File.open(@original_file, 'rb') do |f|
+      get :path => "/somefiles/#{@filename.gsub('.gz', '')}",
+          :accept_encoding => nil,
+          :expected_content_encoding => 'gzip', # compressed
+          :expected_content_type => 'application/octet-stream', # must not be gzip again, as that would mean a double-compressed file, which is not the case
+          :expected_content => f.read
+    end
+  end
+
   def test_serves_files_decompressed_if_client_does_not_accept_gzip_and_file_is_compressed
     copy_file_to('somefiles', 'vermtest1', true)
     File.open(@original_file.gsub('.gz', ''), 'rb') do |f|

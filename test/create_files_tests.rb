@@ -98,7 +98,7 @@ module CreateFilesSharedTests
       post_file :path => '/foo',
                 :file => 'simple_text_file.gz',
                 :type => 'application/x-gzip',
-                :expected_extension => 'gz'
+                :expected_extension => 'gz' # note not expected_extension_suffix - we uploaded as a gzip file not a content-encoded plain file
 
     assert_equal location_uncompressed + ".gz", location_compressed # hash must be based on the content, not the encoded content
   end
