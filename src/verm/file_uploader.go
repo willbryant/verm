@@ -252,36 +252,23 @@ func mediaTypeOrDefault(header textproto.MIMEHeader) string {
 	return media_type
 }
 
-func sameContents(file1, file2 io.Reader) bool {
+func sameContents(stream1, stream2 io.Reader) bool {
 	var contents1 = make([]byte, 65536)
 	var contents2 = make([]byte, 65536)
 	for {
-		// try to read some bytes from file1, then try to read the same number of bytes (exactly) from file2
-		len1, err1 := file1.Read(contents1)
+		// try to read some bytes from stream1, then try to read the same number of bytes (exactly) from stream2
+		len1, err1 := io.ReadFull(stream1, contents1)
+		len2, err2 := io.ReadFull(stream2, contents2)
 
-		if len1 > 0 {
-			len2, err2 := io.ReadFull(file2, contents2[0:len1])
+		if len1 == 0 && len2 == 0 {
+			// if we reached EOF without encountering any differences, the files match
+			return err1 == io.EOF && err2 == io.EOF
+		}
 
-			if err2 != nil || !bytes.Equal(contents1[0:len1], contents2[0:len2]) {
-				// hit an error or premature EOF (ie. file lengths didn't match), or the file contents weren't
-				// the same, so again failed/conflicted
-				return false
-			}
-
-		} else if err1 == io.EOF {
-			// normal EOF on the first file; check the second file is at EOF too - we can't use the normal
-			// ReadFull code above and just test err2 because ReadFull with a 0-long slice is a noop and will
-			// always return no error, so read a 1-long slice instead and see what happens
-			len2, err2 := file2.Read(contents2[0:1])
-
-			// if we reached the end of one file but not the other (or had another read error from it),
-			// return a failure/conflict; otherwise return success
-			return len2 == 0 && err2 == io.EOF
-
-		// "Implementations of Read are discouraged from returning a zero byte count with a nil error,
-		// and callers should treat that situation as a no-op."
-		} else if err1 != nil {
-			// hit an error, treated as failed/conflict
+		if len1 != len2 || !bytes.Equal(contents1[0:len1], contents2[0:len2]) ||
+			(err1 != nil && err1 != io.ErrUnexpectedEOF) ||
+			(err2 != nil && err2 != io.ErrUnexpectedEOF) {
+			// file lengths didn't match, the file contents weren't the same, or we hit an error, so failed/conflicted
 			return false
 		}
 	}
