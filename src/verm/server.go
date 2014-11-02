@@ -1,6 +1,5 @@
 package verm
 
-import "fmt"
 import "io"
 import "mimeext"
 import "net/http"
@@ -182,18 +181,20 @@ func (server vermServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	atomic.AddUint64(&server.Statistics.connections_current, 1)
 	defer atomic.AddUint64(&server.Statistics.connections_current, ^uint64(0))
 
+	// we need to keep track of the response code and count the bytes so we can log them below
+	logger := &responseLogger{w: w, req: req}
+
 	if req.Method == "GET" || req.Method == "HEAD" {
-		server.serveHTTPGetOrHead(w, req)
+		server.serveHTTPGetOrHead(logger, req)
 	} else if req.Method == "POST" {
-		server.serveHTTPPost(w, req)
+		server.serveHTTPPost(logger, req)
 	} else if req.Method == "PUT" {
-		server.serveHTTPPut(w, req)
+		server.serveHTTPPut(logger, req)
 	} else {
-		http.Error(w, "Method not supported", 405)
+		http.Error(logger, "Method not supported", 405)
 	}
 
 	if !server.Quiet {
-		// TODO: implement CLF-style logging
-		fmt.Fprintf(os.Stderr, "%s %s\n", req.Method, req.URL.Path)
+		logger.ClfLog()
 	}
 }
