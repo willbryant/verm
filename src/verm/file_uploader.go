@@ -27,17 +27,17 @@ type fileUpload struct {
 	tempFile     *os.File
 }
 
-func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request, replicating bool) (string, bool, error) {
+func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request, replicating bool) (location string, new_file bool, err error) {
 	uploader, err := server.FileUploader(w, req, replicating)
 	if err != nil {
-		return "", false, err
+		return
 	}
 	defer uploader.Close()
 
 	// read it in to the hasher
 	_, err = io.Copy(uploader.hasher, uploader.input)
 	if err != nil {
-		return "", false, err
+		return
 	}
 
 	return uploader.Finish(server.Targets)
@@ -129,30 +129,31 @@ func (upload *fileUpload) Close() {
 	upload.tempFile.Close()
 }
 
-func (upload *fileUpload) Finish(targets *ReplicationTargets) (string, bool, error) {
+func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, new_file bool, err error) {
 	// build the subdirectory and filename from the hash
 	dir, dst := upload.encodeHash()
 
 	// create the directory
 	subpath := upload.path + dir
-	err := os.MkdirAll(upload.root + subpath, DIRECTORY_PERMISSION)
+	err = os.MkdirAll(upload.root + subpath, DIRECTORY_PERMISSION)
 	if err != nil {
-		return "", false, err
+		return
 	}
 
 	// compose the location
-	location := upload.location
+	location = upload.location
 
 	if location == "" {
 		location = fmt.Sprintf("%s%s%s", subpath, dst, upload.extension)
 	} else if !strings.HasPrefix(location, subpath + dst) ||
 			  strings.Contains(location[len(subpath) + len(dst):], "/") {
 		// can't recreate the path; this is effectively a checksum failure
-		return "", false, &WrongLocationError{location}
+		err = &WrongLocationError{location}
+		return
 	}
 
 	// hardlink the file into place
-	new_file := true
+	new_file = true
 	attempt := 1
 	for {
 		// compose the filename; if the upload was itself compressed, tack on the gzip suffix -
@@ -168,14 +169,14 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (string, bool, err
 		// the most common error is that the path already exists, which would be normal if it's the same file, but any other error is definitely an error
 		if !os.IsExist(err) {
 			// some other error, return it
-			return "", false, err
+			return
 		}
 
 		// check the file contents match
 		existing, openerr := os.Open(filename)
 		if openerr != nil {
 			// can't open the existing file - may not be a regular file, or not accessible to us; return the original error
-			return "", false, err
+			return
 		}
 		defer existing.Close()
 		upload.tempFile.Seek(0, 0)
@@ -203,7 +204,8 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (string, bool, err
 		}
 	}
 
-	return location, new_file, nil
+	err = nil
+	return
 }
 
 func (upload *fileUpload) encodeHash() (string, string) {
