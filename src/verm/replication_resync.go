@@ -50,9 +50,12 @@ func (target *ReplicationTarget) enumerateSubdirectory(directory string, locatio
 
 func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 	var buf bytes.Buffer
-	var compressor = gzip.NewWriter(&buf)
+	compressor := gzip.NewWriter(&buf)
+	something_to_send := false
 
 	for location := range locations {
+		something_to_send = true
+
 		// the request bodies are simply a list of all the locations, one per line.
 		io.WriteString(compressor, location)
 		io.WriteString(compressor, "\r\n")
@@ -63,9 +66,12 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 		// requests fail we have to retry the same list.
 		if buf.Len() > MISSING_FILES_BATCH_SIZE {
 			target.sendFileListUntilSuccessful(compressor, &buf)
+			something_to_send = false
 		}
 	}
-	target.sendFileListUntilSuccessful(compressor, &buf)
+	if something_to_send {
+		target.sendFileListUntilSuccessful(compressor, &buf)
+	}
 }
 
 func (target *ReplicationTarget) sendFileListUntilSuccessful(compressor *gzip.Writer, buf *bytes.Buffer) {
