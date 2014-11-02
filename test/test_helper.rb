@@ -7,11 +7,11 @@ require File.expand_path(File.join(File.dirname(__FILE__), 'verm_spawner'))
 
 verm_binary = File.join(File.dirname(__FILE__), '..', 'verm')
 verm_data   = File.join(File.dirname(__FILE__), 'data')
-mime_types_filename = File.join(File.dirname(__FILE__), 'fixtures', 'mime.types')
+mime_types_file = File.join(File.dirname(__FILE__), 'fixtures', 'mime.types')
 captured_stderr_filename = File.join(File.dirname(__FILE__), 'tmp', 'captured_stderr') unless ENV['NO_CAPTURE_STDERR'].to_i > 0
 FileUtils.mkdir_p(File.join(File.dirname(__FILE__), 'tmp'))
-VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, mime_types_filename)
-REPLICATION_MASTER_VERM_SPAWNER = VermSpawner.new(verm_binary, "#{verm_data}_replica", mime_types_filename, :port => VERM_SPAWNER.port + 1, :replicate_to => VERM_SPAWNER.host, :capture_stderr_in => captured_stderr_filename)
+VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, :mime_types_file => mime_types_file)
+REPLICATION_MASTER_VERM_SPAWNER = VermSpawner.new(verm_binary, "#{verm_data}_replica", :mime_types_file => mime_types_file, :port => VERM_SPAWNER.port + 1, :replicate_to => VERM_SPAWNER.host, :capture_stderr_in => captured_stderr_filename)
 
 module Verm
   class TestCase < Test::Unit::TestCase
@@ -19,17 +19,23 @@ module Verm
                                   instance_methods.include? :default_test
 
     def setup
-      VERM_SPAWNER.clear_data
-      VERM_SPAWNER.start_verm
-      VERM_SPAWNER.wait_until_available
+      VERM_SPAWNER.setup
     end
   
     def teardown
-      VERM_SPAWNER.stop_verm
+      VERM_SPAWNER.teardown
     end
     
     def timeout
       10 # seconds
+    end
+
+    def repeatedly_wait_until
+      (timeout*10).times do
+        return if yield
+        sleep 0.1
+      end
+      raise TimeoutError
     end
     
 

@@ -155,6 +155,7 @@ func (server vermServer) serveHTTPPut(w http.ResponseWriter, req *http.Request) 
 
 	if req.URL.Path == MISSING_FILES_PATH {
 		server.serveMissing(w, req)
+		atomic.AddUint64(&server.Statistics.put_requests_missing_file_checks, 1)
 		return
 	}
 

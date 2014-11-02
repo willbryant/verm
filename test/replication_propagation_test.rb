@@ -1,8 +1,6 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
 class ReplicationPropagationTest < Verm::TestCase
-  TIMEOUT_IN_DECISECONDS = 50
-
   def setup
     super
     REPLICATION_MASTER_VERM_SPAWNER.clear_data
@@ -13,14 +11,6 @@ class ReplicationPropagationTest < Verm::TestCase
   def teardown
     REPLICATION_MASTER_VERM_SPAWNER.stop_verm
     super
-  end
-
-  def repeatedly_wait_until
-    TIMEOUT_IN_DECISECONDS.times do
-      return if yield
-      sleep 0.1
-    end
-    raise TimeoutError
   end
 
   def assert_propagates_file(get_options)

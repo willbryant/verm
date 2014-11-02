@@ -6,10 +6,10 @@ class VermSpawner
   
   attr_reader :verm_binary, :verm_data, :mime_types_file, :capture_stdout_in, :capture_stderr_in
   
-  def initialize(verm_binary, verm_data, mime_types_file, options = {})
+  def initialize(verm_binary, verm_data, options = {})
     @verm_binary = verm_binary
     @verm_data = verm_data
-    @mime_types_file = mime_types_file
+    @mime_types_file = options[:mime_types_file]
     @port = options[:port]
     @replicate_to = options[:replicate_to]
     @capture_stdout_in = options[:capture_stdout_in]
@@ -33,6 +33,17 @@ class VermSpawner
   def server_uri
     @server_uri ||= URI.parse("http://#{host}")
   end
+
+  def setup
+    clear_data
+    start_verm
+    wait_until_available
+  end
+
+  def teardown
+    stop_verm
+    clear_data
+  end
   
   def clear_data
     FileUtils.rm_r(@verm_data) if File.directory?(@verm_data)
@@ -40,7 +51,8 @@ class VermSpawner
   end
   
   def start_verm
-    exec_args = [@verm_binary, "-d", verm_data, "-p", port.to_s, "-m", mime_types_file]
+    exec_args  = [@verm_binary, "-d", verm_data, "-p", port.to_s]
+    exec_args += ["-m", mime_types_file] if mime_types_file
     exec_args << "-q" unless ENV['NOISY']
 
     if @replicate_to
