@@ -2,7 +2,6 @@ package main
 
 import "flag"
 import "fmt"
-import "log"
 import "net/http"
 import "os"
 import "os/signal"
@@ -23,12 +22,16 @@ func main() {
 	flag.Parse()
 
 	if !quiet {
-		fmt.Printf("Verm listening on http://%s:%s, data in %s\n", listen_address, port, root_data_directory)
+		fmt.Fprintf(os.Stdout, "Verm listening on http://%s:%s, data in %s\n", listen_address, port, root_data_directory)
 	}
 
 	go waitForSignals(&replication_targets)
 	http.Handle("/", verm.VermServer(root_data_directory, mime_types_file, &replication_targets, quiet))
-	log.Fatal(http.ListenAndServe(listen_address + ":" + port, nil))
+	err := http.ListenAndServe(listen_address + ":" + port, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+		os.Exit(1)
+	}
 
 	os.Exit(0)
 }

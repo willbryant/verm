@@ -1,7 +1,7 @@
 package verm
 
+import "fmt"
 import "io"
-import "log"
 import "mimeext"
 import "net/http"
 import "os"
@@ -194,6 +194,6 @@ func (server vermServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if !server.Quiet {
 		// TODO: implement CLF-style logging
-		log.Printf("%s %s", req.Method, req.URL.Path)
+		fmt.Fprintf(os.Stderr, "%s %s\n", req.Method, req.URL.Path)
 	}
 }

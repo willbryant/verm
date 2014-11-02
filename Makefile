@@ -1,4 +1,4 @@
-verm: src/**/*.go
+verm: src/verm.go src/**/*.go
 	GOPATH=`pwd` go build src/verm.go
 
 clean:

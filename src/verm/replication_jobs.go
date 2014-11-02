@@ -2,7 +2,6 @@ package verm
 
 import "fmt"
 import "io/ioutil"
-import "log"
 import "os"
 import "net/http"
 import "time"
@@ -13,7 +12,8 @@ func Put(hostname, port, location, root_data_directory string) bool {
 	if err != nil {
 		input, err = os.Open(root_data_directory + location)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+			return false
 		}
 		encoding = ""
 	}
@@ -32,12 +32,12 @@ func Put(hostname, port, location, root_data_directory string) bool {
 	}
 
 	if err != nil {
-		log.Printf(err.Error())
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		return false
 
 	} else if resp.StatusCode != 201 {
 		body, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("Couldn't replicate %s to %s:%s (%d): %s\n", location, hostname, port, resp.StatusCode, body)
+		fmt.Fprintf(os.Stderr, "Couldn't replicate %s to %s:%s (%d): %s\n", location, hostname, port, resp.StatusCode, body)
 		return false
 
 	} else {

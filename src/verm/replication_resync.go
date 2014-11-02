@@ -6,7 +6,6 @@ import "compress/gzip"
 import "fmt"
 import "io"
 import "io/ioutil"
-import "log"
 import "os"
 import "net/http"
 import "strings"
@@ -42,7 +41,7 @@ func (target *ReplicationTarget) enumerateSubdirectory(directory string, locatio
 			} else if fileinfo.Mode().IsDir() {
 				target.enumerateSubdirectory(expanded, locations)
 			} else {
-				log.Printf("Ignoring irregular directory entry %s\n", expanded)
+				fmt.Fprintf(os.Stderr, "Ignoring irregular directory entry %s\n", expanded)
 			}
 		}
 	}
@@ -100,12 +99,12 @@ func (target *ReplicationTarget) sendFileList(input io.Reader) bool {
 	}
 
 	if err != nil {
-		log.Printf(err.Error())
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		return false
 
 	} else if resp.StatusCode != 200 {
 		body, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("Couldn't see missing files on %s:%s (%d): %s\n", target.hostname, target.port, resp.StatusCode, body)
+		fmt.Fprintf(os.Stderr, "Couldn't see missing files on %s:%s (%d): %s\n", target.hostname, target.port, resp.StatusCode, body)
 		return false
 	}
 
@@ -117,7 +116,7 @@ func (target *ReplicationTarget) queueMissingFiles(resp *http.Response) {
 	encoding := resp.Header.Get("Content-Encoding")
 	input, err := EncodingDecoder(encoding, resp.Body)
 	if err != nil {
-		log.Printf("Couldn't see missing files on %s:%s: %s\n", target.hostname, target.port, err)
+		fmt.Fprintf(os.Stderr, "Couldn't see missing files on %s:%s: %s\n", target.hostname, target.port, err)
 		return
 	}
 
