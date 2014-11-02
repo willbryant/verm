@@ -4,7 +4,7 @@ import "fmt"
 import "strings"
 
 type ReplicationTargets struct {
-	targets []ReplicationTarget
+	targets []*ReplicationTarget
 }
 
 func parseTarget(value string) (string, string) {
@@ -25,7 +25,7 @@ func (targets *ReplicationTargets) Set(value string) error {
 		jobs:     make(chan string, REPLICATION_BACKLOG),
 		resync:   make(chan struct{}, 1),
 	}
-	targets.targets = append(targets.targets, target)
+	targets.targets = append(targets.targets, &target)
 	return nil
 }
 

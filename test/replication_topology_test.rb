@@ -83,4 +83,34 @@ class ReplicationTopologyTest < Verm::TestCase
   ensure
     spawners.each(&:teardown) if spawners
   end
+
+  def test_propagates_over_redundant_mesh
+    spawners = (0..2).collect do |n|
+      replicate_to = (0..2).collect {|rn| "#{VERM_SPAWNER.hostname}:#{port_for(rn)}" unless rn == n}.compact
+      VermSpawner.new(VERM_SPAWNER.verm_binary, "#{VERM_SPAWNER.verm_data}_replica#{n}", :port => port_for(n), :replicate_to => replicate_to)
+    end
+
+    spawners.each(&:setup)
+
+    before = spawners.collect {|spawner| get_statistics(:verm => spawner)}
+
+    post_something_to(spawners[2])
+
+    repeatedly_wait_until do
+      get_statistics(:verm => spawners[0])[:replication_push_attempts] > 0
+    end
+
+    # all replicas should now have a copy
+    spawners.each {|spawner| get get_options.merge(:verm => spawner)}
+
+    # and all should have pushed, resulting in a new file on all but the original target
+    changes = spawners.collect.with_index {|spawner, index| calculate_statistics_change(before[index], get_statistics(:verm => spawner))}
+    assert_equal([
+      {:get_requests => 1, :put_requests => 2, :put_requests_new_file_stored => 1, :replication_push_attempts => 2},
+      {:get_requests => 1, :put_requests => 2, :put_requests_new_file_stored => 1, :replication_push_attempts => 2},
+      {:get_requests => 1, :post_requests => 1, :post_requests_new_file_stored => 1, :put_requests => 2, :replication_push_attempts => 2},
+    ], changes)
+  ensure
+    spawners.each(&:teardown) if spawners
+  end
 end
