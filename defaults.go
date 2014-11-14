@@ -2,7 +2,7 @@ package main
 
 const DEFAULT_ROOT = "/var/lib/verm"
 const DEFAULT_LISTEN_ADDRESS = "0.0.0.0"
-const DEFAULT_VERM_PORT = "1138"
+const DEFAULT_PORT = "1138"
 const DEFAULT_MIME_TYPES_FILE = "/etc/mime.types"
 
 const DIRECTORY_PERMISSION = 0777

@@ -13,7 +13,7 @@ func parseTarget(value string) (string, string) {
 	if len(parts) > 1 {
 		return parts[0], parts[1]
 	} else {
-		return parts[0], DEFAULT_VERM_PORT
+		return parts[0], DEFAULT_PORT
 	}
 }
 
