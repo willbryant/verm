@@ -1,4 +1,4 @@
-package verm
+package main
 
 const DEFAULT_ROOT = "/var/lib/verm"
 const DEFAULT_LISTEN_ADDRESS = "0.0.0.0"

@@ -1,4 +1,4 @@
-package verm
+package main
 
 import "sync/atomic"
 import "time"

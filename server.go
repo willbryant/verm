@@ -1,12 +1,12 @@
-package verm
+package main
 
 import "io"
-import "mimeext"
 import "net/http"
 import "os"
 import "path"
 import "path/filepath"
 import "sync/atomic"
+import "verm/mimeext"
 
 type vermServer struct {
 	RootDataDir string

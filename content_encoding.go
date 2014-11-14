@@ -1,4 +1,4 @@
-package verm
+package main
 
 import "compress/gzip"
 import "io"

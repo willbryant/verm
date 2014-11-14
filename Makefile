@@ -1,5 +1,11 @@
-verm: src/verm.go src/**/*.go
-	GOPATH=`pwd` go build src/verm.go
+default: verm
+
+install: verm
+	install $^ /usr/local/bin
+	mkdir -p /var/lib/verm
+
+verm: *.go */*.go
+	GOPATH=`pwd`/../.. go build
 
 clean:
 	rm -f verm

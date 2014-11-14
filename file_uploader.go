@@ -1,4 +1,4 @@
-package verm
+package main
 
 import "bytes"
 import "compress/gzip"
@@ -8,12 +8,12 @@ import "hash"
 import "io"
 import "io/ioutil"
 import "mime"
-import "mimeext"
 import "net/textproto"
 import "net/http"
 import "os"
 import "path"
 import "strings"
+import "verm/mimeext"
 
 type fileUpload struct {
 	root         string
