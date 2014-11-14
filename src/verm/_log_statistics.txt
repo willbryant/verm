@@ -1,8 +1,0 @@
-package verm;
-
-type LogStatistics struct {
-	GetRequests, GetRequestsNotFound,
-	PostRequests, PostRequestsNewFileStored, PostRequestsFailed,
-	PutRequests, PutRequestsNewFileStored, PutRequestsFailed,
-	ReplicationPushAttempts, ReplicationPushAttemptsFailed uint
-};
