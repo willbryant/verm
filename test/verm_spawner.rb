@@ -51,12 +51,12 @@ class VermSpawner
   end
   
   def start_verm
-    exec_args  = [@verm_binary, "-d", verm_data, "-p", port.to_s]
-    exec_args += ["-m", mime_types_file] if mime_types_file
-    exec_args << "-q" unless ENV['NOISY']
+    exec_args  = [@verm_binary, "--data", verm_data, "--port", port.to_s]
+    exec_args += ["--mimetypes", mime_types_file] if mime_types_file
+    exec_args << "--quiet" unless ENV['NOISY']
 
     if @replicate_to
-      Array(@replicate_to).each {|r| exec_args << '-r'; exec_args << r}
+      Array(@replicate_to).each {|r| exec_args << '--replicate'; exec_args << r}
     end
     
     if ENV['VALGRIND']

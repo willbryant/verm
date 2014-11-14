@@ -12,12 +12,12 @@ func main() {
 	var replication_targets ReplicationTargets
 	var quiet bool
 
-	flag.StringVar(&root_data_directory, "d", DEFAULT_ROOT, "Sets the root data directory to /foo.  Must be fully-qualified (ie. it must start with a /).")
-	flag.StringVar(&listen_address, "l", DEFAULT_LISTEN_ADDRESS, "Listen on the given IP address.  Default: listen on all network interfaces.")
-	flag.StringVar(&port, "p", DEFAULT_VERM_PORT, "Listen on the given port.")
-	flag.StringVar(&mime_types_file, "m", DEFAULT_MIME_TYPES_FILE, "Load MIME content-types from the given file.")
-	flag.Var(&replication_targets, "r", "Replicate files to the given Verm server.  May be given multiple times.")
-	flag.BoolVar(&quiet, "q", false, "Quiet mode.  Don't print startup/shutdown/request log messages to stdout.")
+	flag.StringVar(&root_data_directory, "data", DEFAULT_ROOT, "Sets the root data directory to /foo.  Must be fully-qualified (ie. it must start with a /).")
+	flag.StringVar(&listen_address, "listen", DEFAULT_LISTEN_ADDRESS, "Listen on the given IP address.  Default: listen on all network interfaces.")
+	flag.StringVar(&port, "port", DEFAULT_VERM_PORT, "Listen on the given port.")
+	flag.StringVar(&mime_types_file, "mimetypes", DEFAULT_MIME_TYPES_FILE, "Load MIME content-types from the given file.")
+	flag.Var(&replication_targets, "replicate", "Replicate files to the given Verm server.  May be given multiple times.")
+	flag.BoolVar(&quiet, "quiet", false, "Quiet mode.  Don't print startup/shutdown/request log messages to stdout.")
 	flag.Parse()
 
 	if !quiet {
