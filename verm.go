@@ -5,6 +5,7 @@ import "fmt"
 import "net/http"
 import "os"
 import "os/signal"
+import "strings"
 import "syscall"
 
 func main() {
@@ -18,6 +19,7 @@ func main() {
 	flag.StringVar(&mime_types_file, "mimetypes", DEFAULT_MIME_TYPES_FILE, "Load MIME content-types from the given file.")
 	flag.Var(&replication_targets, "replicate", "Replicate files to the given Verm server.  May be given multiple times.")
 	flag.BoolVar(&quiet, "quiet", false, "Quiet mode.  Don't print startup/shutdown/request log messages to stdout.")
+	flag.VisitAll(setFlagFromEnvironment)
 	flag.Parse()
 
 	if !quiet {
@@ -41,5 +43,12 @@ func waitForSignals(targets *ReplicationTargets) {
 	for {
 		<-signals
 		targets.EnqueueResync()
+	}
+}
+
+func setFlagFromEnvironment(f *flag.Flag) {
+	env := "VERM_" + strings.ToUpper(f.Name)
+	if os.Getenv(env) != "" {
+		flag.Set(f.Name, os.Getenv(env))
 	}
 }
