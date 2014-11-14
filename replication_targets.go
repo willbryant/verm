@@ -18,14 +18,16 @@ func parseTarget(value string) (string, string) {
 }
 
 func (targets *ReplicationTargets) Set(value string) error {
-	hostname, port := parseTarget(value)
-	target := ReplicationTarget{
-		hostname: hostname,
-		port:     port,
-		jobs:     make(chan string, REPLICATION_BACKLOG),
-		resync:   make(chan struct{}, 1),
+	for _, s := range strings.Split(value, ",") {
+		hostname, port := parseTarget(s)
+		target := ReplicationTarget{
+			hostname: hostname,
+			port:     port,
+			jobs:     make(chan string, REPLICATION_BACKLOG),
+			resync:   make(chan struct{}, 1),
+		}
+		targets.targets = append(targets.targets, &target)
 	}
-	targets.targets = append(targets.targets, &target)
 	return nil
 }
 
