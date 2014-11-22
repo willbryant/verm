@@ -16,18 +16,18 @@ type vermServer struct {
 	Quiet       bool
 }
 
-func VermServer(root_data_directory string, mime_types_file string, replication_targets *ReplicationTargets, quiet bool) vermServer {
-	mimeext.LoadMimeFile(mime_types_file)
+func VermServer(rootDataDirectory string, mimeTypesFile string, replicationTargets *ReplicationTargets, quiet bool) vermServer {
+	mimeext.LoadMimeFile(mimeTypesFile)
 
 	statistics := &LogStatistics{}
 
-	replication_targets.Start(root_data_directory, statistics)
-	replication_targets.EnqueueResync()
+	replicationTargets.Start(rootDataDirectory, statistics)
+	replicationTargets.EnqueueResync()
 
 	return vermServer{
-		RootDataDir: root_data_directory,
-		RootHttpDir: http.Dir(root_data_directory),
-		Targets: replication_targets,
+		RootDataDir: rootDataDirectory,
+		RootHttpDir: http.Dir(rootDataDirectory),
+		Targets: replicationTargets,
 		Statistics: statistics,
 		Quiet: quiet,
 	}
@@ -52,10 +52,10 @@ func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
 
 	// try and open the file
 	file, stat, err := server.openFile(path)
-	stored_compressed := false
+	storedCompressed := false
 	if err != nil {
 		file, stat, err = server.openFile(path + ".gz")
-		stored_compressed = true
+		storedCompressed = true
 	}
 	if err != nil {
 		atomic.AddUint64(&server.Statistics.get_requests, 1)
@@ -77,17 +77,17 @@ func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("ETag", path)
 
 		// infer the content-type from the filename extension
-		contenttype := mimeext.TypeByExtension(filepath.Ext(path))
-		if contenttype == "" {
+		contentType := mimeext.TypeByExtension(filepath.Ext(path))
+		if contentType == "" {
 			// we must set a header to avoid go sniffing the content and setting the header for us, which leads to
 			// problems like gzip content-encoded data getting also described as having application/x-gzip content type
 			w.Header().Set("Content-Type", "application/octet-stream")
 		} else {
-			w.Header().Set("Content-Type", contenttype)
+			w.Header().Set("Content-Type", contentType)
 		}
 
 		// send the file
-		if !stored_compressed {
+		if !storedCompressed {
 			serveContent(w, req, stat.Size(), file)
 
 		} else if gzipAccepted(req) {
@@ -105,15 +105,15 @@ func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
 }
 
 func (server vermServer) openFile(path string) (http.File, os.FileInfo, error) {
-	file, openerr := server.RootHttpDir.Open(path)
-	if openerr != nil {
-		return nil, nil, openerr
+	file, err := server.RootHttpDir.Open(path)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	stat, staterr := file.Stat()
-	if staterr != nil || stat.IsDir() {
+	stat, err := file.Stat()
+	if err != nil || stat.IsDir() {
 		file.Close()
-		return nil, nil, staterr
+		return nil, nil, err
 	}
 
 	return file, stat, nil
@@ -132,12 +132,12 @@ func (server vermServer) serveHTTPGetOrHead(w http.ResponseWriter, req *http.Req
 func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request) {
 	defer atomic.AddUint64(&server.Statistics.post_requests, 1)
 
-	location, new_file, err := server.UploadFile(w, req, false)
+	location, newFile, err := server.UploadFile(w, req, false)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	if new_file {
+	if newFile {
 		atomic.AddUint64(&server.Statistics.post_requests_new_file_stored, 1)
 	}
 
@@ -152,13 +152,13 @@ func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request)
 func (server vermServer) serveHTTPPut(w http.ResponseWriter, req *http.Request) {
 	defer atomic.AddUint64(&server.Statistics.put_requests, 1)
 
-	if req.URL.Path == MISSING_FILES_PATH {
+	if req.URL.Path == ReplicationMissingFilesPath {
 		server.serveMissing(w, req)
 		atomic.AddUint64(&server.Statistics.put_requests_missing_file_checks, 1)
 		return
 	}
 
-	location, new_file, err := server.UploadFile(w, req, true)
+	location, newFile, err := server.UploadFile(w, req, true)
 	if err != nil {
 		atomic.AddUint64(&server.Statistics.put_requests_failed, 1)
 		switch err.(type) {
@@ -169,7 +169,7 @@ func (server vermServer) serveHTTPPut(w http.ResponseWriter, req *http.Request) 
 		}
 		return
 	}
-	if new_file {
+	if newFile {
 		atomic.AddUint64(&server.Statistics.put_requests_new_file_stored, 1)
 	}
 

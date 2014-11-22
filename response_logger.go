@@ -15,9 +15,9 @@ func ClfTime() string {
 }
 
 func RequestIP(req *http.Request) string {
-	colon_pos := strings.LastIndex(req.RemoteAddr, "]:")
-	if colon_pos > -1 {
-		return req.RemoteAddr[1 : colon_pos]
+	addressEnd := strings.LastIndex(req.RemoteAddr, "]:")
+	if addressEnd > -1 {
+		return req.RemoteAddr[1 : addressEnd]
 	}
 	return req.RemoteAddr
 }

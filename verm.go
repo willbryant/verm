@@ -9,26 +9,26 @@ import "strings"
 import "syscall"
 
 func main() {
-	var root_data_directory, listen_address, port, mime_types_file string
-	var replication_targets ReplicationTargets
+	var rootDataDirectory, listenAddress, port, mimeTypesFile string
+	var replicationTargets ReplicationTargets
 	var quiet bool
 
-	flag.StringVar(&root_data_directory, "data", DEFAULT_ROOT, "Sets the root data directory to /foo.  Must be fully-qualified (ie. it must start with a /).")
-	flag.StringVar(&listen_address, "listen", DEFAULT_LISTEN_ADDRESS, "Listen on the given IP address.  Default: listen on all network interfaces.")
-	flag.StringVar(&port, "port", DEFAULT_PORT, "Listen on the given port.")
-	flag.StringVar(&mime_types_file, "mimetypes", DEFAULT_MIME_TYPES_FILE, "Load MIME content-types from the given file.")
-	flag.Var(&replication_targets, "replicate", "Replicate files to the given Verm server.  May be given multiple times.")
+	flag.StringVar(&rootDataDirectory, "data", DefaultRoot, "Sets the root data directory to /foo.  Must be fully-qualified (ie. it must start with a /).")
+	flag.StringVar(&listenAddress, "listen", DefaultListenAddress, "Listen on the given IP address.  Default: listen on all network interfaces.")
+	flag.StringVar(&port, "port", DefaultPort, "Listen on the given port.")
+	flag.StringVar(&mimeTypesFile, "mimetypes", DefaultMimeTypesFile, "Load MIME content-types from the given file.")
+	flag.Var(&replicationTargets, "replicate", "Replicate files to the given Verm server.  May be given multiple times.")
 	flag.BoolVar(&quiet, "quiet", false, "Quiet mode.  Don't print startup/shutdown/request log messages to stdout.")
 	flag.VisitAll(setFlagFromEnvironment)
 	flag.Parse()
 
 	if !quiet {
-		fmt.Fprintf(os.Stdout, "Verm listening on http://%s:%s, data in %s\n", listen_address, port, root_data_directory)
+		fmt.Fprintf(os.Stdout, "Verm listening on http://%s:%s, data in %s\n", listenAddress, port, rootDataDirectory)
 	}
 
-	go waitForSignals(&replication_targets)
-	http.Handle("/", VermServer(root_data_directory, mime_types_file, &replication_targets, quiet))
-	err := http.ListenAndServe(listen_address + ":" + port, nil)
+	go waitForSignals(&replicationTargets)
+	http.Handle("/", VermServer(rootDataDirectory, mimeTypesFile, &replicationTargets, quiet))
+	err := http.ListenAndServe(listenAddress + ":" + port, nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		os.Exit(1)

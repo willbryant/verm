@@ -6,11 +6,11 @@ import "os"
 import "net/http"
 import "time"
 
-func Put(hostname, port, location, root_data_directory string) bool {
+func Put(hostname, port, location, rootDataDirectory string) bool {
 	encoding := "gzip"
-	input, err := os.Open(root_data_directory + location + ".gz")
+	input, err := os.Open(rootDataDirectory + location + ".gz")
 	if err != nil {
-		input, err = os.Open(root_data_directory + location)
+		input, err = os.Open(rootDataDirectory + location)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 			return false
@@ -25,7 +25,7 @@ func Put(hostname, port, location, root_data_directory string) bool {
 		req.Header.Add("Content-Encoding", encoding)
 	}
 
-	client := &http.Client{Timeout: HTTP_CLIENT_TIMEOUT * time.Second}
+	client := &http.Client{Timeout: ReplicationHttpTimeout * time.Second}
 	resp, err := client.Do(req)
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()

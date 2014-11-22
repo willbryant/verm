@@ -1,16 +1,18 @@
 package main
 
-const DEFAULT_ROOT = "/var/lib/verm"
-const DEFAULT_LISTEN_ADDRESS = "0.0.0.0"
-const DEFAULT_PORT = "1138"
-const DEFAULT_MIME_TYPES_FILE = "/etc/mime.types"
+const DefaultRoot = "/var/lib/verm"
+const DirectoryPermission = 0777
 
-const DIRECTORY_PERMISSION = 0777
-const DEFAULT_DIRECTORY_IF_NOT_GIVEN_BY_CLIENT = "/default"
-const UPLOADED_FILE_FIELD = "uploaded_file"
-const REPLICATION_BACKLOG = 10000
-const BACKOFF_BASE_TIME = 1
-const BACKOFF_MAX_TIME = 60
-const HTTP_CLIENT_TIMEOUT = 60
-const MISSING_FILES_PATH = "/_missing"
-const MISSING_FILES_BATCH_SIZE = 256*1024 // bytes, but only approximate
+const DefaultListenAddress = "0.0.0.0"
+const DefaultPort = "1138"
+
+const DefaultMimeTypesFile = "/etc/mime.types"
+const DefaultDirectoryIfNotGivenByClient = "/default"
+const UploadedFieldFieldForMultipart = "uploaded_file"
+
+const ReplicationQueueSize = 10000
+const ReplicationBackoffBaseDelay = 1
+const ReplicationBackoffMaxDelay = 60
+const ReplicationHttpTimeout = 60
+const ReplicationMissingFilesPath = "/_missing"
+const ReplicationMissingFilesBatchSize = 256*1024 // bytes, but only approximate

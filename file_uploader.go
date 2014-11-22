@@ -16,18 +16,18 @@ import "strings"
 import "verm/mimeext"
 
 type fileUpload struct {
-	root         string
-	path         string
-	location     string
-	content_type string
-	extension    string
-	encoding     string
-	input        io.Reader
-	hasher       hash.Hash
-	tempFile     *os.File
+	root        string
+	path        string
+	location    string
+	contentType string
+	extension   string
+	encoding    string
+	input       io.Reader
+	hasher      hash.Hash
+	tempFile    *os.File
 }
 
-func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request, replicating bool) (location string, new_file bool, err error) {
+func (server vermServer) UploadFile(w http.ResponseWriter, req *http.Request, replicating bool) (location string, newFile bool, err error) {
 	uploader, err := server.FileUploader(w, req, replicating)
 	if err != nil {
 		return
@@ -50,19 +50,17 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 	location := ""
 	if replicating {
 		location = path
-
-		last_slash := strings.LastIndex(path, "/")
-		path = path[0 : last_slash-3]
+		path = path[0 : strings.LastIndex(path, "/")-3]
 	}
 
 	// don't allow uploads to the root directory itself, which would be unmanageable
 	if len(path) <= 1 {
-		path = DEFAULT_DIRECTORY_IF_NOT_GIVEN_BY_CLIENT
+		path = DefaultDirectoryIfNotGivenByClient
 	}
 
 	// make a tempfile in the requested (or default, as above) directory
 	directory := server.RootDataDir + path
-	err := os.MkdirAll(directory, DIRECTORY_PERMISSION)
+	err := os.MkdirAll(directory, DirectoryPermission)
 	if err != nil {
 		return nil, err
 	}
@@ -77,18 +75,18 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 	var input io.Reader = req.Body
 
 	// but if the upload is a browser form, the input stream needs multipart decoding
-	content_type := mediaTypeOrDefault(textproto.MIMEHeader(req.Header))
-	if content_type == "multipart/form-data" {
-		file, mpheader, mperr := req.FormFile(UPLOADED_FILE_FIELD)
+	contentType := mediaTypeOrDefault(textproto.MIMEHeader(req.Header))
+	if contentType == "multipart/form-data" {
+		file, mpheader, mperr := req.FormFile(UploadedFieldFieldForMultipart)
 		if mperr != nil {
 			return nil, mperr
 		}
 		input = file
-		content_type = mediaTypeOrDefault(mpheader.Header)
+		contentType = mediaTypeOrDefault(mpheader.Header)
 	}
 
 	// determine the appropriate extension from the content type
-	extension := mimeext.ExtensionByType(content_type)
+	extension := mimeext.ExtensionByType(contentType)
 
 	// as we read from the stream, copy it raw (without uncompressing) into the tempfile
 	input = io.TeeReader(input, tempFile)
@@ -116,7 +114,7 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 		root:         server.RootDataDir,
 		path:         path,
 		location:     location,
-		content_type: content_type,
+		contentType: contentType,
 		extension:    extension,
 		encoding:     encoding,
 		input:        input,
@@ -129,13 +127,13 @@ func (upload *fileUpload) Close() {
 	upload.tempFile.Close()
 }
 
-func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, new_file bool, err error) {
+func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, newFile bool, err error) {
 	// build the subdirectory and filename from the hash
 	dir, dst := upload.encodeHash()
 
 	// create the directory
 	subpath := upload.path + dir
-	err = os.MkdirAll(upload.root + subpath, DIRECTORY_PERMISSION)
+	err = os.MkdirAll(upload.root + subpath, DirectoryPermission)
 	if err != nil {
 		return
 	}
@@ -153,7 +151,7 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 	}
 
 	// hardlink the file into place
-	new_file = true
+	newFile = true
 	attempt := 1
 	for {
 		// compose the filename; if the upload was itself compressed, tack on the gzip suffix -
@@ -183,7 +181,7 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 
 		if sameContents(upload.tempFile, existing) {
 			// success
-			new_file = false
+			newFile = false
 			break
 		}
 
@@ -194,7 +192,7 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 
 	os.Remove(upload.tempFile.Name()) // ignore errors, the tempfile is moot at this point
 
-	if new_file {
+	if newFile {
 		if upload.extension == ".gz" {
 			// for the sake of replication, we can treat it as a gzip-encoded binary file rather than a raw gzip file;
 			// this is how we will interpret the filename when we restart and resync, so it's better to always do this
@@ -209,7 +207,7 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 }
 
 func (upload *fileUpload) encodeHash() (string, string) {
-	const encode_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+	const encodingAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 	md := upload.hasher.Sum(nil)
 
 	// we have 256 bits to encode, which is not an integral multiple of the 6 bits per character we can encode with
@@ -226,32 +224,32 @@ func (upload *fileUpload) encodeHash() (string, string) {
 	// 30*4/3=40 bytes for the remaining input bytes, one for the NUL termination byte)
 	var dir bytes.Buffer
 	dir.WriteByte('/')
-	dir.WriteByte(encode_chars[((md[0] & 0xf8) >> 3)])
-	dir.WriteByte(encode_chars[((md[0] & 0x07) << 3) + ((md[1] & 0xe0) >> 5)])
+	dir.WriteByte(encodingAlphabet[((md[0] & 0xf8) >> 3)])
+	dir.WriteByte(encodingAlphabet[((md[0] & 0x07) << 3) + ((md[1] & 0xe0) >> 5)])
 
 	var dst bytes.Buffer
 	dst.WriteByte('/') // we put each file in a subdirectory off the main root, whose name is the first two characters of the hash.
-	dst.WriteByte(encode_chars[((md[1] & 0x1f))])
+	dst.WriteByte(encodingAlphabet[((md[1] & 0x1f))])
 
 	for srcindex := 2; srcindex < len(md); srcindex += 3 {
 		s0 := md[srcindex + 0]
 		s1 := md[srcindex + 1] // thanks to the above, we know that we have an exact
 		s2 := md[srcindex + 2] // multiple of 3 bytes left to encode in this loop
-		dst.WriteByte(encode_chars[((s0 & 0xfc) >> 2)])
-		dst.WriteByte(encode_chars[((s0 & 0x03) << 4) + ((s1 & 0xf0) >> 4)])
-		dst.WriteByte(encode_chars[((s1 & 0x0f) << 2) + ((s2 & 0xc0) >> 6)])
-		dst.WriteByte(encode_chars[((s2 & 0x3f))])
+		dst.WriteByte(encodingAlphabet[((s0 & 0xfc) >> 2)])
+		dst.WriteByte(encodingAlphabet[((s0 & 0x03) << 4) + ((s1 & 0xf0) >> 4)])
+		dst.WriteByte(encodingAlphabet[((s1 & 0x0f) << 2) + ((s2 & 0xc0) >> 6)])
+		dst.WriteByte(encodingAlphabet[((s2 & 0x3f))])
 	}
 
 	return dir.String(), dst.String()
 }
 
 func mediaTypeOrDefault(header textproto.MIMEHeader) string {
-	media_type, _, err := mime.ParseMediaType(header.Get("Content-Type"))
+	mediaType, _, err := mime.ParseMediaType(header.Get("Content-Type"))
 	if err != nil {
 		return "application/octet-stream"
 	}
-	return media_type
+	return mediaType
 }
 
 func sameContents(stream1, stream2 io.Reader) bool {

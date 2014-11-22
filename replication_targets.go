@@ -13,7 +13,7 @@ func parseTarget(value string) (string, string) {
 	if len(parts) > 1 {
 		return parts[0], parts[1]
 	} else {
-		return parts[0], DEFAULT_PORT
+		return parts[0], DefaultPort
 	}
 }
 
@@ -23,7 +23,7 @@ func (targets *ReplicationTargets) Set(value string) error {
 		target := ReplicationTarget{
 			hostname: hostname,
 			port:     port,
-			jobs:     make(chan string, REPLICATION_BACKLOG),
+			jobs:     make(chan string, ReplicationQueueSize),
 			resync:   make(chan struct{}, 1),
 		}
 		targets.targets = append(targets.targets, &target)
@@ -36,9 +36,9 @@ func (targets *ReplicationTargets) String() string {
 	return "<hostname> or <hostname>:<port>"
 }
 
-func (targets *ReplicationTargets) Start(root_data_directory string, statistics *LogStatistics) {
+func (targets *ReplicationTargets) Start(rootDataDirectory string, statistics *LogStatistics) {
 	for _, target := range targets.targets {
-		target.root_data_directory = root_data_directory
+		target.rootDataDirectory = rootDataDirectory
 		target.statistics = statistics
 		go target.replicateFromQueue()
 		go target.resyncFromQueue()

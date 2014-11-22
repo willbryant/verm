@@ -17,7 +17,7 @@ func (target *ReplicationTarget) enumerateFiles(locations chan<- string) {
 }
 
 func (target *ReplicationTarget) enumerateSubdirectory(directory string, locations chan<- string) error {
-	dir, err := os.Open(target.root_data_directory + directory)
+	dir, err := os.Open(target.rootDataDirectory + directory)
 	if err != nil {
 		return err
 	}
@@ -50,10 +50,10 @@ func (target *ReplicationTarget) enumerateSubdirectory(directory string, locatio
 func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 	var buf bytes.Buffer
 	compressor := gzip.NewWriter(&buf)
-	something_to_send := false
+	somethingToSend := false
 
 	for location := range locations {
-		something_to_send = true
+		somethingToSend = true
 
 		// the request bodies are simply a list of all the locations, one per line.
 		io.WriteString(compressor, location)
@@ -63,12 +63,12 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 		// pushes its size up to the target batch size, send a request.  note that we have to
 		// use a byte buffer rather than streaming straight to the HTTP request, because when
 		// requests fail we have to retry the same list.
-		if buf.Len() > MISSING_FILES_BATCH_SIZE {
+		if buf.Len() > ReplicationMissingFilesBatchSize {
 			target.sendFileListUntilSuccessful(compressor, &buf)
-			something_to_send = false
+			somethingToSend = false
 		}
 	}
-	if something_to_send {
+	if somethingToSend {
 		target.sendFileListUntilSuccessful(compressor, &buf)
 	}
 }
@@ -88,7 +88,7 @@ func (target *ReplicationTarget) sendFileListUntilSuccessful(compressor *gzip.Wr
 }
 
 func (target *ReplicationTarget) sendFileList(input io.Reader) bool {
-	req, err := http.NewRequest("PUT", fmt.Sprintf("http://%s:%s%s", target.hostname, target.port, MISSING_FILES_PATH), input)
+	req, err := http.NewRequest("PUT", fmt.Sprintf("http://%s:%s%s", target.hostname, target.port, ReplicationMissingFilesPath), input)
 	req.Header.Add("Content-Type", "text/plain")
 	req.Header.Add("Content-Encoding", "gzip")
 
