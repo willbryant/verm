@@ -54,8 +54,9 @@ Content-type: image/png
 <raw file content>
 ```
 
-Verm will automatically create the 2014, los_angeles, and docs subdirectories
-under the root data directory (`/var/lib/verm` by default), hash the file data,
+Verm will automatically create the 2019 subdirectories under the root data
+directory (`/var/lib/verm` by default) if it doesn't already exist, similarly
+create the los_angeles and docs subdirectory if necessary, hash the file data,
 turn the hash into a filename using URL-safe characters, and return the path
 in a Location header with a 204 Created response.
 
@@ -70,7 +71,13 @@ any regular webserver if you prefer, making it easy to migrate to or from Verm.
 
 As a concession to tools that don't cope well with huge numbers of entries in
 single directories, Verm will place files under subdirectories of the requested
-path based on the first bits of the file content hash.
+path based on the first bits of the file content hash.  For example, if Verm
+encoded the content hash as `TwD1uJUQPX-w5wGVfgJrpiAtMwXd37Zp58YlPOQig8d` then
+a `Tw` subdirectory would be created (unless it already exists).  The character
+alphabet Verm uses to encode the hash bits has 64 characters but Verm carefully
+assigns the bits to ensure `-` is never the leading character in subdirectory
+or file names, to ensure admins won't run into any unexpected behavior if they
+use file wildcards on the command line.
 
 Compression support is intended to be transparent to the client.  If file data
 is posted in gzip-encoded, the file will be stored with a `.gz` suffix for
