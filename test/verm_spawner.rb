@@ -34,9 +34,9 @@ class VermSpawner
     @server_uri ||= URI.parse("http://#{host}")
   end
 
-  def setup
+  def setup(extra_options = {})
     clear_data
-    start_verm
+    start_verm(extra_options)
     wait_until_available
   end
 
@@ -50,11 +50,11 @@ class VermSpawner
     Dir.mkdir(@verm_data)
   end
   
-  def start_verm
+  def start_verm(extra_options = {})
     exec_args  = [@verm_binary, "--data", verm_data, "--port", port.to_s]
     exec_args << "--quiet" unless ENV['NOISY']
 
-    @options.each do |name, value|
+    @options.merge(extra_options).each do |name, value|
       option = "--#{name.to_s.gsub("_", "-")}"
       exec_args += [option, value]
     end

@@ -18,10 +18,14 @@ module Verm
     undef_method :default_test if instance_methods.include? 'default_test' or
                                   instance_methods.include? :default_test
 
-    def setup
-      VERM_SPAWNER.setup
+    def extra_spawner_options
+      {}
     end
   
+    def setup
+      VERM_SPAWNER.setup(extra_spawner_options)
+    end
+
     def teardown
       VERM_SPAWNER.teardown
     end
