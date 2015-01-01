@@ -12,6 +12,22 @@ type ReplicationTarget struct {
 	statistics        *LogStatistics
 }
 
+func NewReplicationTarget(hostname, port string) ReplicationTarget {
+	return ReplicationTarget{
+		hostname: hostname,
+		port:     port,
+		jobs:     make(chan string, ReplicationQueueSize),
+		resync:   make(chan struct{}, 1),
+	}
+}
+
+func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *LogStatistics) {
+	target.rootDataDirectory = rootDataDirectory
+	target.statistics = statistics
+	go target.replicateFromQueue()
+	go target.resyncFromQueue()
+}
+
 func (target *ReplicationTarget) enqueueJob(job string) {
 	target.jobs <- job
 }

@@ -20,6 +20,10 @@ func Put(hostname, port, location, rootDataDirectory string) bool {
 	defer input.Close()
 
 	req, err := http.NewRequest("PUT", fmt.Sprintf("http://%s:%s%s", hostname, port, location), input)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+		return false
+	}
 	req.Header.Add("Content-Type", "application/octet-stream") // don't need to know the original type, just replicate the filename
 	if encoding != "" {
 		req.Header.Add("Content-Encoding", encoding)

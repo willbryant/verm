@@ -20,12 +20,7 @@ func parseTarget(value string) (string, string) {
 func (targets *ReplicationTargets) Set(value string) error {
 	for _, s := range strings.Split(value, ",") {
 		hostname, port := parseTarget(s)
-		target := ReplicationTarget{
-			hostname: hostname,
-			port:     port,
-			jobs:     make(chan string, ReplicationQueueSize),
-			resync:   make(chan struct{}, 1),
-		}
+		target := NewReplicationTarget(hostname, port)
 		targets.targets = append(targets.targets, &target)
 	}
 	return nil
@@ -38,10 +33,7 @@ func (targets *ReplicationTargets) String() string {
 
 func (targets *ReplicationTargets) Start(rootDataDirectory string, statistics *LogStatistics) {
 	for _, target := range targets.targets {
-		target.rootDataDirectory = rootDataDirectory
-		target.statistics = statistics
-		go target.replicateFromQueue()
-		go target.resyncFromQueue()
+		target.Start(rootDataDirectory, statistics)
 	}
 }
 

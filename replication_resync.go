@@ -89,6 +89,10 @@ func (target *ReplicationTarget) sendFileListUntilSuccessful(compressor *gzip.Wr
 
 func (target *ReplicationTarget) sendFileList(input io.Reader) bool {
 	req, err := http.NewRequest("PUT", fmt.Sprintf("http://%s:%s%s", target.hostname, target.port, ReplicationMissingFilesPath), input)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+		return false
+	}
 	req.Header.Add("Content-Type", "text/plain")
 	req.Header.Add("Content-Encoding", "gzip")
 
