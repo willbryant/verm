@@ -16,7 +16,7 @@ func main() {
 	flag.StringVar(&rootDataDirectory, "data", DefaultRoot, "Sets the root data directory to /foo.  Must be fully-qualified (ie. it must start with a /).")
 	flag.StringVar(&listenAddress, "listen", DefaultListenAddress, "Listen on the given IP address.  Default: listen on all network interfaces.")
 	flag.StringVar(&port, "port", DefaultPort, "Listen on the given port.")
-	flag.StringVar(&mimeTypesFile, "mimetypes", DefaultMimeTypesFile, "Load MIME content-types from the given file.")
+	flag.StringVar(&mimeTypesFile, "mime-types-file", DefaultMimeTypesFile, "Load MIME content-types from the given file.")
 	flag.Var(&replicationTargets, "replicate", "Replicate files to the given Verm server.  May be given multiple times.")
 	flag.BoolVar(&quiet, "quiet", false, "Quiet mode.  Don't print startup/shutdown/request log messages to stdout.")
 	flag.VisitAll(setFlagFromEnvironment)
@@ -47,7 +47,7 @@ func waitForSignals(targets *ReplicationTargets) {
 }
 
 func setFlagFromEnvironment(f *flag.Flag) {
-	env := "VERM_" + strings.ToUpper(f.Name)
+	env := "VERM_" + strings.Replace(strings.ToUpper(f.Name), "-", "_", -1)
 	if os.Getenv(env) != "" {
 		flag.Set(f.Name, os.Getenv(env))
 	}

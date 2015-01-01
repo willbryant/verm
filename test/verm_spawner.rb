@@ -4,16 +4,16 @@ require 'net/http'
 class VermSpawner
   STARTUP_TIMEOUT = 10 # seconds
   
-  attr_reader :verm_binary, :verm_data, :mime_types_file, :capture_stdout_in, :capture_stderr_in
+  attr_reader :verm_binary, :verm_data, :options, :capture_stdout_in, :capture_stderr_in
   
   def initialize(verm_binary, verm_data, options = {})
     @verm_binary = verm_binary
     @verm_data = verm_data
-    @mime_types_file = options[:mime_types_file]
-    @port = options[:port]
-    @replicate_to = options[:replicate_to]
-    @capture_stdout_in = options[:capture_stdout_in]
-    @capture_stderr_in = options[:capture_stderr_in]
+    @port = options.delete(:port)
+    @replicate_to = options.delete(:replicate_to)
+    @capture_stdout_in = options.delete(:capture_stdout_in)
+    @capture_stderr_in = options.delete(:capture_stderr_in)
+    @options = options
     raise "Can't see a verm binary at #{verm_binary}" unless File.executable?(verm_binary)
   end
   
@@ -52,8 +52,12 @@ class VermSpawner
   
   def start_verm
     exec_args  = [@verm_binary, "--data", verm_data, "--port", port.to_s]
-    exec_args += ["--mimetypes", mime_types_file] if mime_types_file
     exec_args << "--quiet" unless ENV['NOISY']
+
+    @options.each do |name, value|
+      option = "--#{name.to_s.gsub("_", "-")}"
+      exec_args += [option, value]
+    end
 
     if @replicate_to
       Array(@replicate_to).each {|r| exec_args << '--replicate'; exec_args << r}
