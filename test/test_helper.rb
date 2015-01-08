@@ -47,6 +47,20 @@ module Verm
       File.join(File.dirname(__FILE__), 'fixtures', filename)
     end
 
+    def copy_arbitrary_file_to(directory, extension, compressed: false, spawner: VERM_SPAWNER)
+      @arbitrary_file = 'binary_file'
+      @arbitrary_file += '.gz' if compressed
+      @original_file = File.join(File.dirname(__FILE__), 'fixtures', @arbitrary_file)
+      @hash_of_file = '_y6dLYki5Hr9RkjmlnSXFYeF-9Hahw5xECZr-USIAA' # happens to be correct, but not relevant to the tests
+      @filename = extension ? "#{@hash_of_file}.#{extension}" : @hash_of_file
+      @location = "/#{directory}/#{@filename}" # does not get .gz added, even if the file is compressed
+      @filename += '.gz' if compressed
+
+      @dest_directory = File.join(spawner.verm_data, directory)
+      FileUtils.mkdir(@dest_directory) unless File.directory?(@dest_directory)
+      FileUtils.cp(@original_file, File.join(@dest_directory, @filename))
+    end
+
     def get(options)
       verm_spawner = options[:verm] || VERM_SPAWNER
       http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
