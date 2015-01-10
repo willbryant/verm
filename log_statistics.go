@@ -4,7 +4,7 @@ import "fmt"
 import "net/http"
 
 type LogStatistics struct {
-	get_requests, get_requests_not_found,
+	get_requests, get_requests_found_on_replica, get_requests_not_found,
 	post_requests, post_requests_new_file_stored, post_requests_failed,
 	put_requests, put_requests_new_file_stored, put_requests_missing_file_checks, put_requests_failed,
 	replication_push_attempts, replication_push_attempts_failed,
@@ -14,6 +14,7 @@ type LogStatistics struct {
 func (server vermServer) serveStatistics(w http.ResponseWriter, req *http.Request, replicationTargets *ReplicationTargets) {
 	fmt.Fprintf(w,
 		"get_requests %d\n"+
+			"get_requests_found_on_replica %d\n" +
 			"get_requests_not_found %d\n"+
 			"post_requests %d\n"+
 			"post_requests_new_file_stored %d\n"+
@@ -27,6 +28,7 @@ func (server vermServer) serveStatistics(w http.ResponseWriter, req *http.Reques
 			"connections_current %d\n"+
 			"%s",
 		server.Statistics.get_requests,
+		server.Statistics.get_requests_found_on_replica,
 		server.Statistics.get_requests_not_found,
 		server.Statistics.post_requests,
 		server.Statistics.post_requests_new_file_stored,

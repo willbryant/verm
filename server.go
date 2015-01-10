@@ -57,6 +57,11 @@ func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
 		file, stat, err = server.openFile(path + ".gz")
 		storedCompressed = true
 	}
+	if err != nil && server.shouldForwardRead(req) && server.forwardRead(w, req) {
+		atomic.AddUint64(&server.Statistics.get_requests, 1)
+		atomic.AddUint64(&server.Statistics.get_requests_found_on_replica, 1)
+		return
+	}
 	if err != nil {
 		atomic.AddUint64(&server.Statistics.get_requests, 1)
 		atomic.AddUint64(&server.Statistics.get_requests_not_found, 1)

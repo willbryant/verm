@@ -16,3 +16,5 @@ const ReplicationBackoffMaxDelay = 60
 const ReplicationHttpTimeout = 60
 const ReplicationMissingFilesPath = "/_missing"
 const ReplicationMissingFilesBatchSize = 256*1024 // bytes, but only approximate
+
+const ReplicaProxyTimeout = 15

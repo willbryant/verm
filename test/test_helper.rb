@@ -190,5 +190,12 @@ module Verm
       change = calculate_statistics_change(before, after)
       assert_equal expected_change, change
     end
+
+    def assert_statistics_changes(spawners, expected_changes)
+      before = spawners.collect {|spawner| get_statistics(:verm => spawner)}
+      yield
+      changes = spawners.collect.with_index {|spawner, index| calculate_statistics_change(before[index], get_statistics(:verm => spawner))}
+      assert_equal expected_changes, changes
+    end
   end
 end
