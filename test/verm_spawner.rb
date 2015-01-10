@@ -60,7 +60,7 @@ class VermSpawner
     end
 
     if @replicate_to
-      Array(@replicate_to).each {|r| exec_args << '--replicate'; exec_args << r}
+      Array(@replicate_to).each {|r| exec_args << '--replicate-to'; exec_args << r}
     end
     
     if ENV['VALGRIND']
