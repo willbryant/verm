@@ -4,6 +4,7 @@ import "fmt"
 import "io"
 import "net"
 import "net/http"
+import "regexp"
 import "os"
 import "time"
 
@@ -47,9 +48,14 @@ func copyHeaderFields(src, dst http.Header, fields []string) {
 	}
 }
 
+var hashlikeExpression = regexp.MustCompile("/[A-Za-g][A-Za-z0-9_-]/[A-Za-g][A-Za-z0-9_-]{40}(\\.[A-Za-z0-9]+|$)")
+
 func (server vermServer) shouldForwardRead(req *http.Request) bool {
 	param := req.URL.Query()["forward"]
-	return len(param) == 0 || param[len(param) - 1] != "0"
+	if len(param) != 0 && param[len(param) - 1] == "0" {
+		return false
+	}
+	return hashlikeExpression.MatchString(req.URL.Path)
 }
 
 func (server vermServer) forwardRead(w http.ResponseWriter, req *http.Request) bool {

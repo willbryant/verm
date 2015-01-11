@@ -5,11 +5,13 @@ import "io"
 import "net/http"
 import "regexp"
 
+var gzipExpression = regexp.MustCompile("\\b(x-)?gzip\\b")
+
 func gzipAccepted(req *http.Request) bool {
 	accept := req.Header.Get("Accept-Encoding")
 
 	// spec says we should assume any of the "common" encodings are supported - ie. gzip and compress - if not explicitly told
-	return accept == "" || regexp.MustCompile("\\b(x-)?gzip\\b").MatchString(accept)
+	return accept == "" || gzipExpression.MatchString(accept)
 }
 
 func unpackAndServeContent(w http.ResponseWriter, compressed io.Reader) {

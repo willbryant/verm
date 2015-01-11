@@ -228,7 +228,7 @@ func (upload *fileUpload) encodeHash() (string, string) {
 	dir.WriteByte(encodingAlphabet[((md[0] & 0x07) << 3) + ((md[1] & 0xe0) >> 5)])
 
 	var dst bytes.Buffer
-	dst.WriteByte('/') // we put each file in a subdirectory off the main root, whose name is the first two characters of the hash.
+	dst.WriteByte('/')
 	dst.WriteByte(encodingAlphabet[((md[1] & 0x1f))])
 
 	for srcindex := 2; srcindex < len(md); srcindex += 3 {

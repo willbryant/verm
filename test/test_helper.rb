@@ -51,14 +51,16 @@ module Verm
       @arbitrary_file = 'binary_file'
       @arbitrary_file += '.gz' if compressed
       @original_file = File.join(File.dirname(__FILE__), 'fixtures', @arbitrary_file)
-      @hash_of_file = '_y6dLYki5Hr9RkjmlnSXFYeF-9Hahw5xECZr-USIAA' # happens to be correct, but not relevant to the tests
-      @filename = extension ? "#{@hash_of_file}.#{extension}" : @hash_of_file
-      @location = "/#{directory}/#{@filename}" # does not get .gz added, even if the file is compressed
+      @subdirectory, @filename = 'IF', 'P8unS2JIuR6_UZI5pZ0lxWHhfvR2ocOcRAma_lEiA' # happens to be appropriate for test/fixtures/binary_file, but not relevant to the tests
+      @filename = "#{@filename}.#{extension}" if extension
+      @location = "/#{directory}/#{@subdirectory}/#{@filename}" # does not get .gz added, even if the file is compressed
       @filename += '.gz' if compressed
 
       @dest_directory = File.join(spawner.verm_data, directory)
+      @dest_subdirectory = File.join(@dest_directory, @subdirectory)
       FileUtils.mkdir(@dest_directory) unless File.directory?(@dest_directory)
-      FileUtils.cp(@original_file, File.join(@dest_directory, @filename))
+      FileUtils.mkdir(@dest_subdirectory) unless File.directory?(@dest_subdirectory)
+      FileUtils.cp(@original_file, File.join(@dest_subdirectory, @filename))
     end
 
     def get(options)
