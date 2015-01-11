@@ -44,6 +44,8 @@ See [the install guide](INSTALL.md).
 Use
 ---
 
+If you're using Ruby, you can use the Ruby client library (https://github.com/willbryant/verm-client-ruby) to get easy API one-liners.
+
 Use any language's HTTP client library to make POST requests to the path you
 want to store the file under, for example
 
@@ -73,11 +75,12 @@ As a concession to tools that don't cope well with huge numbers of entries in
 single directories, Verm will place files under subdirectories of the requested
 path based on the first bits of the file content hash.  For example, if Verm
 encoded the content hash as `TwD1uJUQPX-w5wGVfgJrpiAtMwXd37Zp58YlPOQig8d` then
-a `Tw` subdirectory would be created (unless it already exists).  The character
-alphabet Verm uses to encode the hash bits has 64 characters but Verm carefully
-assigns the bits to ensure `-` is never the leading character in subdirectory
-or file names, to ensure admins won't run into any unexpected behavior if they
-use file wildcards on the command line.
+a `Tw` subdirectory would be created (unless it already exists) and the filename
+will be the remaining bits - `D1uJUQPX-w5wGVfgJrpiAtMwXd37Zp58YlPOQig8d`.  (Verm
+uses a base64 alphabet to encode the hash bits has 64 characters, but Verm
+carefully assigns the bits to ensure `-` is never the leading character in
+subdirectory or file names, to ensure admins won't run into any unexpected
+behavior if they use file wildcards on the command line.)
 
 Compression support is intended to be transparent to the client.  If file data
 is posted in gzip-encoded, the file will be stored with a `.gz` suffix for
