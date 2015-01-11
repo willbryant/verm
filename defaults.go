@@ -4,7 +4,7 @@ const DefaultRoot = "/var/lib/verm"
 const DirectoryPermission = 0777
 
 const DefaultListenAddress = "0.0.0.0"
-const DefaultPort = "1138"
+const DefaultPort = "3404"
 
 const DefaultMimeTypesFile = "/etc/mime.types"
 const DefaultDirectoryIfNotGivenByClient = "/default"

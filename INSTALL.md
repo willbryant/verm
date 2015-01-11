@@ -27,7 +27,7 @@ This produces a standalone `verm` binary and installs it into `/usr/local/bin`.
 Setup
 -----
 
-Verm runs on port 1138 by default, so you don't need it to be started as `root` -
+Verm runs on port 3404 by default, so you don't need it to be started as `root` -
 so typically you should create a `verm` user and use that user to start the server.
 
 Verm will store data in `/var/lib/verm`, so this needs to be writeable by that user.

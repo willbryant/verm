@@ -22,8 +22,8 @@ class VermSpawner
   end
   
   def port
-    # real verm will run on 1138, it's convenient to use another port for test so you can test a new version while the old version is still running
-    @port || 1139
+    # real verm will run on 3404, it's convenient to use another port for test so you can test a new version while the old version is still running
+    @port || 3405
   end
 
   def host # following javascript Location naming conventions
