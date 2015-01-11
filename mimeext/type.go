@@ -74,8 +74,6 @@ var mimeExtensions = map[string]string{
 
 var mimeLock sync.RWMutex
 
-var once sync.Once
-
 // TypeByExtension returns the MIME type associated with the file extension ext.
 // The extension ext should begin with a leading dot, as in ".html".
 // When ext has no associated type, TypeByExtension returns "".
