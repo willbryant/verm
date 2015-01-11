@@ -99,6 +99,8 @@ module Verm
       file_data = File.read(orig_filename, :mode => 'rb')
       
       if @multipart
+        # don't use this in your own apps!  multipart support is only provided to make direct webpage upload demos,
+        # and there's no reason to use it in real apps.  we support it here only so we can test the multipage mode.
         request = Net::HTTP::MultipartPost.new(options[:path])
         request.attach 'uploaded_file', file_data, options[:file], options[:type]
         request.form_data = {"test" => "bar"}
