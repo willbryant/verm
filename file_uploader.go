@@ -197,6 +197,13 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 
 	os.Remove(upload.tempFile.Name()) // ignore errors, the tempfile is moot at this point
 
+	// try to fsync the directory too
+	dirnode, openerr := os.Open(upload.root + subpath)
+	if openerr == nil { // ignore if not allowed to open it
+		dirnode.Sync();
+		dirnode.Close();
+	}
+
 	if newFile {
 		if upload.extension == ".gz" {
 			// for the sake of replication, we can treat it as a gzip-encoded binary file rather than a raw gzip file;
