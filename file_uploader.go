@@ -150,6 +150,11 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 		return
 	}
 
+	err = upload.tempFile.Sync()
+	if err != nil {
+		return
+	}
+
 	// hardlink the file into place
 	newFile = true
 	attempt := 1
