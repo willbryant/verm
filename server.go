@@ -116,12 +116,24 @@ func (server vermServer) openFile(path string) (http.File, os.FileInfo, error) {
 	}
 
 	stat, err := file.Stat()
-	if err != nil || stat.IsDir() {
+	if err != nil {
 		file.Close()
 		return nil, nil, err
 	}
+	if stat.IsDir() {
+		file.Close()
+		return nil, nil, &IsDirectoryError{path: path}
+	}
 
 	return file, stat, nil
+}
+
+type IsDirectoryError struct {
+	path string
+}
+
+func (e *IsDirectoryError) Error() string {
+	return e.path + " is a directory"
 }
 
 func (server vermServer) serveHTTPGetOrHead(w http.ResponseWriter, req *http.Request) {

@@ -2,13 +2,17 @@ require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
 class GetFilesTest < Verm::TestCase
   def test_gives_404_for_nonexistant_paths
-    assert_statistics_change(:get_requests => 3, :get_requests_not_found => 3) do
+    assert_statistics_change(:get_requests => 5, :get_requests_not_found => 5) do
       copy_arbitrary_file_to('somefiles', nil)
       get :path => "/somefiles/xy/#{@filename}",
           :expected_response_code => 404
       get :path => "/somefiles/#{@subdirectory}/x#{@filename}y",
           :expected_response_code => 404
       get :path => "/otherdirectory/#{@subdirectory}/#{@filename}",
+          :expected_response_code => 404
+      get :path => "/somefiles",
+          :expected_response_code => 404
+      get :path => "/somefiles/",
           :expected_response_code => 404
     end
   end
