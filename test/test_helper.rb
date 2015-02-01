@@ -155,7 +155,7 @@ module Verm
       dest_filename = expected_filename(location, options)
       raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
       saved_data = File.read(dest_filename, :mode => 'rb')
-      raise "The data saved to file doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == file_data
+      raise "The data saved to file doesn't match the original! #{saved_data.inspect} vs. #{file_data.inspect}" unless saved_data == options[:expected_data] || file_data
       location
     end
     

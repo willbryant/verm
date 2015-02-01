@@ -32,10 +32,11 @@ class CreateFilesRawTest < Verm::TestCase
     location_compressed =
       post_file :path => '/foo',
                 :data => gzip(fixture_file_data('binary_file.gz')), # so the content has been twice-compressed
+                :expected_data => fixture_file_data('binary_file.gz'),
                 :type => 'application/gzip',
                 :encoding => 'gzip',
                 :expected_extension => 'gz',
-                :expected_extension_suffix => 'gz' # but this is further expected on the filename
+                :expected_extension_suffix => nil
     
     assert_equal location_uncompressed + ".gz", location_compressed # hash must be based on the content, not the encoded content
   end

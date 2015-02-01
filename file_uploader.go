@@ -88,12 +88,21 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 	// determine the appropriate extension from the content type
 	extension := mimeext.ExtensionByType(contentType)
 
-	// as we read from the stream, copy it raw (without uncompressing) into the tempfile
+	// if the file is both gzip-encoded and is actually a gzip file itself, strip the redundant encoding
+	storageEncoding := req.Header.Get("Content-Encoding")
+	if extension == ".gz" && storageEncoding != "" {
+		input, err = EncodingDecoder(storageEncoding, input)
+		if err != nil {
+			return nil, err
+		}
+		storageEncoding = ""
+	}
+
+	// as we read from the stream, copy it into the tempfile - potentially in encoded format (except for the above case)
 	input = io.TeeReader(input, tempFile)
 
 	// but uncompress the stream before feeding it to the hasher
-	encoding := req.Header.Get("Content-Encoding")
-	input, err = EncodingDecoder(encoding, input)
+	input, err = EncodingDecoder(storageEncoding, input)
 	if err != nil {
 		return nil, err
 	}
@@ -111,15 +120,15 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 	}
 
 	return &fileUpload{
-		root:         server.RootDataDir,
-		path:         path,
-		location:     location,
+		root:        server.RootDataDir,
+		path:        path,
+		location:    location,
 		contentType: contentType,
-		extension:    extension,
-		encoding:     encoding,
-		input:        input,
-		hasher:       sha256.New(),
-		tempFile:     tempFile,
+		extension:   extension,
+		encoding:    storageEncoding,
+		input:       input,
+		hasher:      sha256.New(),
+		tempFile:    tempFile,
 	}, nil
 }
 
