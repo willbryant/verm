@@ -5,19 +5,6 @@ class ReplicationMissingTest < Verm::TestCase
     @paths ||= ["/foo/Sn/Ei3p5f7Ht82wQtJ_PG7ostrwGnYwPZatsV0T3HBOw\r\n", "/foo/Sn/Ei3p5f7Ht82wQtJ_PG7ostrwGnYwPZatsV0T3HBOw.txt\r\n"]
   end
 
-  def gzip(str)
-    output = StringIO.new("".force_encoding("binary"))
-    gz = Zlib::GzipWriter.new(output)
-    gz.write(str)
-    gz.close
-    output.string
-  end
-
-  def ungzip(str)
-    input = StringIO.new(str.force_encoding("binary"))
-    Zlib::GzipReader.new(input).read
-  end
-
   def assert_gzipped_body(content, response)
     assert_equal 'gzip', response['content-encoding']
     assert_equal content, ungzip(response.body)

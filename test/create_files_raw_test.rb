@@ -4,7 +4,7 @@ require File.expand_path(File.join(File.dirname(__FILE__), 'create_files_tests')
 class CreateFilesRawTest < Verm::TestCase
   include CreateFilesSharedTests
 
-  def test_saves_gzip_content_encoded_files_as_gzipped_but_returns_non_gzipped_path
+  def test_saves_gzip_content_encoded_files_as_gzipped_but_hashes_uncompressed_content
     location_uncompressed =
       post_file :path => '/foo',
                 :file => 'simple_text_file',
@@ -20,5 +20,23 @@ class CreateFilesRawTest < Verm::TestCase
                 :expected_extension_suffix => 'gz' # but this is further expected on the filename
     
     assert_equal location_uncompressed, location_compressed # hash must be based on the content, not the encoded content
+  end
+
+  def test_saves_gzip_content_encoded_gzip_files_as_gzipped_once_and_hashes_uncompressed_content
+    location_uncompressed =
+      post_file :path => '/foo',
+                :file => 'binary_file',
+                :type => 'application/octet-stream',
+                :expected_extension => ''
+
+    location_compressed =
+      post_file :path => '/foo',
+                :data => gzip(fixture_file_data('binary_file.gz')), # so the content has been twice-compressed
+                :type => 'application/gzip',
+                :encoding => 'gzip',
+                :expected_extension => 'gz',
+                :expected_extension_suffix => 'gz' # but this is further expected on the filename
+    
+    assert_equal location_uncompressed + ".gz", location_compressed # hash must be based on the content, not the encoded content
   end
 end

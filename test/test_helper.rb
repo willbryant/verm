@@ -43,6 +43,19 @@ module Verm
     end
     
 
+    def gzip(str)
+      output = StringIO.new("".force_encoding("binary"))
+      gz = Zlib::GzipWriter.new(output)
+      gz.write(str)
+      gz.close
+      output.string
+    end
+
+    def ungzip(str)
+      input = StringIO.new(str.force_encoding("binary"))
+      Zlib::GzipReader.new(input).read
+    end
+
     def fixture_file_path(filename)
       File.join(File.dirname(__FILE__), 'fixtures', filename)
     end
@@ -92,11 +105,22 @@ module Verm
       dest_filename += '.' + options[:expected_extension_suffix] if options[:expected_extension_suffix]
       dest_filename
     end
+
+    def fixture_file_data(file)
+      File.read(fixture_file_path(file), :mode => 'rb')
+    end
+
+    def extension_from(location)
+      if location =~ /\.(.+)$/
+        $1
+      else
+        ""
+      end
+    end
     
     def post_file(options)
       verm_spawner = options[:verm] || VERM_SPAWNER
-      orig_filename = fixture_file_path(options[:file])
-      file_data = File.read(orig_filename, :mode => 'rb')
+      file_data = options[:data] || fixture_file_data(options[:file])
       
       if @multipart
         # don't use this in your own apps!  multipart support is only provided to make direct webpage upload demos,
@@ -127,7 +151,7 @@ module Verm
       location = response['location']
       raise "No location was returned, it was supposed to be saved under #{options[:path]}/" if location.nil?
       raise "The location returned was #{location}, but it was supposed to be saved under #{options[:path]}/" if location[0..options[:path].length] != "#{options[:path]}/"
-      raise "The location returned was #{location}, but it was supposed to have a #{options[:expected_extension]} extension" if options[:expected_extension] && location[(-options[:expected_extension].length - 1)..-1] != ".#{options[:expected_extension]}"
+      raise "The location returned was #{location}, but it was supposed to have a #{options[:expected_extension]} extension" if options[:expected_extension] && extension_from(location) != options[:expected_extension]
       dest_filename = expected_filename(location, options)
       raise "Verm supposedly saved the file to #{dest_filename}, but that doesn't exist" unless File.exist?(dest_filename)
       saved_data = File.read(dest_filename, :mode => 'rb')
@@ -136,7 +160,7 @@ module Verm
     end
     
     def put(options, verm_spawner = VERM_SPAWNER)
-      file_data = options[:data]
+      file_data = options[:data] || fixture_file_data(options[:file])
       
       request = Net::HTTP::Put.new(options[:path])
       request.content_type = options[:type] if options[:type]
