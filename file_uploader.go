@@ -193,7 +193,7 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 		defer existing.Close()
 		upload.tempFile.Seek(0, 0)
 
-		if sameContents(upload.tempFile, existing) {
+		if sameDecodedContents(upload.tempFile, existing, upload.encoding) {
 			// success
 			newFile = false
 			break
@@ -271,6 +271,20 @@ func mediaTypeOrDefault(header textproto.MIMEHeader) string {
 		return "application/octet-stream"
 	}
 	return mediaType
+}
+
+func sameDecodedContents(stream1, stream2 io.Reader, encoding string) bool {
+	decodedStream1, err := EncodingDecoder(encoding, stream1)
+	if err != nil {
+		return false
+	}
+
+	decodedStream2, err := EncodingDecoder(encoding, stream2)
+	if err != nil {
+		return false
+	}
+
+	return sameContents(decodedStream1, decodedStream2)
 }
 
 func sameContents(stream1, stream2 io.Reader) bool {
