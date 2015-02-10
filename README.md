@@ -46,8 +46,8 @@ Use
 
 If you're using Ruby, you can use the Ruby client library (https://github.com/willbryant/verm-client-ruby) to get easy API one-liners.
 
-Use any language's HTTP client library to make POST requests to the path you
-want to store the file under, for example
+You can use any language's HTTP client library to make POST requests to the path
+you want to store the file under, for example:
 
 ```
 POST /2019/los_angeles/docs
@@ -56,16 +56,14 @@ Content-type: image/png
 <raw file content>
 ```
 
-Verm will automatically create the 2019 subdirectories under the root data
-directory (`/var/lib/verm` by default) if it doesn't already exist, similarly
-create the los_angeles and docs subdirectory if necessary, hash the file data,
-turn the hash into a filename using URL-safe characters, and return the path
-in a Location header with a 204 Created response.
-
-The file will immediately be replicated to other Verm servers.  (If Verm is
-restarted before the file is replicated, it will still be replicated because
-Verm resynchronises file lists after restart, sending any files locally present
-that are not on other servers).
+Verm will then:
+* automatically create the `2019`, `2019/los_angeles`, and `2019/los_angeles/docs`
+subdirectories under the root data directory (which is `/var/lib/verm` by default),
+if they doesn't already exist
+* hash the file data
+* turn the hash into a filename using URL-safe, command-line-safe characters
+* return the path in a Location header with a 204 Created response
+* immediately start replicating the file to any other Verm servers configured
 
 GET requests are usually served by Verm itself, but because Verm will also
 choose an appropriate extension for the file, you can also serve files using
@@ -86,6 +84,16 @@ Compression support is intended to be transparent to the client.  If file data
 is posted in gzip-encoded, the file will be stored with a `.gz` suffix for
 compatibility with other webservers, but the path returned will be without the
 `.gz` suffix.  Requests for this URL will therefore serve the file with a gzip
-content-encoding and the original content-type rather than as a gzip file; if
-the client declares that it does not support the gzip content-encoding, Verm
-will decompress the file for the client.
+content-encoding and the original content-type, rather than as an untyped gzip
+file; if the client declares that it does not support the gzip content-encoding,
+Verm will decompress the file for the client.  The content hash is taken on the
+uncompressed contents, so two different compressions of the same file will have
+the same hash, as would uncompressed uploads.
+
+The write replication system is self-healing - if Verm is restarted before the file
+is replicated, it will still be replicated because Verm resynchronises file lists
+after each restart, sending any files locally present that are not on other servers.
+
+A read replication system also checks for missing files on other servers, so there's
+no timing hazard where a file is available on one node and not on others in the
+cluster.
