@@ -156,7 +156,7 @@ func LoadMimeFile(filename string) {
 			continue
 		}
 		mimeType := fields[0]
-		if fields[1][0] != '#' {
+		if fields[1][0] != '#' && mimeType != "application/octet-stream" {
 			AddTypeExtension("."+fields[1], mimeType)
 		}
 		for _, ext := range fields[1:] {

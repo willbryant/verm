@@ -1,3 +1,4 @@
 # mime type definitions for the most common extensions are built in to verm, so this is only used to supplement that list
 application/verm-test-file	vermtest1 vermtest2
 application/verm-other-file	vermother
+application/octet-stream	ignored

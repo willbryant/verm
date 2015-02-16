@@ -57,7 +57,19 @@ module CreateFilesSharedTests
               :type => 'image/jpeg',
               :expected_extension => 'jpg'
   end
-  
+
+  def test_saves_files_with_configured_extension
+    post_file :path => '/foo',
+              :file => 'simple_text_file',
+              :type => 'application/verm-test-file',
+              :expected_extension => 'vermtest1'
+
+    post_file :path => '/foo',
+              :file => 'simple_text_file',
+              :type => 'application/verm-other-file',
+              :expected_extension => 'vermother'
+  end
+
   def test_saves_same_file_to_same_path
     assert_statistics_change(:post_requests => 4, :post_requests_new_file_stored => 2) do
       first_file_location =

@@ -53,6 +53,10 @@ class GetFilesTest < Verm::TestCase
     copy_arbitrary_file_to('somefiles', 'vermother')
     get :path => @location,
         :expected_content_type => "application/verm-other-file"
+
+    copy_arbitrary_file_to('somefiles', 'ignored')
+    get :path => @location,
+        :expected_content_type => "application/octet-stream"
   end
   
   def test_serves_files_with_correct_length_and_content
