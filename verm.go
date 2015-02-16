@@ -5,6 +5,7 @@ import "fmt"
 import "net/http"
 import "os"
 import "os/signal"
+import "runtime"
 import "strings"
 import "syscall"
 
@@ -29,6 +30,8 @@ func main() {
 	if !quiet {
 		fmt.Fprintf(os.Stdout, "Verm listening on http://%s:%s, data in %s\n", listenAddress, port, rootDataDirectory)
 	}
+
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	go waitForSignals(&replicationTargets)
 	if healthCheckPath != "" {
