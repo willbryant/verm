@@ -2,6 +2,7 @@ package main
 
 import "bufio"
 import "compress/gzip"
+import "fmt"
 import "io"
 import "os"
 import "path"
@@ -38,8 +39,15 @@ func (server vermServer) listMissingFiles(input io.Reader, output io.Writer) {
 
 		if (!pathExists(server.RootDataDir, line) &&
 			!pathExists(server.RootDataDir, line + ".gz")) {
-			io.WriteString(output, line + "\r\n")
+			_, err := io.WriteString(output, line + "\r\n")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Couldn't write to response compressor: %s\n", err.Error())
+			}
 		}
+	}
+
+	if scanner.Err() != nil {
+		fmt.Fprintf(os.Stderr, "Error reading file list: %s\n", scanner.Err().Error())
 	}
 }
 

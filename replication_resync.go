@@ -30,6 +30,7 @@ func (target *ReplicationTarget) enumerateSubdirectory(directory string, locatio
 			if err == io.EOF {
 				return nil
 			} else if err != nil {
+				fmt.Fprintf(os.Stderr, "Error scanning %s: %s\n", directory, err.Error())
 				return err
 			}
 		}
@@ -132,5 +133,9 @@ func (target *ReplicationTarget) queueMissingFiles(resp *http.Response) {
 	for scanner.Scan() {
 		location := scanner.Text()
 		target.enqueueJob(location)
+	}
+
+	if scanner.Err() != nil {
+		fmt.Fprintf(os.Stderr, "Error reading missing file list from %s:%s: %s\n", target.hostname, target.port, scanner.Err().Error())
 	}
 }
