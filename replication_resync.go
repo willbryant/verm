@@ -81,12 +81,12 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 
 func (target *ReplicationTarget) sendFileListUntilSuccessful(buf *bytes.Buffer) {
 	input := bytes.NewReader(buf.Bytes())
-	for attempts := 1; ; attempts++ {
+	for attempts := uint(1); ; attempts++ {
 		input.Seek(0, 0)
 		if target.sendFileList(input) {
 			break
 		}
-		time.Sleep(backoffTime(uint(attempts)))
+		time.Sleep(backoffTime(attempts))
 	}
 	buf.Reset()
 }

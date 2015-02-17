@@ -10,6 +10,7 @@ type ReplicationTarget struct {
 	resync            chan struct{}
 	rootDataDirectory string
 	statistics        *LogStatistics
+	unfinishedJobs    uint64
 }
 
 func NewReplicationTarget(hostname, port string) ReplicationTarget {
@@ -29,31 +30,36 @@ func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *Log
 }
 
 func (target *ReplicationTarget) enqueueJob(job string) {
+	atomic.AddUint64(&target.unfinishedJobs, 1)
 	target.jobs <- job
 }
 
 func (target *ReplicationTarget) replicateFromQueue() {
-	var failures uint
 	for {
-		location := <-target.jobs
+		target.replicate(<-target.jobs)
+		atomic.AddUint64(&target.unfinishedJobs, ^uint64(0))
+	}
+}
 
+func (target *ReplicationTarget) replicate(location string) {
+	for attempts := uint(1); ; attempts++ {
 		ok := Put(target.hostname, target.port, location, target.rootDataDirectory)
 
 		if ok {
 			atomic.AddUint64(&target.statistics.replication_push_attempts, 1)
-			failures = 0
+			break
 		} else {
-			target.jobs <- location
 			atomic.AddUint64(&target.statistics.replication_push_attempts, 1)
 			atomic.AddUint64(&target.statistics.replication_push_attempts_failed, 1)
-			failures++
-			time.Sleep(backoffTime(failures))
+			time.Sleep(backoffTime(attempts))
 		}
 	}
 }
 
 func (target *ReplicationTarget) queueLength() int {
-	return len(target.jobs)
+	// we used to simply use len(target.jobs), but that makes jobs disappear off the count and
+	// reappear later if they fail
+	return int(atomic.LoadUint64(&target.unfinishedJobs))
 }
 
 func (target *ReplicationTarget) enqueueResync() {
