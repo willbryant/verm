@@ -2,6 +2,8 @@ package main
 
 import "sync/atomic"
 import "time"
+import "fmt"
+import "os"
 
 type ReplicationTarget struct {
 	hostname          string
@@ -29,7 +31,7 @@ func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *Log
 }
 
 func (target *ReplicationTarget) enqueueJob(job string) {
-	fmt.Fprintf(os.Stderr, "Enqueueing '%s' for replication", job)
+	fmt.Fprintf(os.Stderr, "Enqueueing '%s' for replication\n", job)
 	target.jobs <- job
 }
 

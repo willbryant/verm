@@ -2,6 +2,7 @@ package main
 
 import "bufio"
 import "compress/gzip"
+import "fmt"
 import "io"
 import "os"
 import "path"
@@ -36,10 +37,10 @@ func (server vermServer) listMissingFiles(input io.Reader, output io.Writer) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		fmt.Fprintf(os.Stderr, "Checking if '%s' exists", line)
+		fmt.Fprintf(os.Stderr, "Checking if '%s' exists\n", line)
 		if (!pathExists(server.RootDataDir, line) &&
 			!pathExists(server.RootDataDir, line + ".gz")) {
-			fmt.Fprintf(os.Stderr, "'%s' needs replication", line)
+			fmt.Fprintf(os.Stderr, "'%s' needs replication\n", line)
 			io.WriteString(output, line + "\r\n")
 		}
 	}
