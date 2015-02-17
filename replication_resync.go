@@ -59,8 +59,10 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 
 		// the request bodies are simply a list of all the locations, one per line.
 		fmt.Fprintf(os.Stderr, "Checking if '%s' needs replication\n", location)
-		io.WriteString(compressor, location)
-		io.WriteString(compressor, "\r\n")
+		_, err := io.WriteString(compressor, location + "\r\n")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Couldn't write to request compressor\n", location)
+		}
 
 		// the compressor flushes output through to the backing buffer periodically.  if this
 		// pushes its size up to the target batch size, send a request.  note that we have to
