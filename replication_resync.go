@@ -56,6 +56,7 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 		somethingToSend = true
 
 		// the request bodies are simply a list of all the locations, one per line.
+		fmt.Fprintf(os.Stderr, "Checking if '%s' needs replication", location)
 		io.WriteString(compressor, location)
 		io.WriteString(compressor, "\r\n")
 

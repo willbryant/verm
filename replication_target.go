@@ -29,6 +29,7 @@ func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *Log
 }
 
 func (target *ReplicationTarget) enqueueJob(job string) {
+	fmt.Fprintf(os.Stderr, "Enqueueing '%s' for replication", job)
 	target.jobs <- job
 }
 

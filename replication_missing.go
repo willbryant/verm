@@ -36,8 +36,10 @@ func (server vermServer) listMissingFiles(input io.Reader, output io.Writer) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
+		fmt.Fprintf(os.Stderr, "Checking if '%s' exists", line)
 		if (!pathExists(server.RootDataDir, line) &&
 			!pathExists(server.RootDataDir, line + ".gz")) {
+			fmt.Fprintf(os.Stderr, "'%s' needs replication", line)
 			io.WriteString(output, line + "\r\n")
 		}
 	}
