@@ -2,6 +2,8 @@ package main
 
 import "sync/atomic"
 import "time"
+import "fmt"
+import "os"
 
 type ReplicationTarget struct {
 	hostname          string
@@ -30,6 +32,7 @@ func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *Log
 }
 
 func (target *ReplicationTarget) enqueueJob(job string) {
+	fmt.Fprintf(os.Stderr, "Enqueueing '%s' for replication\n", job)
 	atomic.AddUint64(&target.unfinishedJobs, 1)
 	target.jobs <- job
 }

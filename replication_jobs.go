@@ -12,7 +12,7 @@ func Put(hostname, port, location, rootDataDirectory string) bool {
 	if err != nil {
 		input, err = os.Open(rootDataDirectory + location)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Couldn't open file for replication: %s\n", err.Error())
+			fmt.Fprintf(os.Stderr, "Couldn't open file '%s' for replication: %s\n", location, err.Error())
 			return false
 		}
 		encoding = ""
