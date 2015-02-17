@@ -35,13 +35,15 @@ func (target *ReplicationTarget) enumerateSubdirectory(directory string, locatio
 		}
 
 		for _, fileinfo := range list {
-			expanded := fmt.Sprintf("%s%c%s", directory, os.PathSeparator, fileinfo.Name())
-			if fileinfo.Mode().IsRegular() {
-				locations <- strings.TrimSuffix(expanded, ".gz")
-			} else if fileinfo.Mode().IsDir() {
-				target.enumerateSubdirectory(expanded, locations)
-			} else {
-				fmt.Fprintf(os.Stderr, "Ignoring irregular directory entry %s\n", expanded)
+			if len(fileinfo.Name()) < 7 || fileinfo.Name()[0:7] != "_upload" {
+				expanded := fmt.Sprintf("%s%c%s", directory, os.PathSeparator, fileinfo.Name())
+				if fileinfo.Mode().IsRegular() {
+					locations <- strings.TrimSuffix(expanded, ".gz")
+				} else if fileinfo.Mode().IsDir() {
+					target.enumerateSubdirectory(expanded, locations)
+				} else {
+					fmt.Fprintf(os.Stderr, "Ignoring irregular directory entry %s\n", expanded)
+				}
 			}
 		}
 	}
