@@ -67,6 +67,8 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 		if buf.Len() > ReplicationMissingFilesBatchSize {
 			fmt.Fprintf(os.Stderr, "Sending file list\n", location)
 			target.sendFileListUntilSuccessful(compressor, &buf)
+			buf.Reset()
+			compressor = gzip.NewWriter(&buf)
 			somethingToSend = false
 		}
 	}
@@ -76,7 +78,7 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 }
 
 func (target *ReplicationTarget) sendFileListUntilSuccessful(compressor *gzip.Writer, buf *bytes.Buffer) {
-	compressor.Flush()
+	compressor.Close()
 	input := bytes.NewReader(buf.Bytes())
 	for attempts := 1; ; attempts++ {
 		input.Seek(0, 0)
@@ -85,8 +87,6 @@ func (target *ReplicationTarget) sendFileListUntilSuccessful(compressor *gzip.Wr
 		}
 		time.Sleep(backoffTime(uint(attempts)))
 	}
-	buf.Reset()
-	compressor.Reset(buf)
 }
 
 func (target *ReplicationTarget) sendFileList(input io.Reader) bool {
