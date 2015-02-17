@@ -54,7 +54,7 @@ func (target *ReplicationTarget) replicateFromQueue() {
 		if failures > 1 {
 			wait := backoffTime(failures)
 			fmt.Fprintf(os.Stderr, "Waiting %d seconds before retrying replication to %s:s\n", wait, target.hostname, target.port)
-			time.Sleep(wait*time.Second)
+			time.Sleep(time.Duration(wait)*time.Second)
 		}
 	}
 }
