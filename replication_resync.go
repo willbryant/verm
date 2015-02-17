@@ -47,6 +47,7 @@ func (target *ReplicationTarget) enumerateSubdirectory(directory string, locatio
 			}
 		}
 	}
+	fmt.Fprintf(os.Stderr, "Finished resyncing\n")
 }
 
 func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
@@ -84,6 +85,7 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 
 func (target *ReplicationTarget) sendFileListUntilSuccessful(compressor *gzip.Writer, buf *bytes.Buffer) {
 	compressor.Close()
+	fmt.Fprintf(os.Stderr, "Sending %d bytes\n", len(buf.Bytes()))
 	input := bytes.NewReader(buf.Bytes())
 	for attempts := 1; ; attempts++ {
 		input.Seek(0, 0)
