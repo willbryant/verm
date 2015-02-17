@@ -1,6 +1,7 @@
 package main
 
 import "bufio"
+import "bytes"
 import "compress/gzip"
 import "fmt"
 import "io"
@@ -17,15 +18,23 @@ func (server vermServer) serveMissing(w http.ResponseWriter, req *http.Request) 
 		return err
 	}
 
+	// we have to buffer the response because the http package kills the request input stream as soon as we start writing to the response stream
+	var buf bytes.Buffer
+
 	if gzipAccepted(req) {
 		w.Header().Set("Content-Encoding", "gzip")
 		w.Header().Set("Content-Type", "text/plain")
-		compressor := gzip.NewWriter(w)
-		defer compressor.Close()
+
+		compressor := gzip.NewWriter(&buf)
 		server.listMissingFiles(input, compressor)
-		compressor.Flush()
+		compressor.Close()
 	} else {
-		server.listMissingFiles(input, w)
+		server.listMissingFiles(input, &buf)
+	}
+
+	_, err = buf.WriteTo(w)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Couldn't write response: %s\n", err.Error())
 	}
 
 	return nil
@@ -41,7 +50,7 @@ func (server vermServer) listMissingFiles(input io.Reader, output io.Writer) {
 			!pathExists(server.RootDataDir, line + ".gz")) {
 			_, err := io.WriteString(output, line + "\r\n")
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Couldn't write to response compressor: %s\n", err.Error())
+				fmt.Fprintf(os.Stderr, "Couldn't write to response buffer: %s\n", err.Error())
 			}
 		}
 	}

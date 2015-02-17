@@ -67,17 +67,19 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 		// use a byte buffer rather than streaming straight to the HTTP request, because when
 		// requests fail we have to retry the same list.
 		if buf.Len() > ReplicationMissingFilesBatchSize {
-			target.sendFileListUntilSuccessful(compressor, &buf)
+			compressor.Close() // Flush isn't enough, we have to close and make a new compressor to get the gzip stream terminated
+			target.sendFileListUntilSuccessful(&buf)
+			compressor = gzip.NewWriter(&buf)
 			somethingToSend = false
 		}
 	}
 	if somethingToSend {
-		target.sendFileListUntilSuccessful(compressor, &buf)
+		compressor.Close()
+		target.sendFileListUntilSuccessful(&buf)
 	}
 }
 
-func (target *ReplicationTarget) sendFileListUntilSuccessful(compressor *gzip.Writer, buf *bytes.Buffer) {
-	compressor.Flush()
+func (target *ReplicationTarget) sendFileListUntilSuccessful(buf *bytes.Buffer) {
 	input := bytes.NewReader(buf.Bytes())
 	for attempts := 1; ; attempts++ {
 		input.Seek(0, 0)
@@ -87,7 +89,6 @@ func (target *ReplicationTarget) sendFileListUntilSuccessful(compressor *gzip.Wr
 		time.Sleep(backoffTime(uint(attempts)))
 	}
 	buf.Reset()
-	compressor.Reset(buf)
 }
 
 func (target *ReplicationTarget) sendFileList(input io.Reader) bool {
