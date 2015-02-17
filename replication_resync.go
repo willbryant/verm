@@ -122,8 +122,18 @@ func (target *ReplicationTarget) sendFileList(input io.Reader) bool {
 }
 
 func (target *ReplicationTarget) queueMissingFiles(resp *http.Response) {
+	// copy the response to check that it isn't terminated prematurely.  we'd rather directly use
+	// bufio.NewScanner on the resp.Body, but scanner.Scan() will return half-lines if the input
+	// is closed early, which can happen if the other end goes away halfway through sending the
+	// response.  (it is possible to check scanner.Err() but that will return nil if the error was
+	// a plain EOF...)
+	buf, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading missing file list from %s:%s: %s\n", target.hostname, target.port, err.Error())
+	}
+
 	encoding := resp.Header.Get("Content-Encoding")
-	input, err := EncodingDecoder(encoding, resp.Body)
+	input, err := EncodingDecoder(encoding, bytes.NewReader(buf))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Couldn't see missing files on %s:%s: %s\n", target.hostname, target.port, err)
 		return
