@@ -65,6 +65,7 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 		// use a byte buffer rather than streaming straight to the HTTP request, because when
 		// requests fail we have to retry the same list.
 		if buf.Len() > ReplicationMissingFilesBatchSize {
+			fmt.Fprintf(os.Stderr, "Sending file list\n", location)
 			target.sendFileListUntilSuccessful(compressor, &buf)
 			somethingToSend = false
 		}
