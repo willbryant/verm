@@ -22,11 +22,13 @@ func NewReplicationTarget(hostname, port string) ReplicationTarget {
 	}
 }
 
-func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *LogStatistics) {
+func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *LogStatistics, workers int) {
 	target.rootDataDirectory = rootDataDirectory
 	target.statistics = statistics
 	go target.replicateFromQueue()
-	go target.resyncFromQueue()
+	for worker := 1; worker < workers; worker++ {
+		go target.resyncFromQueue()
+	}
 }
 
 func (target *ReplicationTarget) enqueueJob(job string) {

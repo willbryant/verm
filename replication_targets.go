@@ -31,9 +31,9 @@ func (targets *ReplicationTargets) String() string {
 	return "<hostname> or <hostname>:<port>"
 }
 
-func (targets *ReplicationTargets) Start(rootDataDirectory string, statistics *LogStatistics) {
+func (targets *ReplicationTargets) Start(rootDataDirectory string, statistics *LogStatistics, workers int) {
 	for _, target := range targets.targets {
-		target.Start(rootDataDirectory, statistics)
+		target.Start(rootDataDirectory, statistics, workers)
 	}
 }
 

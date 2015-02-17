@@ -8,6 +8,7 @@ import "os/signal"
 import "runtime"
 import "strings"
 import "syscall"
+import "verm/mimeext"
 
 func main() {
 	var rootDataDirectory, listenAddress, port, mimeTypesFile string
@@ -31,13 +32,21 @@ func main() {
 		fmt.Fprintf(os.Stdout, "Verm listening on http://%s:%s, data in %s\n", listenAddress, port, rootDataDirectory)
 	}
 
+	mimeext.LoadMimeFile(mimeTypesFile)
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
+	statistics := &LogStatistics{}
+	server := VermServer(rootDataDirectory, &replicationTargets, statistics, quiet)
+	replicationTargets.Start(rootDataDirectory, statistics, runtime.NumCPU())
+	replicationTargets.EnqueueResync()
 	go waitForSignals(&replicationTargets)
+
 	if healthCheckPath != "" {
 		http.Handle(AddRoot(healthCheckPath), HealthCheckServer(healthyIfFile, healthyUnlessFile))
 	}
-	http.Handle("/", VermServer(rootDataDirectory, mimeTypesFile, &replicationTargets, quiet))
+	http.Handle("/", server)
+
 	err := http.ListenAndServe(listenAddress + ":" + port, nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unexpected error: %s\n", err.Error())

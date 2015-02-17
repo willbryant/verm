@@ -16,14 +16,7 @@ type vermServer struct {
 	Quiet       bool
 }
 
-func VermServer(rootDataDirectory string, mimeTypesFile string, replicationTargets *ReplicationTargets, quiet bool) vermServer {
-	mimeext.LoadMimeFile(mimeTypesFile)
-
-	statistics := &LogStatistics{}
-
-	replicationTargets.Start(rootDataDirectory, statistics)
-	replicationTargets.EnqueueResync()
-
+func VermServer(rootDataDirectory string, replicationTargets *ReplicationTargets, statistics *LogStatistics, quiet bool) vermServer {
 	return vermServer{
 		RootDataDir: rootDataDirectory,
 		RootHttpDir: http.Dir(rootDataDirectory),
