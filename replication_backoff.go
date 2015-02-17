@@ -1,17 +1,15 @@
 package main
 
-import "time"
-
-func backoffTime(failures uint) time.Duration {
+func backoffTime(failures uint) int {
 	if failures < 2 {
-		return ReplicationBackoffBaseDelay*time.Second
+		return ReplicationBackoffBaseDelay
 	}
 
-	backoffTime := ReplicationBackoffBaseDelay*(2 << (failures - 3))
+	backoffTime := ReplicationBackoffBaseDelay*(2 << (failures - 2))
 
 	if backoffTime > ReplicationBackoffMaxDelay {
-		return ReplicationBackoffMaxDelay*time.Second
-	} else {
-		return time.Duration(backoffTime)*time.Second
+		backoffTime = ReplicationBackoffMaxDelay
 	}
+
+	return backoffTime
 }

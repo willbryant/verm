@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+import "os"
 import "sync/atomic"
 import "time"
 
@@ -47,7 +49,12 @@ func (target *ReplicationTarget) replicateFromQueue() {
 			atomic.AddUint64(&target.statistics.replication_push_attempts, 1)
 			atomic.AddUint64(&target.statistics.replication_push_attempts_failed, 1)
 			failures++
-			time.Sleep(backoffTime(failures))
+		}
+
+		if failures > 1 {
+			wait := backoffTime(failures)
+			fmt.Fprintf(os.Stderr, "Waiting %d seconds before retrying replication to %s:s\n", wait, target.hostname, target.port)
+			time.Sleep(wait*time.Second)
 		}
 	}
 }

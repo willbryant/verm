@@ -86,7 +86,9 @@ func (target *ReplicationTarget) sendFileListUntilSuccessful(buf *bytes.Buffer) 
 		if target.sendFileList(input) {
 			break
 		}
-		time.Sleep(backoffTime(uint(attempts)))
+		wait := backoffTime(uint(attempts))
+		fmt.Fprintf(os.Stderr, "Waiting %d seconds before retrying replication to %s:s\n", wait, target.hostname, target.port)
+		time.Sleep(wait*time.Second)
 	}
 	buf.Reset()
 }
