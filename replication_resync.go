@@ -28,6 +28,7 @@ func (target *ReplicationTarget) enumerateSubdirectory(directory string, locatio
 
 		if len(list) == 0 {
 			if err == io.EOF {
+				fmt.Fprintf(os.Stderr, "Finished resyncing\n")
 				return nil
 			} else if err != nil {
 				fmt.Fprintf(os.Stderr, "Error scanning %s: %s\n", directory, err.Error())
@@ -59,8 +60,11 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 		somethingToSend = true
 
 		// the request bodies are simply a list of all the locations, one per line.
-		io.WriteString(compressor, location)
-		io.WriteString(compressor, "\r\n")
+		fmt.Fprintf(os.Stderr, "Checking if '%s' needs replication\n", location)
+		_, err := io.WriteString(compressor, location + "\r\n")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Couldn't write to request compressor: %s\n", err.Error())
+		}
 
 		// the compressor flushes output through to the backing buffer periodically.  if this
 		// pushes its size up to the target batch size, send a request.  note that we have to
@@ -68,6 +72,7 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 		// requests fail we have to retry the same list.
 		if buf.Len() > ReplicationMissingFilesBatchSize {
 			compressor.Close() // Flush isn't enough, we have to close and make a new compressor to get the gzip stream terminated
+			fmt.Fprintf(os.Stderr, "Sending file list\n")
 			target.sendFileListUntilSuccessful(&buf)
 			compressor = gzip.NewWriter(&buf)
 			somethingToSend = false
@@ -75,11 +80,13 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 	}
 	if somethingToSend {
 		compressor.Close()
+		fmt.Fprintf(os.Stderr, "Sending file list at end\n")
 		target.sendFileListUntilSuccessful(&buf)
 	}
 }
 
 func (target *ReplicationTarget) sendFileListUntilSuccessful(buf *bytes.Buffer) {
+	fmt.Fprintf(os.Stderr, "Sending %d bytes\n", len(buf.Bytes()))
 	input := bytes.NewReader(buf.Bytes())
 	for attempts := uint(1); ; attempts++ {
 		input.Seek(0, 0)
