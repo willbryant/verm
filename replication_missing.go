@@ -32,6 +32,7 @@ func (server vermServer) serveMissing(w http.ResponseWriter, req *http.Request) 
 		server.listMissingFiles(input, &buf)
 	}
 
+	w.WriteHeader(http.StatusOK)
 	_, err = buf.WriteTo(w)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Couldn't write response: %s\n", err.Error())
