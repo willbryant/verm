@@ -41,9 +41,9 @@ func (server vermServer) listMissingFiles(input io.Reader, output io.Writer) {
 		if (!pathExists(server.RootDataDir, line) &&
 			!pathExists(server.RootDataDir, line + ".gz")) {
 			fmt.Fprintf(os.Stderr, "'%s' needs replication\n", line)
-			n, err := io.WriteString(output, line + "\r\n")
+			_, err := io.WriteString(output, line + "\r\n")
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Couldn't write to response compressor\n", location)
+				fmt.Fprintf(os.Stderr, "Couldn't write to response compressor: %s\n", err.Error())
 			}
 		}
 	}

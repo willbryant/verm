@@ -61,7 +61,7 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 		fmt.Fprintf(os.Stderr, "Checking if '%s' needs replication\n", location)
 		_, err := io.WriteString(compressor, location + "\r\n")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Couldn't write to request compressor\n", location)
+			fmt.Fprintf(os.Stderr, "Couldn't write to request compressor: %s\n", err.Error())
 		}
 
 		// the compressor flushes output through to the backing buffer periodically.  if this
