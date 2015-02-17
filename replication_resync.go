@@ -28,8 +28,10 @@ func (target *ReplicationTarget) enumerateSubdirectory(directory string, locatio
 
 		if len(list) == 0 {
 			if err == io.EOF {
+				fmt.Fprintf(os.Stderr, "Finished resyncing\n")
 				return nil
 			} else if err != nil {
+				fmt.Fprintf(os.Stderr, "Error scanning %s: %s\n", directory, err.Error())
 				return err
 			}
 		}
@@ -47,7 +49,6 @@ func (target *ReplicationTarget) enumerateSubdirectory(directory string, locatio
 			}
 		}
 	}
-	fmt.Fprintf(os.Stderr, "Finished resyncing\n")
 }
 
 func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
