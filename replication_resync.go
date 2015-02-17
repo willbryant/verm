@@ -88,9 +88,10 @@ func (target *ReplicationTarget) sendFileListUntilSuccessful(compressor *gzip.Wr
 }
 
 func (target *ReplicationTarget) sendFileList(input io.Reader) bool {
-	req, err := http.NewRequest("PUT", fmt.Sprintf("http://%s:%s%s", target.hostname, target.port, ReplicationMissingFilesPath), input)
+	path := fmt.Sprintf("http://%s:%s%s", target.hostname, target.port, ReplicationMissingFilesPath)
+	req, err := http.NewRequest("PUT", path, input)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Error setting up request to %s: %s\n", path, err.Error())
 		return false
 	}
 	req.Header.Add("Content-Type", "text/plain")
@@ -103,7 +104,7 @@ func (target *ReplicationTarget) sendFileList(input io.Reader) bool {
 	}
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Error requesting %s: %s\n", path, err.Error())
 		return false
 
 	} else if resp.StatusCode != 200 {

@@ -40,7 +40,7 @@ func main() {
 	http.Handle("/", VermServer(rootDataDirectory, mimeTypesFile, &replicationTargets, quiet))
 	err := http.ListenAndServe(listenAddress + ":" + port, nil)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Unexpected error: %s\n", err.Error())
 		os.Exit(1)
 	}
 

@@ -111,9 +111,10 @@ func (targets *ReplicationTargets) forwardRequest(w http.ResponseWriter, req *ht
 }
 
 func (target *ReplicationTarget) forwardRequest(w http.ResponseWriter, reqIn *http.Request, out chan *http.Response) {
-	reqOut, err := http.NewRequest("GET", fmt.Sprintf("http://%s:%s%s?forward=0", target.hostname, target.port, reqIn.URL.Path), nil)
+	path := fmt.Sprintf("http://%s:%s%s?forward=0", target.hostname, target.port, reqIn.URL.Path)
+	reqOut, err := http.NewRequest("GET", path, nil)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Error setting up request for %s: %s\n", path, err.Error())
 		out <- nil
 	}
 
@@ -123,7 +124,7 @@ func (target *ReplicationTarget) forwardRequest(w http.ResponseWriter, reqIn *ht
 
 	if err != nil {
 		// unexpected failure
-		fmt.Fprintf(os.Stderr, "Error requesting %s from %s:%s: %s\n", reqIn.URL.Path, target.hostname, target.port, err.Error())
+		fmt.Fprintf(os.Stderr, "Error requesting %s: %s\n", path, err.Error())
 		out <- nil
 
 	} else if resp.StatusCode == http.StatusOK {
@@ -137,7 +138,7 @@ func (target *ReplicationTarget) forwardRequest(w http.ResponseWriter, reqIn *ht
 
 	} else {
 		// unexpected HTTP error
-		fmt.Fprintf(os.Stderr, "HTTP error requesting %s from %s:%s: %s\n", reqIn.URL.Path, target.hostname, target.port, resp.StatusCode)
+		fmt.Fprintf(os.Stderr, "HTTP error requesting %s: %s\n", path, resp.StatusCode)
 		resp.Body.Close()
 		out <- nil
 	}
