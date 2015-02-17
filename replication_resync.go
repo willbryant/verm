@@ -141,4 +141,8 @@ func (target *ReplicationTarget) queueMissingFiles(resp *http.Response) {
 		location := scanner.Text()
 		target.enqueueJob(location)
 	}
+
+	if scanner.Err() != nil {
+		fmt.Fprintf(os.Stderr, "Error reading missing file list: %s\n", scanner.Err().Error())
+	}
 }

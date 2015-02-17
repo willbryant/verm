@@ -47,6 +47,10 @@ func (server vermServer) listMissingFiles(input io.Reader, output io.Writer) {
 			}
 		}
 	}
+
+	if scanner.Err() != nil {
+		fmt.Fprintf(os.Stderr, "Error reading file list: %s\n", scanner.Err().Error())
+	}
 }
 
 func pathExists(root, filepath string) bool {
