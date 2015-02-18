@@ -37,9 +37,9 @@ func (targets *ReplicationTargets) Start(rootDataDirectory string, statistics *L
 	}
 }
 
-func (targets *ReplicationTargets) EnqueueJob(job string) {
+func (targets *ReplicationTargets) EnqueueNewFile(location string) {
 	for _, target := range targets.targets {
-		target.enqueueJob(job)
+		target.enqueueNewFile(location)
 	}
 }
 

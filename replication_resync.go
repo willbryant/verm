@@ -143,7 +143,7 @@ func (target *ReplicationTarget) queueMissingFiles(resp *http.Response) {
 
 	for scanner.Scan() {
 		location := scanner.Text()
-		target.enqueueJob(location)
+		target.enqueueResyncFile(location)
 	}
 
 	if scanner.Err() != nil {

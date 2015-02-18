@@ -6,8 +6,9 @@ import "time"
 type ReplicationTarget struct {
 	hostname          string
 	port              string
-	jobs              chan string
-	resync            chan struct{}
+	newFiles          chan string
+	resyncFiles       chan string
+	needToResync      chan struct{}
 	rootDataDirectory string
 	statistics        *LogStatistics
 	unfinishedJobs    uint64
@@ -15,10 +16,11 @@ type ReplicationTarget struct {
 
 func NewReplicationTarget(hostname, port string) ReplicationTarget {
 	return ReplicationTarget{
-		hostname: hostname,
-		port:     port,
-		jobs:     make(chan string, ReplicationQueueSize),
-		resync:   make(chan struct{}, 1),
+		hostname:     hostname,
+		port:         port,
+		newFiles:     make(chan string, ReplicationQueueSize),
+		resyncFiles:  make(chan string, ReplicationQueueSize),
+		needToResync: make(chan struct{}, 1),
 	}
 }
 
@@ -31,14 +33,32 @@ func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *Log
 	}
 }
 
-func (target *ReplicationTarget) enqueueJob(job string) {
+func (target *ReplicationTarget) enqueueNewFile(location string) {
+	select {
+	case target.newFiles <- location:
+		// successfully queued
+		atomic.AddUint64(&target.unfinishedJobs, 1)
+
+	default:
+		// queue is full, flag for a resync later so the file eventually gets sent
+		target.enqueueResync();
+	}
+}
+
+func (target *ReplicationTarget) enqueueResyncFile(location string) {
+	// it would be silly to resync if the queue is full in this case, so we just wait
+	target.resyncFiles <- location
 	atomic.AddUint64(&target.unfinishedJobs, 1)
-	target.jobs <- job
 }
 
 func (target *ReplicationTarget) replicateFromQueue() {
 	for {
-		target.replicate(<-target.jobs)
+		var location string
+		select {
+		case location = <- target.newFiles:
+		case location = <- target.resyncFiles:
+		}
+		target.replicate(location)
 		atomic.AddUint64(&target.unfinishedJobs, ^uint64(0))
 	}
 }
@@ -59,7 +79,7 @@ func (target *ReplicationTarget) replicate(location string) {
 }
 
 func (target *ReplicationTarget) queueLength() int {
-	// we used to simply use len(target.jobs), but that makes jobs disappear off the count and
+	// we used to simply use len() on the channels, but that makes jobs disappear off the count and
 	// reappear later if they fail
 	return int(atomic.LoadUint64(&target.unfinishedJobs))
 }
@@ -70,13 +90,13 @@ func (target *ReplicationTarget) enqueueResync() {
 	// in the queue will cause a full resync after completion of resync tasks already running,
 	// so files don't get lost in between.
 	select {
-	case target.resync <- struct{}{}:
+	case target.needToResync <- struct{}{}:
 	}
 }
 
 func (target *ReplicationTarget) resyncFromQueue() {
 	for {
-		<-target.resync
+		<-target.needToResync
 
 		// our thread scans the directory and pushes the filenames found to a channel which is
 		// listened to by a second routine, which posts batches of those filenames over to the
