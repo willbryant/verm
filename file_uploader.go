@@ -50,7 +50,11 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 	location := ""
 	if replicating {
 		location = path
-		path = path[0 : strings.LastIndex(path, "/")-3]
+		lastSlash := strings.LastIndex(path, "/")
+		if lastSlash < 4 {
+			return nil, &WrongLocationError{path}
+		}
+		path = path[0 : lastSlash-3]
 	}
 
 	// don't allow uploads to the root directory itself, which would be unmanageable
