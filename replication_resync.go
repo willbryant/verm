@@ -101,7 +101,7 @@ func (target *ReplicationTarget) sendFileList(input io.Reader) bool {
 	req.Header.Add("Content-Type", "text/plain")
 	req.Header.Add("Content-Encoding", "gzip")
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: ReplicationHttpTimeout * time.Second}
 	resp, err := client.Do(req)
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
