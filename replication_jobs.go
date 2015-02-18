@@ -4,9 +4,8 @@ import "fmt"
 import "io/ioutil"
 import "os"
 import "net/http"
-import "time"
 
-func Put(hostname, port, location, rootDataDirectory string) bool {
+func Put(client *http.Client, hostname, port, location, rootDataDirectory string) bool {
 	encoding := "gzip"
 	input, err := os.Open(rootDataDirectory + location + ".gz")
 	if err != nil {
@@ -30,7 +29,6 @@ func Put(hostname, port, location, rootDataDirectory string) bool {
 		req.Header.Add("Content-Encoding", encoding)
 	}
 
-	client := &http.Client{Timeout: ReplicationHttpTimeout * time.Second}
 	resp, err := client.Do(req)
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()

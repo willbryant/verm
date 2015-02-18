@@ -1,5 +1,6 @@
 package main
 
+import "net/http"
 import "sync/atomic"
 import "time"
 
@@ -12,6 +13,7 @@ type ReplicationTarget struct {
 	rootDataDirectory string
 	statistics        *LogStatistics
 	unfinishedJobs    uint64
+	client            *http.Client
 }
 
 func NewReplicationTarget(hostname, port string) ReplicationTarget {
@@ -25,6 +27,7 @@ func NewReplicationTarget(hostname, port string) ReplicationTarget {
 }
 
 func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *LogStatistics, workers int) {
+	target.client = &http.Client{Timeout: ReplicationHttpTimeout * time.Second}
 	target.rootDataDirectory = rootDataDirectory
 	target.statistics = statistics
 	go target.resyncFromQueue()
@@ -65,7 +68,7 @@ func (target *ReplicationTarget) replicateFromQueue() {
 
 func (target *ReplicationTarget) replicate(location string) {
 	for attempts := uint(1); ; attempts++ {
-		ok := Put(target.hostname, target.port, location, target.rootDataDirectory)
+		ok := Put(target.client, target.hostname, target.port, location, target.rootDataDirectory)
 
 		if ok {
 			atomic.AddUint64(&target.statistics.replication_push_attempts, 1)
