@@ -13,6 +13,7 @@ import "verm/mimeext"
 func main() {
 	var rootDataDirectory, listenAddress, port, mimeTypesFile string
 	var replicationTargets ReplicationTargets
+	var replicationWorkers int
 	var healthCheckPath, healthyIfFile, healthyUnlessFile string
 	var quiet bool
 
@@ -21,6 +22,7 @@ func main() {
 	flag.StringVar(&port, "port", DefaultPort, "Listen on the given port.")
 	flag.StringVar(&mimeTypesFile, "mime-types-file", DefaultMimeTypesFile, "Load MIME content-types from the given file.")
 	flag.Var(&replicationTargets, "replicate-to", "Replicate files to the given Verm server.  May be given multiple times.")
+	flag.IntVar(&replicationWorkers, "replication-workers", runtime.NumCPU(), "Number of worker processes to use to replicate files to each Verm server.  Defaults to the number of CPUs detected.")
 	flag.BoolVar(&quiet, "quiet", false, "Quiet mode.  Don't print startup/shutdown/request log messages to stdout.")
 	flag.StringVar(&healthCheckPath, "health-check-path", "", "Treat requests to this path as health checks from your load balancer, and give a 200 response without trying to serve a file.")
 	flag.StringVar(&healthyIfFile, "healthy-if-file", "", "Respond to requests to the health-check-path with a 503 response code if this file doesn't exist.")
@@ -38,7 +40,7 @@ func main() {
 
 	statistics := &LogStatistics{}
 	server := VermServer(rootDataDirectory, &replicationTargets, statistics, quiet)
-	replicationTargets.Start(rootDataDirectory, statistics, runtime.NumCPU())
+	replicationTargets.Start(rootDataDirectory, statistics, replicationWorkers)
 	replicationTargets.EnqueueResync()
 	go waitForSignals(&replicationTargets)
 
