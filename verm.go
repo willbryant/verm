@@ -6,6 +6,7 @@ import "net/http"
 import "os"
 import "os/signal"
 import "runtime"
+import "runtime/pprof"
 import "strings"
 import "syscall"
 import "verm/mimeext"
@@ -61,9 +62,15 @@ func main() {
 func waitForSignals(targets *ReplicationTargets) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGUSR1)
+	signal.Notify(signals, syscall.SIGUSR2)
 	for {
-		<-signals
-		targets.EnqueueResync()
+		switch <-signals {
+		case syscall.SIGUSR1:
+			targets.EnqueueResync()
+
+		case syscall.SIGUSR2:
+			pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
+		}
 	}
 }
 
