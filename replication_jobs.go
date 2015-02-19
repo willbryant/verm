@@ -29,6 +29,7 @@ func Put(client *http.Client, hostname, port, location, rootDataDirectory string
 	if encoding != "" {
 		req.Header.Add("Content-Encoding", encoding)
 	}
+	req.Header.Add("Connection", "keep-alive")
 
 	resp, err := client.Do(req)
 	if resp != nil && resp.Body != nil {
