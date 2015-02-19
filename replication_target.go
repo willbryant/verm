@@ -50,7 +50,8 @@ func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *Log
 
 	go target.resyncFromQueue()
 	for worker := 1; worker < workers; worker++ {
-		go target.replicateFromQueue()
+		go target.replicateFromQueue(target.newFiles)
+		go target.replicateFromQueue(target.resyncFiles)
 	}
 }
 
@@ -72,14 +73,9 @@ func (target *ReplicationTarget) enqueueResyncFile(location string) {
 	atomic.AddUint64(&target.unfinishedJobs, 1)
 }
 
-func (target *ReplicationTarget) replicateFromQueue() {
+func (target *ReplicationTarget) replicateFromQueue(files chan string) {
 	for {
-		var location string
-		select {
-		case location = <- target.newFiles:
-		case location = <- target.resyncFiles:
-		}
-		target.replicate(location)
+		target.replicate(<-files)
 		atomic.AddUint64(&target.unfinishedJobs, ^uint64(0))
 	}
 }
