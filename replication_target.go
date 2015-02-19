@@ -112,6 +112,10 @@ func (target *ReplicationTarget) enqueueResync() {
 	// so files don't get lost in between.
 	select {
 	case target.needToResync <- struct{}{}:
+		// resync queued
+
+	default:
+		// resync already queued
 	}
 }
 
