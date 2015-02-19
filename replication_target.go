@@ -1,5 +1,6 @@
 package main
 
+import "net"
 import "net/http"
 import "sync/atomic"
 import "time"
@@ -27,7 +28,19 @@ func NewReplicationTarget(hostname, port string) ReplicationTarget {
 }
 
 func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *LogStatistics, workers int) {
-	target.client = &http.Client{Timeout: ReplicationHttpTimeout * time.Second}
+	transport := &http.Transport{
+		// increase MaxIdleConnsPerHost:
+		MaxIdleConnsPerHost: workers*2,
+
+		// otherwise defaults (as per DefaultTransport):
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   ReplicationHttpTimeout * time.Second,
+			KeepAlive: ReplicationHttpTimeout * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+	target.client = &http.Client{Timeout: ReplicationHttpTimeout * time.Second, Transport: transport}
 	target.rootDataDirectory = rootDataDirectory
 	target.statistics = statistics
 	go target.resyncFromQueue()
