@@ -40,9 +40,14 @@ func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *Log
 		}).Dial,
 		TLSHandshakeTimeout: 10 * time.Second,
 	}
-	target.client = &http.Client{Timeout: ReplicationHttpTimeout * time.Second, Transport: transport}
+	
+	target.client = &http.Client{
+		Timeout: ReplicationHttpTimeout * time.Second,
+		Transport: transport,
+	}
 	target.rootDataDirectory = rootDataDirectory
 	target.statistics = statistics
+
 	go target.resyncFromQueue()
 	for worker := 1; worker < workers; worker++ {
 		go target.replicateFromQueue()
