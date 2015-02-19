@@ -1,6 +1,7 @@
 package main
 
 import "fmt"
+import "io"
 import "io/ioutil"
 import "os"
 import "net/http"
@@ -44,6 +45,7 @@ func Put(client *http.Client, hostname, port, location, rootDataDirectory string
 		return false
 
 	} else {
+		io.Copy(ioutil.Discard, resp.Body)
 		return true
 	}
 }
