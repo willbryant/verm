@@ -21,8 +21,8 @@ func NewReplicationTarget(hostname, port string) ReplicationTarget {
 	return ReplicationTarget{
 		hostname:     hostname,
 		port:         port,
-		newFiles:     make(chan string, ReplicationQueueSize),
-		resyncFiles:  make(chan string, ReplicationQueueSize),
+		newFiles:     make(chan string, ReplicationNewFileQueueSize),
+		resyncFiles:  make(chan string, ReplicationResyncQueueSize),
 		needToResync: make(chan struct{}, 1),
 	}
 }
