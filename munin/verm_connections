@@ -1,0 +1,42 @@
+#!/bin/bash
+
+: << =cut
+=head1 NAME
+
+verm_connections - Plugin to monitor the number of open connections to Verm
+
+=head1 AUTHOR
+
+Will Bryant
+
+=head1 LICENSE
+
+MIT
+=cut
+
+. $MUNIN_LIBDIR/plugins/plugin.sh
+
+if [ "$1" = "autoconf" ]; then
+	echo -e "GET /_statistics HTTP/1.0\n" | nc localhost 3404 >/dev/null
+	if [ $? == "0" ]; then
+		echo yes
+		exit 0
+	else
+		echo no
+		exit 0
+	fi
+fi
+
+data=`echo -e "GET /_statistics HTTP/1.0\n" | nc localhost 3404 | grep connections_current`
+
+if [ "$1" = "config" ]; then
+	echo 'graph_title Verm connections'
+	echo 'graph_args --base 1000 -l 0'
+	echo 'graph_vlabel connections'
+	echo 'graph_category verm'
+	echo 'graph_info This graph shows the number of current connections to Verm.'
+	echo 'connections_current.label HTTP connections'
+	exit 0
+fi
+
+echo "$data" | awk '{ print $1 ".value " $2 }'
