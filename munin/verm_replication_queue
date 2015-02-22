@@ -39,4 +39,4 @@ if [ "$1" = "config" ]; then
 	exit 0
 fi
 
-echo "$data" | awk '{ print $1 ".value " $2 }'
+echo "$data" | awk '{ if ($0!="") print $1 ".value " $2 }'
