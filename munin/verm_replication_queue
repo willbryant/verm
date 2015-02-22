@@ -30,12 +30,12 @@ fi
 data=`echo -e "GET /_statistics HTTP/1.0\n" | nc localhost 3404 | grep queue_length`
 
 if [ "$1" = "config" ]; then
-	echo 'graph_title Verm replication queue length'
+	echo 'graph_title Verm replication queue length'
 	echo 'graph_args --base 1000 -l 0'
 	echo 'graph_vlabel Files in queue'
 	echo 'graph_category verm'
 	echo 'graph_info This graph shows the number of files in the queue to be replicated to each configured replica.'
-	echo "$data" | sed -E 's/replication_(.+)_([0-9]+)_queue_length .*/\1:\2 \1:\2/'
+	echo "$data" | sed -E 's/replication_(.+)_([0-9]+)_queue_length .*/replication_\1_\2_queue_length.label \1:\2/'
 	exit 0
 fi
 
