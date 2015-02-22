@@ -10,7 +10,7 @@ const DefaultMimeTypesFile = "/etc/mime.types"
 const DefaultDirectoryIfNotGivenByClient = "/default"
 const UploadedFieldFieldForMultipart = "uploaded_file"
 
-const ReplicationNewFileQueueSize = 100000
+const ReplicationQueueSize = 1000000
 const ReplicationResyncQueueSize = 1000
 const ReplicationBackoffBaseDelay = 1
 const ReplicationBackoffMaxDelay = 60

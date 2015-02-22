@@ -21,9 +21,6 @@ func NewReplicationTarget(hostname, port string) ReplicationTarget {
 	return ReplicationTarget{
 		hostname:     hostname,
 		port:         port,
-		newFiles:     make(chan string, ReplicationNewFileQueueSize),
-		resyncFiles:  make(chan string, ReplicationResyncQueueSize),
-		needToResync: make(chan struct{}, 1),
 	}
 }
 
@@ -47,6 +44,9 @@ func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *Log
 	}
 	target.rootDataDirectory = rootDataDirectory
 	target.statistics = statistics
+	target.newFiles =     make(chan string, ReplicationQueueSize - ReplicationResyncQueueSize - workers)
+	target.resyncFiles =  make(chan string, ReplicationResyncQueueSize)
+	target.needToResync = make(chan struct{}, 1)
 
 	go target.resyncFromQueue()
 	for worker := 1; worker < workers; worker++ {
