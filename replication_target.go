@@ -19,8 +19,8 @@ type ReplicationTarget struct {
 
 func NewReplicationTarget(hostname, port string) ReplicationTarget {
 	return ReplicationTarget{
-		hostname:     hostname,
-		port:         port,
+		hostname: hostname,
+		port:     port,
 	}
 }
 
@@ -37,15 +37,15 @@ func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *Log
 		}).Dial,
 		TLSHandshakeTimeout: 10 * time.Second,
 	}
-	
+
 	target.client = &http.Client{
-		Timeout: ReplicationHttpTimeout * time.Second,
+		Timeout:   ReplicationHttpTimeout * time.Second,
 		Transport: transport,
 	}
 	target.rootDataDirectory = rootDataDirectory
 	target.statistics = statistics
-	target.newFiles =     make(chan string, ReplicationQueueSize - ReplicationResyncQueueSize - workers)
-	target.resyncFiles =  make(chan string, ReplicationResyncQueueSize)
+	target.newFiles = make(chan string, ReplicationQueueSize-ReplicationResyncQueueSize-workers)
+	target.resyncFiles = make(chan string, ReplicationResyncQueueSize)
 	target.needToResync = make(chan struct{}, 1)
 
 	go target.resyncFromQueue()
@@ -62,7 +62,7 @@ func (target *ReplicationTarget) enqueueNewFile(location string) {
 
 	default:
 		// queue is full, flag for a resync later so the file eventually gets sent
-		target.enqueueResync();
+		target.enqueueResync()
 	}
 }
 
@@ -76,8 +76,8 @@ func (target *ReplicationTarget) replicateFromQueue() {
 	for {
 		var location string
 		select {
-		case location = <- target.newFiles:
-		case location = <- target.resyncFiles:
+		case location = <-target.newFiles:
+		case location = <-target.resyncFiles:
 		}
 		target.replicate(location)
 		atomic.AddUint64(&target.unfinishedJobs, ^uint64(0))

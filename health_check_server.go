@@ -5,13 +5,13 @@ import "net/http"
 import "os"
 
 type healthCheckServer struct {
-	HealthyIfFile string
+	HealthyIfFile     string
 	HealthyUnlessFile string
 }
 
 func HealthCheckServer(healthyIfFile string, healthyUnlessFile string) healthCheckServer {
 	return healthCheckServer{
-		HealthyIfFile: AddRoot(healthyIfFile),
+		HealthyIfFile:     AddRoot(healthyIfFile),
 		HealthyUnlessFile: AddRoot(healthyUnlessFile),
 	}
 }

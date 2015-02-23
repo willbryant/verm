@@ -213,8 +213,8 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 	// try to fsync the directory too
 	dirnode, openerr := os.Open(upload.root + subpath)
 	if openerr == nil { // ignore if not allowed to open it
-		dirnode.Sync();
-		dirnode.Close();
+		dirnode.Sync()
+		dirnode.Close()
 	}
 
 	if newFile {

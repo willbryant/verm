@@ -47,9 +47,9 @@ func (server vermServer) listMissingFiles(input io.Reader, output io.Writer) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if (!pathExists(server.RootDataDir, line) &&
-			!pathExists(server.RootDataDir, line + ".gz")) {
-			_, err := io.WriteString(output, line + "\r\n")
+		if !pathExists(server.RootDataDir, line) &&
+			!pathExists(server.RootDataDir, line+".gz") {
+			_, err := io.WriteString(output, line+"\r\n")
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Couldn't write to response buffer: %s\n", err.Error())
 			}

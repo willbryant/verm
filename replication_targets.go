@@ -53,8 +53,7 @@ func (targets *ReplicationTargets) StatisticsString() string {
 	result := ""
 	for _, target := range targets.targets {
 		result = fmt.Sprintf(
-			"%s" +
-			"replication_%s_%s_queue_length %d\n",
+			"%sreplication_%s_%s_queue_length %d\n",
 			result,
 			target.hostname, target.port, target.queueLength())
 	}

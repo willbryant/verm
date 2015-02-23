@@ -17,16 +17,16 @@ func ClfTime() string {
 func RequestIP(req *http.Request) string {
 	addressEnd := strings.LastIndex(req.RemoteAddr, "]:")
 	if addressEnd > -1 {
-		return req.RemoteAddr[1 : addressEnd]
+		return req.RemoteAddr[1:addressEnd]
 	}
 	return req.RemoteAddr
 }
 
 type responseLogger struct {
-	req *http.Request
-	w http.ResponseWriter
+	req        *http.Request
+	w          http.ResponseWriter
 	StatusCode int
-	Bytes int
+	Bytes      int
 }
 
 func (logger *responseLogger) Header() http.Header {

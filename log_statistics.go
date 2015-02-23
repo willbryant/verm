@@ -14,7 +14,7 @@ type LogStatistics struct {
 func (server vermServer) serveStatistics(w http.ResponseWriter, req *http.Request, replicationTargets *ReplicationTargets) {
 	fmt.Fprintf(w,
 		"get_requests %d\n"+
-			"get_requests_found_on_replica %d\n" +
+			"get_requests_found_on_replica %d\n"+
 			"get_requests_not_found %d\n"+
 			"post_requests %d\n"+
 			"post_requests_new_file_stored %d\n"+
