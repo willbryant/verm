@@ -37,9 +37,13 @@ func (targets *ReplicationTargets) Start(rootDataDirectory string, statistics *L
 	}
 }
 
-func (targets *ReplicationTargets) EnqueueNewFile(location string) {
+func (targets *ReplicationTargets) EnqueueFile(location string, replicating bool) {
 	for _, target := range targets.targets {
-		target.enqueueNewFile(location)
+		if replicating {
+			target.enqueueReplicatedFile(location)
+		} else {
+			target.enqueueNewFile(location)
+		}
 	}
 }
 

@@ -16,6 +16,7 @@ import "strings"
 import "verm/mimeext"
 
 type fileUpload struct {
+	replicating bool
 	root        string
 	path        string
 	location    string
@@ -124,6 +125,7 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 	}
 
 	return &fileUpload{
+		replicating: replicating,
 		root:        server.RootDataDir,
 		path:        path,
 		location:    location,
@@ -221,9 +223,9 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 		if upload.extension == ".gz" {
 			// for the sake of replication, we can treat it as a gzip-encoded binary file rather than a raw gzip file;
 			// this is how we will interpret the filename when we restart and resync, so it's better to always do this
-			targets.EnqueueNewFile(location[:len(location) - len(upload.extension)])
+			targets.EnqueueFile(location[:len(location) - len(upload.extension)], upload.replicating)
 		} else {
-			targets.EnqueueNewFile(location)
+			targets.EnqueueFile(location, upload.replicating)
 		}
 	}
 

@@ -46,7 +46,7 @@ class ReplicationTopologyTest < Verm::TestCase
     # and all but the last should show successful pushes
     changes = spawners.collect.with_index {|spawner, index| calculate_statistics_change(before[index], get_statistics(:verm => spawner))}
     assert_equal([
-      {:get_requests => 1, :put_requests => 1, :put_requests_new_file_stored => 1},
+      {:get_requests => 1, :put_requests => 2, :put_requests_missing_file_checks => 1, :put_requests_new_file_stored => 1},
       {:get_requests => 1, :put_requests => 1, :put_requests_new_file_stored => 1, :replication_push_attempts => 1},
       {:get_requests => 1, :post_requests => 1, :post_requests_new_file_stored => 1, :replication_push_attempts => 1},
     ], changes)
@@ -67,7 +67,7 @@ class ReplicationTopologyTest < Verm::TestCase
     post_something_to(spawners[2])
 
     repeatedly_wait_until do
-      get_statistics(:verm => spawners[0])[:replication_push_attempts] > 0
+      get_statistics(:verm => spawners[2])[:put_requests_missing_file_checks] > 0
     end
 
     # all replicas should now have a copy
@@ -76,9 +76,9 @@ class ReplicationTopologyTest < Verm::TestCase
     # and all should have pushed, resulting in a new file on all but the original target
     changes = spawners.collect.with_index {|spawner, index| calculate_statistics_change(before[index], get_statistics(:verm => spawner))}
     assert_equal([
+      {:get_requests => 1, :put_requests => 2, :put_requests_missing_file_checks => 1, :put_requests_new_file_stored => 1},
       {:get_requests => 1, :put_requests => 1, :put_requests_new_file_stored => 1, :replication_push_attempts => 1},
-      {:get_requests => 1, :put_requests => 1, :put_requests_new_file_stored => 1, :replication_push_attempts => 1},
-      {:get_requests => 1, :post_requests => 1, :post_requests_new_file_stored => 1, :put_requests => 1, :replication_push_attempts => 1},
+      {:get_requests => 1, :post_requests => 1, :post_requests_new_file_stored => 1, :replication_push_attempts => 1, :put_requests => 1, :put_requests_missing_file_checks => 1},
     ], changes)
   ensure
     spawners.each(&:teardown) if spawners
@@ -97,7 +97,7 @@ class ReplicationTopologyTest < Verm::TestCase
     post_something_to(spawners[2])
 
     repeatedly_wait_until do
-      get_statistics(:verm => spawners[0])[:replication_push_attempts] > 0
+      get_statistics(:verm => spawners[2])[:put_requests_missing_file_checks] > 0
     end
 
     # all replicas should now have a copy
@@ -106,9 +106,9 @@ class ReplicationTopologyTest < Verm::TestCase
     # and all should have pushed, resulting in a new file on all but the original target
     changes = spawners.collect.with_index {|spawner, index| calculate_statistics_change(before[index], get_statistics(:verm => spawner))}
     assert_equal([
-      {:get_requests => 1, :put_requests => 2, :put_requests_new_file_stored => 1, :replication_push_attempts => 2},
-      {:get_requests => 1, :put_requests => 2, :put_requests_new_file_stored => 1, :replication_push_attempts => 2},
-      {:get_requests => 1, :post_requests => 1, :post_requests_new_file_stored => 1, :put_requests => 2, :replication_push_attempts => 2},
+      {:get_requests => 1, :put_requests => 2, :put_requests_new_file_stored => 1, :put_requests_missing_file_checks => 1},
+      {:get_requests => 1, :put_requests => 2, :put_requests_new_file_stored => 1, :put_requests_missing_file_checks => 1},
+      {:get_requests => 1, :post_requests => 1, :post_requests_new_file_stored => 1, :put_requests => 2, :put_requests_missing_file_checks => 2, :replication_push_attempts => 2},
     ], changes)
   ensure
     spawners.each(&:teardown) if spawners
