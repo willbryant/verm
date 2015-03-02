@@ -61,6 +61,7 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 
 		var buf bytes.Buffer
 		compressor := gzip.NewWriter(&buf)
+		batchTimeout := time.After(time.Second * ReplicationMissingFilesBatchTime)
 
 		for location != "" {
 			// the request bodies are simply a list of all the locations, one per line.
@@ -78,7 +79,7 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 			select {
 			case location = <- locations:
 
-			case <-time.After(time.Second * ReplicationMissingFilesBatchTime):
+			case <-batchTimeout:
 				location = ""
 			}
 		}
