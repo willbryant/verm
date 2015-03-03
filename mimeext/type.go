@@ -131,19 +131,28 @@ func setExtensionType(extension, mimeType string) error {
 		mimeType = mime.FormatMediaType(mimeType, param)
 	}
 	mimeLock.Lock()
-	mimeTypes[extension] = mimeType
+	if mimeTypes[extension] == "" {
+		mimeTypes[extension] = mimeType
+	}
 	mimeLock.Unlock()
 	return nil
 }
 
 func setTypeExtension(extension, mimeType string) error {
 	mimeLock.Lock()
-	mimeExtensions[mimeType] = extension
+	if mimeExtensions[mimeType] == "" {
+		mimeExtensions[mimeType] = extension
+	}
 	mimeLock.Unlock()
 	return nil
 }
 
-func LoadMimeFile(filename string) {
+func LoadMimeFile(filename string, clear bool) {
+	if clear {
+		mimeTypes = make(map[string]string)
+		mimeExtensions = make(map[string]string)
+	}
+
 	f, err := os.Open(filename)
 	if err != nil {
 		return

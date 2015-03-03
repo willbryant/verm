@@ -70,6 +70,23 @@ module CreateFilesSharedTests
               :expected_extension => 'vermother'
   end
 
+  def test_saves_files_with_builtin_extension_in_preference_to_configured_extension_by_default
+    post_file :path => '/foo',
+              :file => 'simple_text_file',
+              :type => 'text/plain',
+              :expected_extension => 'txt'
+  end
+
+  def test_saves_files_with_configured_extension_if_forced
+    VERM_SPAWNER.teardown
+    VERM_SPAWNER.setup("no-default-mime-types" => "")
+
+    post_file :path => '/foo',
+              :file => 'simple_text_file',
+              :type => 'text/plain',
+              :expected_extension => 'badidea'
+  end
+
   def test_saves_same_file_to_same_path
     assert_statistics_change(:post_requests => 4, :post_requests_new_file_stored => 2) do
       first_file_location =

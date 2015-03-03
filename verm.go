@@ -13,6 +13,7 @@ import "verm/mimeext"
 
 func main() {
 	var rootDataDirectory, listenAddress, port, mimeTypesFile string
+	var mimeTypesClear bool
 	var replicationTargets ReplicationTargets
 	var replicationWorkers int
 	var healthCheckPath, healthyIfFile, healthyUnlessFile string
@@ -22,6 +23,7 @@ func main() {
 	flag.StringVar(&listenAddress, "listen", DefaultListenAddress, "Listen on the given IP address.  Default: listen on all network interfaces.")
 	flag.StringVar(&port, "port", DefaultPort, "Listen on the given port.")
 	flag.StringVar(&mimeTypesFile, "mime-types-file", DefaultMimeTypesFile, "Load MIME content-types from the given file.")
+	flag.BoolVar(&mimeTypesClear, "no-default-mime-types", false, "Clear the built-in MIME types so the settings in the file given in the mime-types-file option are used exclusively.")
 	flag.Var(&replicationTargets, "replicate-to", "Replicate files to the given Verm server.  May be given multiple times.")
 	flag.IntVar(&replicationWorkers, "replication-workers", runtime.NumCPU()*10, "Number of gophers to use to replicate files to each Verm server.  Generally should be large; the default scales with the number of CPUs detected.")
 	flag.BoolVar(&quiet, "quiet", false, "Quiet mode.  Don't print startup/shutdown/request log messages to stdout.")
@@ -35,7 +37,7 @@ func main() {
 		fmt.Fprintf(os.Stdout, "Verm listening on http://%s:%s, data in %s\n", listenAddress, port, rootDataDirectory)
 	}
 
-	mimeext.LoadMimeFile(mimeTypesFile)
+	mimeext.LoadMimeFile(mimeTypesFile, mimeTypesClear)
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
