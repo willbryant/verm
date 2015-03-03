@@ -136,7 +136,7 @@ func (target *ReplicationTarget) enqueueResync() {
 }
 
 func (target *ReplicationTarget) resyncFromQueue() {
-	for range(target.needToResync) {
+	for range target.needToResync {
 		// our thread scans the directory and pushes the filenames found to a channel which is
 		// listened to by a second routine, which posts batches of those filenames over to the
 		// target and gets back lists of missing files - which it then pushes onto the regular

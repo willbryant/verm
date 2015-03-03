@@ -52,7 +52,7 @@ func (target *ReplicationTarget) enumerateSubdirectory(directory string, locatio
 
 func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 	for {
-		location := <- locations
+		location := <-locations
 
 		if location == "" {
 			// channel closed before anything was received
@@ -77,7 +77,7 @@ func (target *ReplicationTarget) sendFileLists(locations <-chan string) {
 			}
 
 			select {
-			case location = <- locations:
+			case location = <-locations:
 
 			case <-batchTimeout:
 				location = ""
