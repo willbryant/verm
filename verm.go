@@ -2,6 +2,7 @@ package main
 
 import "flag"
 import "fmt"
+import "net"
 import "net/http"
 import "os"
 import "os/signal"
@@ -33,26 +34,32 @@ func main() {
 	flag.VisitAll(setFlagFromEnvironment)
 	flag.Parse()
 
-	if !quiet {
-		fmt.Fprintf(os.Stdout, "Verm listening on http://%s:%s, data in %s\n", listenAddress, port, rootDataDirectory)
-	}
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	mimeext.LoadMimeFile(mimeTypesFile, mimeTypesClear)
 
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	listener, err := net.Listen("tcp", listenAddress + ":" + port)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Couldn't listen on %s:%s: %s\n", listenAddress, port, err.Error())
+		os.Exit(1)
+	} else if !quiet {
+		fmt.Fprintf(os.Stdout, "Verm listening on http://%s:%s, data in %s\n", listenAddress, port, rootDataDirectory)
+	}
 
 	statistics := &LogStatistics{}
-	server := VermServer(rootDataDirectory, &replicationTargets, statistics, quiet)
+	server := VermServer(listener, rootDataDirectory, &replicationTargets, statistics, quiet)
 	replicationTargets.Start(rootDataDirectory, statistics, replicationWorkers)
 	replicationTargets.EnqueueResync()
-	go waitForSignals(&replicationTargets)
+	go waitForSignals(&server, &replicationTargets)
 
 	if healthCheckPath != "" {
 		http.Handle(AddRoot(healthCheckPath), HealthCheckServer(healthyIfFile, healthyUnlessFile))
 	}
 	http.Handle("/", server)
 
-	err := http.ListenAndServe(listenAddress + ":" + port, nil)
+	server.Serve()
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unexpected error: %s\n", err.Error())
 		os.Exit(1)
@@ -61,8 +68,10 @@ func main() {
 	os.Exit(0)
 }
 
-func waitForSignals(targets *ReplicationTargets) {
-	signals := make(chan os.Signal, 1)
+func waitForSignals(server *vermServer, targets *ReplicationTargets) {
+	signals := make(chan os.Signal, 4)
+	signal.Notify(signals, syscall.SIGINT)
+	signal.Notify(signals, syscall.SIGTERM)
 	signal.Notify(signals, syscall.SIGUSR1)
 	signal.Notify(signals, syscall.SIGUSR2)
 	for {
@@ -72,6 +81,9 @@ func waitForSignals(targets *ReplicationTargets) {
 
 		case syscall.SIGUSR2:
 			pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
+
+		case syscall.SIGINT, syscall.SIGTERM:
+			server.Close()
 		}
 	}
 }

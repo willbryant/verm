@@ -1,6 +1,7 @@
 package main
 
 import "io"
+import "net"
 import "net/http"
 import "os"
 import "path"
@@ -9,6 +10,7 @@ import "sync/atomic"
 import "verm/mimeext"
 
 type vermServer struct {
+	Listener    net.Listener
 	RootDataDir string
 	RootHttpDir http.Dir
 	Targets     *ReplicationTargets
@@ -16,8 +18,9 @@ type vermServer struct {
 	Quiet       bool
 }
 
-func VermServer(rootDataDirectory string, replicationTargets *ReplicationTargets, statistics *LogStatistics, quiet bool) vermServer {
+func VermServer(listener net.Listener, rootDataDirectory string, replicationTargets *ReplicationTargets, statistics *LogStatistics, quiet bool) vermServer {
 	return vermServer{
+		Listener: listener,
 		RootDataDir: rootDataDirectory,
 		RootHttpDir: http.Dir(rootDataDirectory),
 		Targets: replicationTargets,
