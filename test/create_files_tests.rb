@@ -176,4 +176,22 @@ module CreateFilesSharedTests
                 :type => 'text/plain',
                 :expected_extension => nil)
   end
+
+
+  def count_tempfiles_in(dir)
+    Dir["#{dir}/_upload*"].size
+  end
+
+  def test_cleans_tempfiles_on_abort
+    path = "/abort-test"
+    dir = File.join(VERM_SPAWNER.verm_data, path)
+    socket = TCPSocket.new(VERM_SPAWNER.hostname, VERM_SPAWNER.port)
+    socket.puts "POST #{path} HTTP/1.0"
+    socket.puts "Content-Length: 100000"
+    socket.puts ""
+    socket.puts "foo"
+    repeatedly_wait_until { count_tempfiles_in(dir) > 0 }
+    socket.close
+    repeatedly_wait_until { count_tempfiles_in(dir) == 0 }
+  end
 end
