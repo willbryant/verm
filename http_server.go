@@ -26,10 +26,12 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 }
 
 func (server vermServer) Serve() (error) {
-	srv := &http.Server{}
+	srv := &http.Server{
+		ConnState: server.Tracker.ConnState,
+	}
 	return srv.Serve(tcpKeepAliveListener{server.Listener.(*net.TCPListener)})
 }
 
-func (server vermServer) Close() {
+func (server vermServer) Shutdown() {
 	server.Listener.Close()
 }

@@ -65,6 +65,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	server.Tracker.Shutdown()
+
 	os.Exit(0)
 }
 
@@ -83,7 +85,7 @@ func waitForSignals(server *vermServer, targets *ReplicationTargets) {
 			pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
 
 		case syscall.SIGINT, syscall.SIGTERM:
-			server.Close()
+			server.Shutdown()
 		}
 	}
 }

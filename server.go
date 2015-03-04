@@ -12,6 +12,7 @@ import "verm/mimeext"
 
 type vermServer struct {
 	Listener    net.Listener
+	Tracker     *ConnectionTracker
 	RootDataDir string
 	RootHttpDir http.Dir
 	Targets     *ReplicationTargets
@@ -22,6 +23,7 @@ type vermServer struct {
 func VermServer(listener net.Listener, rootDataDirectory string, replicationTargets *ReplicationTargets, statistics *LogStatistics, quiet bool) vermServer {
 	return vermServer{
 		Listener: listener,
+		Tracker: NewConnectionTracker(),
 		RootDataDir: rootDataDirectory,
 		RootHttpDir: http.Dir(rootDataDirectory),
 		Targets: replicationTargets,
