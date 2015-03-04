@@ -44,7 +44,7 @@ func (logger *responseLogger) Write(bytes []byte) (int, error) {
 }
 
 func (logger *responseLogger) ClfLog() {
-	fmt.Fprintf(os.Stderr, "%s - - %s \"%s %s %s\" %d %d\n",
+	fmt.Fprintf(os.Stdout, "%s - - %s \"%s %s %s\" %d %d\n",
 		RequestIP(logger.req),
 		ClfTime(),
 		logger.req.Method,
