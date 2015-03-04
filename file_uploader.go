@@ -139,7 +139,11 @@ func (server vermServer) FileUploader(w http.ResponseWriter, req *http.Request, 
 }
 
 func (upload *fileUpload) Close() {
-	upload.tempFile.Close()
+	if upload.tempFile != nil {
+		os.Remove(upload.tempFile.Name()) // ignore errors, the tempfile is moot at this point
+		upload.tempFile.Close()
+		upload.tempFile = nil
+	}
 }
 
 func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, newFile bool, err error) {
@@ -210,7 +214,7 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 		location = fmt.Sprintf("%s%s_%d%s", subpath, dst, attempt, upload.extension)
 	}
 
-	os.Remove(upload.tempFile.Name()) // ignore errors, the tempfile is moot at this point
+	upload.Close()
 
 	// try to fsync the directory too
 	dirnode, openerr := os.Open(upload.root + subpath)
