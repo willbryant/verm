@@ -33,16 +33,18 @@ func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *Log
 		// otherwise defaults (as per DefaultTransport):
 		Proxy: http.ProxyFromEnvironment,
 		Dial: (&net.Dialer{
-			Timeout:   ReplicationHttpTimeout * time.Second,
-			KeepAlive: ReplicationHttpTimeout * time.Second,
+			Timeout:   ReplicationNetworkTimeout * time.Second,
+			KeepAlive: ReplicationNetworkTimeout * time.Second,
 		}).Dial,
-		TLSHandshakeTimeout: 10 * time.Second,
+		TLSHandshakeTimeout: ReplicationNetworkTimeout * time.Second,
+		ResponseHeaderTimeout: ReplicationNetworkTimeout * time.Second,
 	}
 
 	target.client = &http.Client{
-		Timeout:   ReplicationHttpTimeout * time.Second,
+		Timeout:   ReplicationRequestTimeout * time.Second,
 		Transport: transport,
 	}
+
 	target.rootDataDirectory = rootDataDirectory
 	target.statistics = statistics
 	target.newFiles = make(chan string, ReplicationQueueSize-ReplicationMissingQueueSize-workers)
