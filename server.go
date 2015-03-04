@@ -13,6 +13,7 @@ import "verm/mimeext"
 type vermServer struct {
 	Listener    net.Listener
 	Tracker     *ConnectionTracker
+	Closed      uint32
 	RootDataDir string
 	RootHttpDir http.Dir
 	Targets     *ReplicationTargets
@@ -150,7 +151,9 @@ func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request)
 
 	location, newFile, err := server.UploadFile(w, req, false)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error serving POST to %s: %s\n", req.URL.Path, err.Error())
+		if server.Active() {
+			fmt.Fprintf(os.Stderr, "Error serving POST to %s: %s\n", req.URL.Path, err.Error())
+		}
 		http.Error(w, err.Error(), 500)
 		return
 	}
@@ -182,7 +185,9 @@ func (server vermServer) serveHTTPPut(w http.ResponseWriter, req *http.Request) 
 		case *WrongLocationError:
 			http.Error(w, err.Error(), 422)
 		default:
-			fmt.Fprintf(os.Stderr, "Error serving PUT to %s: %s\n", req.URL.Path, err.Error())
+			if server.Active() {
+				fmt.Fprintf(os.Stderr, "Error serving PUT to %s: %s\n", req.URL.Path, err.Error())
+			}
 			http.Error(w, err.Error(), 500)
 		}
 		return
@@ -212,7 +217,7 @@ func (server vermServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.Error(logger, "Method not supported", 405)
 	}
 
-	if !server.Quiet {
+	if !server.Quiet && server.Active() {
 		logger.ClfLog()
 	}
 }

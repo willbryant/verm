@@ -79,12 +79,14 @@ func waitForSignals(server *vermServer, targets *ReplicationTargets) {
 	for {
 		switch <-signals {
 		case syscall.SIGUSR1:
+			fmt.Fprintf(os.Stderr, "Resyncing by request\n")
 			targets.EnqueueResync()
 
 		case syscall.SIGUSR2:
 			pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
 
 		case syscall.SIGINT, syscall.SIGTERM:
+			fmt.Fprintf(os.Stderr, "Verm shutting down by request\n")
 			server.Shutdown()
 		}
 	}

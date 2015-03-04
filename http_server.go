@@ -2,6 +2,7 @@ package main
 
 import "net"
 import "net/http"
+import "sync/atomic"
 import "time"
 
 // http/server.go doesn't publish tcpKeepAliveListener, so we have to include it here
@@ -33,5 +34,10 @@ func (server vermServer) Serve() (error) {
 }
 
 func (server vermServer) Shutdown() {
+	atomic.StoreUint32(&server.Closed, 1)
 	server.Listener.Close()
+}
+
+func (server vermServer) Active() bool {
+	return atomic.LoadUint32(&server.Closed) > 0
 }
