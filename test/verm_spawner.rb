@@ -101,6 +101,7 @@ class VermSpawner
     return unless @verm_child_pid
     Process.kill('TERM', @verm_child_pid)
     Process.wait(@verm_child_pid)
+    raise "process terminated unsuccessfully: #{$?.inspect}" unless $?.success?
     @verm_child_pid = nil
   end
 end
