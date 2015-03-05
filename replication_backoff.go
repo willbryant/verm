@@ -9,7 +9,10 @@ func backoffTime(failures uint) time.Duration {
 	}
 
 	backoffTime := ReplicationBackoffBaseDelay*(2 << (failures - 3))
-	backoffTime = backoffTime/2 + int(rand.Int63n(int64(backoffTime)/2))
+
+	if backoffTime > 0 {
+		backoffTime = backoffTime/2 + int(rand.Int63n(int64(backoffTime)/2))
+	}
 
 	if backoffTime > ReplicationBackoffMaxDelay {
 		return ReplicationBackoffMaxDelay*time.Second
