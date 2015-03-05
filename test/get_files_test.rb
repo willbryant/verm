@@ -147,4 +147,21 @@ class GetFilesTest < Verm::TestCase
           :expected_content => f.read
     end
   end
+
+  def test_logs_request
+    VERM_SPAWNER.teardown
+    VERM_SPAWNER.setup(:no_quiet => true)
+    copy_arbitrary_file_to('somefiles', nil)
+    get :path => @location
+    VERM_SPAWNER.teardown
+    stdout = File.read(VERM_SPAWNER.capture_stdout_in)
+    assert stdout.include?("\"GET #{@location} HTTP/1.1\" 200 256"), "Request was not logged in #{stdout.inspect}"
+  end
+
+  def test_no_logs_in_quiet_mode
+    copy_arbitrary_file_to('somefiles', nil)
+    get :path => @location
+    VERM_SPAWNER.teardown
+    assert_equal "", File.read(VERM_SPAWNER.capture_stdout_in)
+  end
 end

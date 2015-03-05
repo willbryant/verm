@@ -52,7 +52,7 @@ class VermSpawner
   
   def start_verm(extra_options = {})
     exec_args  = [@verm_binary, "--data", verm_data, "--port", port.to_s]
-    exec_args << "--quiet" unless ENV['NOISY']
+    exec_args << "--quiet" unless ENV['NOISY'] || extra_options.delete(:no_quiet)
 
     @options.merge(extra_options).each do |name, value|
       option = "--#{name.to_s.gsub("_", "-")}"

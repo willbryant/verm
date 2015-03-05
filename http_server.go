@@ -39,5 +39,5 @@ func (server vermServer) Shutdown() {
 }
 
 func (server vermServer) Active() bool {
-	return atomic.LoadUint32(&server.Closed) > 0
+	return atomic.LoadUint32(&server.Closed) == 0
 }
