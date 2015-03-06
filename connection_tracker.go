@@ -51,5 +51,5 @@ func (tracker *ConnectionTracker) track() {
 			}
 		}
 	}
-	done <- struct{}{}
+	close(done)
 }
