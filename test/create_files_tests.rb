@@ -193,6 +193,7 @@ module CreateFilesSharedTests
     repeatedly_wait_until { count_tempfiles_in(dir) > 0 }
     socket.close
     repeatedly_wait_until { count_tempfiles_in(dir) == 0 }
+    assert_equal [], Dir["#{dir}/*"]
   end
 
   def test_cleans_tempfiles_on_shutdown
@@ -206,5 +207,6 @@ module CreateFilesSharedTests
     repeatedly_wait_until { count_tempfiles_in(dir) > 0 }
     VERM_SPAWNER.stop_verm
     assert_equal 0, count_tempfiles_in(dir)
+    assert_equal [], Dir["#{dir}/*"]
   end
 end
