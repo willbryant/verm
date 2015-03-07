@@ -64,8 +64,17 @@ module Verm
     def copy_arbitrary_file_to(directory, extension, compressed: false, spawner: VERM_SPAWNER)
       @arbitrary_file = 'binary_file'
       @arbitrary_file += '.gz' if compressed
-      @original_file = File.join(File.dirname(__FILE__), 'fixtures', @arbitrary_file)
-      @subdirectory, @filename = 'IF', 'P8unS2JIuR6_UZI5pZ0lxWHhfvR2ocOcRAma_lEiA' # happens to be appropriate for test/fixtures/binary_file, but not relevant to the tests
+      copy_fixture_file_to(directory, extension, @arbitrary_file, 'IF', 'P8unS2JIuR6_UZI5pZ0lxWHhfvR2ocOcRAma_lEiA', compressed: compressed, spawner: spawner)
+    end
+
+    def copy_zeros_file_to(directory, extension, spawner: VERM_SPAWNER)
+      copy_fixture_file_to(directory, extension, 'zeros.gz', 'Ky', 'H8F7BiViUfTKHTut4j6OWoF0Lq3wbcfESzrfpsx7u', compressed: true, spawner: spawner)
+    end
+
+    def copy_fixture_file_to(directory, extension, fixture_filename, subdirectory, filename, compressed: false, spawner: VERM_SPAWNER)
+      @original_file = File.join(File.dirname(__FILE__), 'fixtures', fixture_filename)
+      @subdirectory = subdirectory
+      @filename = filename
       @filename = "#{@filename}.#{extension}" if extension
       @location = "/#{directory}/#{@subdirectory}/#{@filename}" # does not get .gz added, even if the file is compressed
       @filename += '.gz' if compressed
@@ -88,7 +97,9 @@ module Verm
       assert !request.decode_content, "disabling decode_content failed!"
 
       response = http.start do |connection|
-        connection.request(request)
+        connection.request(request) do |response|
+          yield response if block_given?
+        end
       end
 
       assert_equal options[:expected_response_code] || 200, response.code.to_i, "The response didn't have the expected code"

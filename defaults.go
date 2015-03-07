@@ -21,3 +21,5 @@ const ReplicationMissingFilesBatchSize = 256*1024 // bytes, but only approximate
 const ReplicationMissingFilesBatchTime = 1 // seconds before we send even a small batch
 
 const ReplicaProxyTimeout = 15
+
+const ShutdownResponseTimeout = 15

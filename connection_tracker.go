@@ -2,11 +2,13 @@ package main
 
 import "net"
 import "net/http"
+import "time"
 
 type ConnectionTracker struct {
 	opened    chan net.Conn
 	closed    chan net.Conn
-	shutdown  chan chan struct{}
+	shutdown  chan *time.Timer
+	finished  chan struct{}
 	ConnState func(net.Conn, http.ConnState)
 }
 
@@ -14,7 +16,8 @@ func NewConnectionTracker() (tracker *ConnectionTracker) {
 	tracker = &ConnectionTracker{
 		opened:   make(chan net.Conn),
 		closed:   make(chan net.Conn),
-		shutdown: make(chan chan struct{}),
+		shutdown: make(chan *time.Timer),
+		finished: make(chan struct{}),
 	}
 	tracker.ConnState = func(nc net.Conn, state http.ConnState) {
 		switch state {
@@ -28,16 +31,15 @@ func NewConnectionTracker() (tracker *ConnectionTracker) {
 	return
 }
 
-func (tracker *ConnectionTracker) Shutdown() {
-	done := make(chan struct{})
-	tracker.shutdown <- done
-	<-done
+func (tracker *ConnectionTracker) Shutdown(timeout time.Duration) {
+	tracker.shutdown <- time.NewTimer(timeout)
+	<-tracker.finished
 }
 
 func (tracker *ConnectionTracker) track() {
 	connections := map[net.Conn]struct{}{}
-	var done chan struct{}
-	for done == nil || len(connections) > 0 {
+	var deadline <-chan time.Time
+	for deadline == nil || len(connections) > 0 {
 		select {
 		case nc := <-tracker.opened:
 			connections[nc] = struct{}{}
@@ -45,11 +47,18 @@ func (tracker *ConnectionTracker) track() {
 		case nc := <-tracker.closed:
 			delete(connections, nc)
 
-		case done = <-tracker.shutdown:
+		case timeout := <-tracker.shutdown:
+			deadline = timeout.C
+
+			for nc := range connections {
+				nc.(*net.TCPConn).CloseRead()
+			}
+
+		case <-deadline:
 			for nc := range connections {
 				nc.Close()
 			}
 		}
 	}
-	close(done)
+	close(tracker.finished)
 }

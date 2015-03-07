@@ -96,12 +96,20 @@ class VermSpawner
     end
     raise "Can't connect to our verm instance on #{host}"
   end
-  
-  def stop_verm
+
+  def request_stop
+    Process.kill('TERM', @verm_child_pid) if @verm_child_pid
+  end
+
+  def wait_for_stop
     return unless @verm_child_pid
-    Process.kill('TERM', @verm_child_pid)
     Process.wait(@verm_child_pid)
     raise "process terminated unsuccessfully: #{$?.inspect}" unless $?.success?
     @verm_child_pid = nil
+  end
+
+  def stop_verm
+    request_stop
+    wait_for_stop
   end
 end

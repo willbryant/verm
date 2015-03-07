@@ -9,6 +9,7 @@ import "os/signal"
 import "runtime"
 import "runtime/pprof"
 import "strings"
+import "time"
 import "syscall"
 import "verm/mimeext"
 
@@ -65,7 +66,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	server.Tracker.Shutdown()
+	server.Tracker.Shutdown(ShutdownResponseTimeout * time.Second)
 
 	os.Exit(0)
 }

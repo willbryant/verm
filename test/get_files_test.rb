@@ -148,6 +148,26 @@ class GetFilesTest < Verm::TestCase
     end
   end
 
+  def test_serves_complete_file_if_shutdown_initiated
+    copy_zeros_file_to('somefiles', 'vermtest1')
+    bytes_read = iterations = 0
+    get :path => @location,
+        :accept_encoding => 'foo',
+        :expected_content_encoding => nil,
+        :expected_content_type => 'application/verm-test-file' do |response|
+      response.read_body do |chunk|
+        bytes_read += chunk.length
+        iterations += 1
+        VERM_SPAWNER.request_stop
+        sleep 0.001
+      end
+    end
+    assert_equal 4096*4096, bytes_read
+    assert iterations > 1000, "expected many iterations to give the test a chance to fail"
+  rescue Errno::ECONNREFUSED
+    fail "Ruby retried the request because it died partway through (#{$!})"
+  end
+
   def test_logs_request
     VERM_SPAWNER.teardown
     VERM_SPAWNER.setup(:no_quiet => true)
