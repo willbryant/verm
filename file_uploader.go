@@ -13,7 +13,7 @@ import "net/http"
 import "os"
 import "path"
 import "strings"
-import "verm/mimeext"
+import "github.com/willbryant/verm/mimeext"
 
 type fileUpload struct {
 	replicating bool

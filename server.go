@@ -8,7 +8,7 @@ import "os"
 import "path"
 import "path/filepath"
 import "sync/atomic"
-import "verm/mimeext"
+import "github.com/willbryant/verm/mimeext"
 
 type vermServer struct {
 	Listener    net.Listener

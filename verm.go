@@ -11,7 +11,7 @@ import "runtime/pprof"
 import "strings"
 import "time"
 import "syscall"
-import "verm/mimeext"
+import "github.com/willbryant/verm/mimeext"
 
 func main() {
 	var rootDataDirectory, listenAddress, port, mimeTypesFile string
