@@ -13,6 +13,16 @@ import "time"
 import "syscall"
 import "github.com/willbryant/verm/mimeext"
 
+var compiled_version string
+
+func banner() string {
+	if compiled_version != "" {
+		return "Verm " + compiled_version
+	} else {
+		return "Verm"
+	}
+}
+
 func main() {
 	var rootDataDirectory, listenAddress, port, mimeTypesFile string
 	var mimeTypesClear bool
@@ -45,7 +55,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Couldn't listen on %s:%s: %s\n", listenAddress, port, err.Error())
 		os.Exit(1)
 	} else if !quiet {
-		fmt.Fprintf(os.Stdout, "Verm listening on http://%s:%s, data in %s\n", listenAddress, port, rootDataDirectory)
+		fmt.Fprintf(os.Stdout, "%s listening on http://%s:%s, data in %s\n", banner(), listenAddress, port, rootDataDirectory)
 	}
 
 	statistics := &LogStatistics{}
