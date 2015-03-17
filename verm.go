@@ -14,12 +14,21 @@ import "syscall"
 import "github.com/willbryant/verm/mimeext"
 
 var compiled_version string
+var compiled_root_data_directory string
 
 func banner() string {
 	if compiled_version != "" {
 		return "Verm " + compiled_version
 	} else {
 		return "Verm"
+	}
+}
+
+func default_root() string {
+	if compiled_root_data_directory != "" {
+		return compiled_root_data_directory
+	} else {
+		return DefaultRoot
 	}
 }
 
@@ -31,7 +40,7 @@ func main() {
 	var healthCheckPath, healthyIfFile, healthyUnlessFile string
 	var quiet bool
 
-	flag.StringVar(&rootDataDirectory, "data", DefaultRoot, "Sets the root data directory to /foo.  Must be fully-qualified (ie. it must start with a /).")
+	flag.StringVar(&rootDataDirectory, "data", default_root(), "Sets the root data directory to /foo.  Must be fully-qualified (ie. it must start with a /).")
 	flag.StringVar(&listenAddress, "listen", DefaultListenAddress, "Listen on the given IP address.  Default: listen on all network interfaces.")
 	flag.StringVar(&port, "port", DefaultPort, "Listen on the given port.")
 	flag.StringVar(&mimeTypesFile, "mime-types-file", DefaultMimeTypesFile, "Load MIME content-types from the given file.")
