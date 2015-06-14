@@ -12,6 +12,7 @@ type LogStatistics struct {
 }
 
 func (server vermServer) serveStatistics(w http.ResponseWriter, req *http.Request, replicationTargets *ReplicationTargets) {
+	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w,
 		"get_requests %d\n"+
 			"get_requests_found_on_replica %d\n"+
