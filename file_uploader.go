@@ -228,14 +228,15 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 
 	upload.Close()
 
-	// try to fsync the directory too
-	dirnode, openerr := os.Open(upload.root + subpath)
-	if openerr == nil { // ignore if not allowed to open it
-		dirnode.Sync()
-		dirnode.Close()
-	}
-
 	if newFile {
+		// try to fsync the directory too
+		dirnode, openerr := os.Open(upload.root + subpath)
+		if openerr == nil { // ignore if not allowed to open it
+			dirnode.Sync()
+			dirnode.Close()
+		}
+
+		// queue the file for replication
 		if upload.extension == ".gz" {
 			// for the sake of replication, we can treat it as a gzip-encoded binary file rather than a raw gzip file;
 			// this is how we will interpret the filename when we restart and resync, so it's better to always do this
