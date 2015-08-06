@@ -169,11 +169,6 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 		return
 	}
 
-	err = upload.tempFile.Sync()
-	if err != nil {
-		return
-	}
-
 	// hardlink the file into place
 	newFile = true
 	attempt := 1
@@ -181,6 +176,26 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 		// compose the filename; if the upload was itself compressed, tack on the gzip suffix -
 		// but note that this changes only the filename and not the returned location
 		filename := upload.root + location + EncodingSuffix(upload.encoding)
+
+		// optimisation: before we sync our tempfile to disk, pre-check if the file exists, and if
+		// so, whether the file contents match.  if so, we can avoid the sync, which helps clients
+		// that post the same file substantially because syncs are much slower than opens.
+		// unfortunately if it doesn't exist yet, there's still a race to create the file, so we'll
+		// potentially have to do this again below if the Link() fails (in the os.IsExist case).
+		same, openerr := upload.sameUploadedFile(filename)
+		if same && openerr == nil {
+			newFile = false
+			break
+		}
+
+		// nope, we need to try and link it ourselves; we need to sync to disk first to ensure that
+		// the contents of the file are definitely persisted before the metadata pointing to it is
+		if attempt == 1 {
+			err = upload.tempFile.Sync()
+			if err != nil {
+				return
+			}
+		}
 
 		err = os.Link(upload.tempFile.Name(), filename)
 		if err == nil {
@@ -195,15 +210,12 @@ func (upload *fileUpload) Finish(targets *ReplicationTargets) (location string, 
 		}
 
 		// check the file contents match
-		existing, openerr := os.Open(filename)
+		same, openerr = upload.sameUploadedFile(filename)
 		if openerr != nil {
 			// can't open the existing file - may not be a regular file, or not accessible to us; return the original error
 			return
 		}
-		defer existing.Close()
-		upload.tempFile.Seek(0, 0)
-
-		if sameDecodedContents(upload.tempFile, existing, upload.encoding) {
+		if same {
 			// success
 			newFile = false
 			break
@@ -281,6 +293,23 @@ func mediaTypeOrDefault(header textproto.MIMEHeader) string {
 		return "application/octet-stream"
 	}
 	return mediaType
+}
+
+func (upload *fileUpload) sameUploadedFile(filename string) (same bool, err error) {
+	// check the file contents match
+	existing, err := os.Open(filename)
+	if err != nil {
+		// can't open the existing file - may not be a regular file, or not accessible to us; return the original error
+		return false, err
+	}
+	defer existing.Close()
+
+	_, err = upload.tempFile.Seek(0, 0)
+	if err != nil {
+		return false, err
+	}
+
+	return sameDecodedContents(upload.tempFile, existing, upload.encoding), nil
 }
 
 func sameDecodedContents(stream1, stream2 io.Reader, encoding string) bool {
