@@ -104,6 +104,7 @@ func waitForSignals(server *vermServer, targets *ReplicationTargets) {
 
 		case syscall.SIGUSR2:
 			pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
+			pprof.Lookup("heap").WriteTo(os.Stdout, 1)
 
 		case syscall.SIGINT, syscall.SIGTERM:
 			if !server.Quiet {
