@@ -4,3 +4,5 @@
 *.a
 .deps
 .libs
+src
+verm
