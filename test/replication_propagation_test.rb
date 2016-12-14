@@ -140,7 +140,8 @@ class ReplicationPropagationTest < Verm::TestCase
     }, changes)
 
     unless ENV['VALGRIND'] || ENV['NO_CAPTURE_STDERR'].to_i > 0
-      assert File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in).downcase.include?("#{VERM_SPAWNER.port}: connection refused"),
+      assert_match /#{VERM_SPAWNER.port}:( getsockopt:)? connection refused/,
+        File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in).downcase,
         "replication error was not logged"
     end
 
