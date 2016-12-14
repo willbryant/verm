@@ -11,7 +11,7 @@ class ReplicationMissingTest < Verm::TestCase
   end
 
   def assert_ungzipped_body(content, response)
-    assert_equal nil, response['content-encoding']
+    assert_nil response['content-encoding']
     assert_equal content, response.body
   end
 

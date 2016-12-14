@@ -24,7 +24,7 @@ class CreateFilesRawTest < Verm::TestCase
 
   def test_saves_same_gzipped_file_compressed_differently_to_same_path
     recompressed = gzip(fixture_file_data('simple_text_file'))
-    assert_not_equal recompressed, fixture_file_data('simple_text_file.gz')
+    refute_equal recompressed, fixture_file_data('simple_text_file.gz')
 
     location1 =
       post_file :path => '/foo',
