@@ -149,6 +149,7 @@ func (target *ReplicationTarget) queueMissingFiles(resp *http.Response) {
 	}
 
 	scanner := bufio.NewScanner(input)
+	scanner.Split(ScanWholeLines)
 
 	for scanner.Scan() {
 		location := scanner.Text()

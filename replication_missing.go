@@ -43,6 +43,7 @@ func (server vermServer) serveMissing(w http.ResponseWriter, req *http.Request) 
 
 func (server vermServer) listMissingFiles(input io.Reader, output io.Writer) {
 	scanner := bufio.NewScanner(input)
+	scanner.Split(ScanWholeLines)
 
 	for scanner.Scan() {
 		line := scanner.Text()
