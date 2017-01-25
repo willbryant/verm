@@ -111,7 +111,7 @@ module CreateFilesSharedTests
                   :type => 'application/octet-stream',
                   :expected_extension => nil)
       
-      assert_not_equal first_file_location, different_file_location
+      refute_equal first_file_location, different_file_location
     end
   end
 

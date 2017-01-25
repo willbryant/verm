@@ -74,7 +74,7 @@ class GetFilesTest < Verm::TestCase
     assert_statistics_change(:get_requests => 2) do
       copy_arbitrary_file_to('somefiles', nil)
       response = get :path => @location
-      assert_not_nil response['etag']
+      refute_nil response['etag']
       
       get :path => @location,
           :headers => {'if-none-match' => response['etag']},

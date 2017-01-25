@@ -1,5 +1,4 @@
-require 'rubygems'
-require 'test/unit'
+require 'minitest/autorun'
 require 'fileutils'
 require 'byebug'
 require File.expand_path(File.join(File.dirname(__FILE__), 'net_http_multipart_post'))
@@ -15,7 +14,7 @@ VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, :mime_types_file => mime_
 REPLICATION_MASTER_VERM_SPAWNER = VermSpawner.new(verm_binary, "#{verm_data}_replica", :mime_types_file => mime_types_file, :port => VERM_SPAWNER.port + 1, :replicate_to => VERM_SPAWNER.host, :capture_stdout_in => captured_stdout_filename, :capture_stderr_in => captured_stderr_filename)
 
 module Verm
-  class TestCase < Test::Unit::TestCase
+  class TestCase < Minitest::Test
     undef_method :default_test if instance_methods.include? 'default_test' or
                                   instance_methods.include? :default_test
 
@@ -24,6 +23,7 @@ module Verm
     end
   
     def setup
+      @multipart = nil
       VERM_SPAWNER.setup(extra_spawner_options)
     end
 
@@ -103,12 +103,21 @@ module Verm
       end
 
       assert_equal options[:expected_response_code] || 200, response.code.to_i, "The response didn't have the expected code"
-      assert_equal options[:expected_content_type], response.content_type, "The response had an incorrect content-type" if options.has_key?(:expected_content_type)
-      assert_equal options[:expected_content_length], response.content_length, "The response had an incorrect content-length" if options.has_key?(:expected_content_length)
-      assert_equal options[:expected_content_encoding], response['content-encoding'], "The response had an incorrect content-encoding" if options.has_key?(:expected_content_encoding)
-      assert_equal options[:expected_content], response.body, "The response had incorrect content" if options.has_key?(:expected_content)
+      assert_equal_or_nil options[:expected_content_type], response.content_type, "The response had an incorrect content-type" if options.has_key?(:expected_content_type)
+      assert_equal_or_nil options[:expected_content_length], response.content_length, "The response had an incorrect content-length" if options.has_key?(:expected_content_length)
+      assert_equal_or_nil options[:expected_content_encoding], response['content-encoding'], "The response had an incorrect content-encoding" if options.has_key?(:expected_content_encoding)
+      assert_equal_or_nil options[:expected_content], response.body, "The response had incorrect content" if options.has_key?(:expected_content)
       
       response
+    end
+
+    # Prevent "Use assert_nil if expecting nil... This will fail in MT6" warnings
+    def assert_equal_or_nil(expected, actual, message=nil)
+      if expected.nil?
+        assert_nil actual, message
+      else
+        assert_equal expected, actual, message
+      end
     end
 
     def expected_filename(location, options = {})
@@ -219,7 +228,7 @@ module Verm
     end
 
     def calculate_statistics_change(before, after)
-      results = after.inject({}) {|results, (k, v)| results[k] = v - before[k] unless v == before[k]; results}
+      after.inject({}) {|results, (k, v)| results[k] = v - before[k] unless v == before[k]; results}
     end
 
     def assert_statistics_change(expected_change, options = {})

@@ -76,7 +76,7 @@ class VermSpawner
         puts e
         exit 1
       end
-      exec *exec_args
+      exec(*exec_args)
     end
   end
   

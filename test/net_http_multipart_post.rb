@@ -9,6 +9,7 @@ module Net
       def initialize(*args)
         super(*args)
 
+        @added_final_boundary = nil
         chrs = "0123456789abcdefghijklmnopqrstuvwxyz"
         random_str = (0..11).collect { chrs[rand(36)] }.join
         @boundary = ".multipart_boundary_#{random_str}.".freeze
