@@ -138,7 +138,7 @@ func (target *ReplicationTarget) forwardRequest(w http.ResponseWriter, reqIn *ht
 
 	} else {
 		// unexpected HTTP error
-		fmt.Fprintf(os.Stderr, "HTTP error requesting %s: %s\n", path, resp.StatusCode)
+		fmt.Fprintf(os.Stderr, "HTTP error requesting %s: %d\n", path, resp.StatusCode)
 		resp.Body.Close()
 		out <- nil
 	}
