@@ -36,7 +36,7 @@ func (target *ReplicationTarget) Start(rootDataDirectory string, statistics *Log
 			Timeout:   ReplicationNetworkTimeout * time.Second,
 			KeepAlive: ReplicationNetworkTimeout * time.Second,
 		}).Dial,
-		TLSHandshakeTimeout: ReplicationNetworkTimeout * time.Second,
+		TLSHandshakeTimeout:   ReplicationNetworkTimeout * time.Second,
 		ResponseHeaderTimeout: ReplicationNetworkTimeout * time.Second,
 	}
 
@@ -107,11 +107,11 @@ func (target *ReplicationTarget) replicateFile(location string) {
 		ok := Put(target.client, target.hostname, target.port, location, target.rootDataDirectory)
 
 		if ok {
-			atomic.AddUint64(&target.statistics.replication_push_attempts, 1)
+			target.statistics.ReplicationPushAttempts.Add(1)
 			break
 		} else {
-			atomic.AddUint64(&target.statistics.replication_push_attempts, 1)
-			atomic.AddUint64(&target.statistics.replication_push_attempts_failed, 1)
+			target.statistics.ReplicationPushAttempts.Add(1)
+			target.statistics.ReplicationPushAttemptsFailed.Add(1)
 			time.Sleep(backoffTime(attempts))
 		}
 	}

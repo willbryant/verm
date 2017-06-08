@@ -1,45 +1,44 @@
 package main
 
-import "fmt"
-import "net/http"
+import (
+	"expvar"
+	"fmt"
+	"net/http"
+)
 
 type LogStatistics struct {
-	get_requests, get_requests_found_on_replica, get_requests_not_found,
-	post_requests, post_requests_new_file_stored, post_requests_failed,
-	put_requests, put_requests_new_file_stored, put_requests_missing_file_checks, put_requests_failed,
-	replication_push_attempts, replication_push_attempts_failed,
-	connections_current uint64
+	GetRequests, GetRequestsFoundOnReplica, GetRequestsNotFound                            *expvar.Int
+	PostRequests, PostRequestsNewFileStored, PostRequestsFailed                            *expvar.Int
+	PutRequests, PutRequestsNewFileStored, PutRequestsMissingFileChecks, PutRequestsFailed *expvar.Int
+	ReplicationPushAttempts, ReplicationPushAttemptsFailed                                 *expvar.Int
+	ConnectionsCurrent                                                                     *expvar.Int
+}
+
+func NewLogStatistics() *LogStatistics {
+	return &LogStatistics{
+		GetRequests:                   expvar.NewInt("get_requests"),
+		GetRequestsFoundOnReplica:     expvar.NewInt("get_requests_found_on_replica"),
+		GetRequestsNotFound:           expvar.NewInt("get_requests_not_found"),
+		PostRequests:                  expvar.NewInt("post_requests"),
+		PostRequestsNewFileStored:     expvar.NewInt("post_requests_new_file_stored"),
+		PostRequestsFailed:            expvar.NewInt("post_requests_failed"),
+		PutRequests:                   expvar.NewInt("put_requests"),
+		PutRequestsNewFileStored:      expvar.NewInt("put_requests_new_file_stored"),
+		PutRequestsMissingFileChecks:  expvar.NewInt("put_requests_missing_file_checks"),
+		PutRequestsFailed:             expvar.NewInt("put_requests_failed"),
+		ReplicationPushAttempts:       expvar.NewInt("replication_push_attempts"),
+		ReplicationPushAttemptsFailed: expvar.NewInt("replication_push_attempts_failed"),
+		ConnectionsCurrent:            expvar.NewInt("connections_current"),
+	}
 }
 
 func (server vermServer) serveStatistics(w http.ResponseWriter, req *http.Request, replicationTargets *ReplicationTargets) {
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w,
-		"get_requests %d\n"+
-			"get_requests_found_on_replica %d\n"+
-			"get_requests_not_found %d\n"+
-			"post_requests %d\n"+
-			"post_requests_new_file_stored %d\n"+
-			"post_requests_failed %d\n"+
-			"put_requests %d\n"+
-			"put_requests_new_file_stored %d\n"+
-			"put_requests_missing_file_checks %d\n"+
-			"put_requests_failed %d\n"+
-			"replication_push_attempts %d\n"+
-			"replication_push_attempts_failed %d\n"+
-			"connections_current %d\n"+
-			"%s",
-		server.Statistics.get_requests,
-		server.Statistics.get_requests_found_on_replica,
-		server.Statistics.get_requests_not_found,
-		server.Statistics.post_requests,
-		server.Statistics.post_requests_new_file_stored,
-		server.Statistics.post_requests_failed,
-		server.Statistics.put_requests,
-		server.Statistics.put_requests_new_file_stored,
-		server.Statistics.put_requests_missing_file_checks,
-		server.Statistics.put_requests_failed,
-		server.Statistics.replication_push_attempts,
-		server.Statistics.replication_push_attempts_failed,
-		server.Statistics.connections_current,
-		replicationTargets.StatisticsString())
+	expvar.Do(func(kv expvar.KeyValue) {
+		switch v := kv.Value.(type) {
+		case *expvar.Int:
+			fmt.Fprintf(w, "%s %d\n", kv.Key, v.Value())
+		}
+	})
+	fmt.Fprintf(w, "%s", replicationTargets.StatisticsString())
 }
