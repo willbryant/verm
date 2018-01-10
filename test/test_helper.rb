@@ -40,7 +40,7 @@ module Verm
         return if yield
         sleep 0.1
       end
-      raise TimeoutError
+      raise Timeout::TimeoutError
     end
     
 
@@ -97,8 +97,8 @@ module Verm
       assert !request.decode_content, "disabling decode_content failed!"
 
       response = http.start do |connection|
-        connection.request(request) do |response|
-          yield response if block_given?
+        connection.request(request) do |resp|
+          yield resp if block_given?
         end
       end
 
@@ -215,7 +215,7 @@ module Verm
       while true
         response = get(options.merge(:path => "/_statistics", :expected_response_code => 200))
         lines = response.body.split(/\n/)
-        results = lines.inject({}) {|results, line| name, value = line.split(/ /); results[name.to_sym] = value.to_i; results}
+        results = lines.inject({}) {|res, line| name, value = line.split(/ /); res[name.to_sym] = value.to_i; res}
 
         # all our ruby test code is single-threaded, so if there's more than one connection active in the
         # verm instance at a time, it means the previous request our test code made has been responded to

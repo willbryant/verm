@@ -128,7 +128,7 @@ class ReplicationPropagationTest < Verm::TestCase
     after = changes = nil
     repeatedly_wait_until do
       after = get_statistics(:verm => REPLICATION_MASTER_VERM_SPAWNER)
-      after[:replication_push_attempts]
+      after[:replication_push_attempts] && after[:replication_push_attempts] > 0
     end
 
     changes = calculate_statistics_change(before, after)
