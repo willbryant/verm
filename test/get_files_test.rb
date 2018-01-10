@@ -174,7 +174,7 @@ class GetFilesTest < Verm::TestCase
     copy_arbitrary_file_to('somefiles', nil)
     get :path => @location
     VERM_SPAWNER.teardown
-    stdout = File.read(VERM_SPAWNER.capture_stdout_in)
+    stdout = VERM_SPAWNER.stdout_output
     assert stdout.include?("\"GET #{@location} HTTP/1.1\" 200 256"), "Request was not logged in #{stdout.inspect}"
   end
 
@@ -182,6 +182,6 @@ class GetFilesTest < Verm::TestCase
     copy_arbitrary_file_to('somefiles', nil)
     get :path => @location
     VERM_SPAWNER.teardown
-    assert_equal "", File.read(VERM_SPAWNER.capture_stdout_in)
+    assert_equal "", VERM_SPAWNER.stdout_output
   end
 end

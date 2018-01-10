@@ -59,7 +59,7 @@ class ReplicationPropagationTest < Verm::TestCase
     end
 
     unless ENV['VALGRIND'] || ENV['NO_CAPTURE_STDERR'].to_i > 0
-      assert_equal "", File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in)
+      assert_equal "", REPLICATION_MASTER_VERM_SPAWNER.stderr_output
     end
   end
 
@@ -76,7 +76,7 @@ class ReplicationPropagationTest < Verm::TestCase
     end
 
     unless ENV['VALGRIND'] || ENV['NO_CAPTURE_STDERR'].to_i > 0
-      assert_equal "", File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in)
+      assert_equal "", REPLICATION_MASTER_VERM_SPAWNER.stderr_output
     end
   end
 
@@ -92,7 +92,7 @@ class ReplicationPropagationTest < Verm::TestCase
     end
 
     unless ENV['VALGRIND'] || ENV['NO_CAPTURE_STDERR'].to_i > 0
-      assert_equal "", File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in)
+      assert_equal "", REPLICATION_MASTER_VERM_SPAWNER.stderr_output
     end
   end
 
@@ -141,7 +141,7 @@ class ReplicationPropagationTest < Verm::TestCase
 
     unless ENV['VALGRIND'] || ENV['NO_CAPTURE_STDERR'].to_i > 0
       assert_match(/#{VERM_SPAWNER.port}:( getsockopt:)? connection refused/,
-        File.read(REPLICATION_MASTER_VERM_SPAWNER.capture_stderr_in).downcase,
+        REPLICATION_MASTER_VERM_SPAWNER.stderr_output.downcase,
         "replication error was not logged")
     end
 

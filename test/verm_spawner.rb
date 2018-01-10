@@ -112,4 +112,12 @@ class VermSpawner
     request_stop
     wait_for_stop
   end
+
+  def stdout_output
+    File.read(@capture_stdout_in)
+  end
+
+  def stderr_output
+    File.read(@capture_stderr_in)
+  end
 end
