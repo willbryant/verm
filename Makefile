@@ -10,7 +10,7 @@ install: verm
 
 verm: *.go */*.go
 	mkdir -p src/github.com/willbryant
-	( cd src/github.com/willbryant && ln -sf ../../../ verm)
+	(cd src/github.com/willbryant && rm verm && ln -s ../../../ verm)
 	GOPATH="`pwd`" go build
 
 clean:
