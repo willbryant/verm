@@ -4,14 +4,21 @@ require 'byebug'
 require File.expand_path(File.join(File.dirname(__FILE__), 'net_http_multipart_post'))
 require File.expand_path(File.join(File.dirname(__FILE__), 'verm_spawner'))
 
-verm_binary = File.join(File.dirname(__FILE__), '..', 'verm')
-verm_data   = File.join(File.dirname(__FILE__), 'data')
-mime_types_file = File.join(File.dirname(__FILE__), 'fixtures', 'mime.types')
-captured_stdout_filename = File.join(File.dirname(__FILE__), 'tmp', 'captured_stdout') unless ENV['NO_CAPTURE_STDOUT'].to_i > 0
-captured_stderr_filename = File.join(File.dirname(__FILE__), 'tmp', 'captured_stderr') unless ENV['NO_CAPTURE_STDERR'].to_i > 0
 FileUtils.mkdir_p(File.join(File.dirname(__FILE__), 'tmp'))
-VERM_SPAWNER = VermSpawner.new(verm_binary, verm_data, :mime_types_file => mime_types_file, :capture_stdout_in => captured_stdout_filename, :capture_stderr_in => captured_stderr_filename)
-REPLICATION_MASTER_VERM_SPAWNER = VermSpawner.new(verm_binary, "#{verm_data}_replica", :mime_types_file => mime_types_file, :port => VERM_SPAWNER.port + 1, :replicate_to => VERM_SPAWNER.host, :capture_stdout_in => captured_stdout_filename, :capture_stderr_in => captured_stderr_filename)
+
+DEFAULT_VERM_SPAWNER_OPTIONS = {
+  :verm_binary => File.join(File.dirname(__FILE__), '..', 'verm'),
+  :verm_data => File.join(File.dirname(__FILE__), 'data'),
+  :mime_types_file => File.join(File.dirname(__FILE__), 'fixtures', 'mime.types'),
+
+  :capture_stdout_in => (File.join(File.dirname(__FILE__), 'tmp', 'captured_stdout') unless ENV['NO_CAPTURE_STDOUT'].to_i > 0),
+  :capture_stderr_in => (File.join(File.dirname(__FILE__), 'tmp', 'captured_stderr') unless ENV['NO_CAPTURE_STDERR'].to_i > 0),
+
+  # real verm will run on 3404, it's convenient to use another port for test so you can test a new version while the old version is still running
+  :port => 3405,
+
+  :quiet => true,
+}
 
 module Verm
   class TestCase < Minitest::Test
@@ -21,16 +28,40 @@ module Verm
     def extra_spawner_options
       {}
     end
-  
+
     def setup
-      @multipart = nil
-      VERM_SPAWNER.setup(extra_spawner_options)
+      spawn_verm
     end
 
     def teardown
-      VERM_SPAWNER.teardown
+      teardown_verm
     end
-    
+
+    def spawners
+      @spawners ||= []
+    end
+
+    def spawn_verm(options = {})
+      VermSpawner.new(DEFAULT_VERM_SPAWNER_OPTIONS.merge(options)).tap do |spawner|
+        spawner.clear_data
+        spawner.start_verm
+        spawner.wait_until_available
+        spawners << spawner
+      end
+    end
+
+    def teardown_verm
+      old_spawners = spawners.dup
+      spawners.clear
+      old_spawners.each { |spawner| spawner.stop_verm(false) }
+      old_spawners.each { |spawner| spawner.clear_data }
+      old_spawners.each { |spawner| spawner.check_exit_status! }
+    end
+
+    def default_verm_spawner
+      spawners.first
+    end
+
     def timeout
       10 # seconds
     end
@@ -61,17 +92,17 @@ module Verm
       File.join(File.dirname(__FILE__), 'fixtures', filename)
     end
 
-    def copy_arbitrary_file_to(directory, extension, compressed: false, spawner: VERM_SPAWNER)
+    def copy_arbitrary_file_to(directory, extension, compressed: false, spawner: default_verm_spawner)
       @arbitrary_file = 'binary_file'
       @arbitrary_file += '.gz' if compressed
       copy_fixture_file_to(directory, extension, @arbitrary_file, 'IF', 'P8unS2JIuR6_UZI5pZ0lxWHhfvR2ocOcRAma_lEiA', compressed: compressed, spawner: spawner)
     end
 
-    def copy_zeros_file_to(directory, extension, spawner: VERM_SPAWNER)
+    def copy_zeros_file_to(directory, extension, spawner: default_verm_spawner)
       copy_fixture_file_to(directory, extension, 'zeros.gz', 'Ky', 'H8F7BiViUfTKHTut4j6OWoF0Lq3wbcfESzrfpsx7u', compressed: true, spawner: spawner)
     end
 
-    def copy_fixture_file_to(directory, extension, fixture_filename, subdirectory, filename, compressed: false, spawner: VERM_SPAWNER)
+    def copy_fixture_file_to(directory, extension, fixture_filename, subdirectory, filename, compressed: false, spawner: default_verm_spawner)
       @original_file = File.join(File.dirname(__FILE__), 'fixtures', fixture_filename)
       @subdirectory = subdirectory
       @filename = filename
@@ -87,7 +118,7 @@ module Verm
     end
 
     def get(options)
-      verm_spawner = options[:verm] || VERM_SPAWNER
+      verm_spawner = options[:verm] || default_verm_spawner
       http = Net::HTTP.new(verm_spawner.hostname, verm_spawner.port)
       http.read_timeout = timeout
       
@@ -121,7 +152,7 @@ module Verm
     end
 
     def expected_filename(location, options = {})
-      verm_spawner = options[:verm] || VERM_SPAWNER
+      verm_spawner = options[:verm] || default_verm_spawner
       dest_filename = File.expand_path(File.join(verm_spawner.verm_data, location))
       dest_filename += '.' + options[:expected_extension_suffix] if options[:expected_extension_suffix]
       dest_filename
@@ -140,10 +171,10 @@ module Verm
     end
     
     def post_file(options)
-      verm_spawner = options[:verm] || VERM_SPAWNER
+      verm_spawner = options[:verm] || default_verm_spawner
       file_data = options[:data] || fixture_file_data(options[:file])
       
-      if @multipart
+      if @multipart ||= nil
         # don't use this in your own apps!  multipart support is only provided to make direct webpage upload demos,
         # and there's no reason to use it in real apps.  we support it here only so we can test the multipage mode.
         request = Net::HTTP::MultipartPost.new(options[:path])
@@ -180,7 +211,7 @@ module Verm
       location
     end
     
-    def put(options, verm_spawner = VERM_SPAWNER)
+    def put(options, verm_spawner = default_verm_spawner)
       file_data = options[:data] || fixture_file_data(options[:file])
       
       request = Net::HTTP::Put.new(options[:path])
@@ -198,7 +229,7 @@ module Verm
       response
     end
 
-    def put_file(options, verm_spawner = VERM_SPAWNER)
+    def put_file(options, verm_spawner = default_verm_spawner)
       file_data = File.read(fixture_file_path(options[:file]), :mode => 'rb')
       response = put(options.merge(:data => file_data), verm_spawner)
       location = response['location']

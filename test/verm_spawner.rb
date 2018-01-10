@@ -4,26 +4,22 @@ require 'net/http'
 class VermSpawner
   STARTUP_TIMEOUT = 10 # seconds
   
-  attr_reader :verm_binary, :verm_data, :options, :capture_stdout_in, :capture_stderr_in
+  attr_reader :verm_binary, :verm_data, :port, :quiet, :options, :capture_stdout_in, :capture_stderr_in, :verm_child_pid
   
-  def initialize(verm_binary, verm_data, options = {})
-    @verm_binary = verm_binary
-    @verm_data = verm_data
-    @port = options.delete(:port)
-    @replicate_to = options.delete(:replicate_to)
-    @capture_stdout_in = options.delete(:capture_stdout_in)
-    @capture_stderr_in = options.delete(:capture_stderr_in)
-    @options = options
+  def initialize(options = {})
+    @options = options.dup
+    @verm_binary = @options.delete(:verm_binary)
+    @verm_data = @options.delete(:verm_data)
+    @port = @options.delete(:port)
+    @quiet = @options.delete(:quiet)
+    @replicate_to = @options.delete(:replicate_to)
+    @capture_stdout_in = @options.delete(:capture_stdout_in)
+    @capture_stderr_in = @options.delete(:capture_stderr_in)
     raise "Can't see a verm binary at #{verm_binary}" unless File.executable?(verm_binary)
   end
   
   def hostname
     "localhost"
-  end
-  
-  def port
-    # real verm will run on 3404, it's convenient to use another port for test so you can test a new version while the old version is still running
-    @port || 3405
   end
 
   def host # following javascript Location naming conventions
@@ -33,28 +29,17 @@ class VermSpawner
   def server_uri
     @server_uri ||= URI.parse("http://#{host}")
   end
-
-  def setup(extra_options = {})
-    clear_data
-    start_verm(extra_options)
-    wait_until_available
-  end
-
-  def teardown
-    stop_verm
-    clear_data
-  end
   
   def clear_data
     FileUtils.rm_r(@verm_data) if File.directory?(@verm_data)
     Dir.mkdir(@verm_data)
   end
   
-  def start_verm(extra_options = {})
+  def start_verm
     exec_args  = [@verm_binary, "--data", verm_data, "--port", port.to_s, "--listen", "localhost"]
-    exec_args << "--quiet" unless ENV['NOISY'] || extra_options.delete(:no_quiet)
+    exec_args << "--quiet" if quiet && !ENV['NOISY']
 
-    @options.merge(extra_options).each do |name, value|
+    @options.each do |name, value|
       option = "--#{name.to_s.gsub("_", "-")}"
       exec_args += [option, value]
     end
@@ -104,13 +89,20 @@ class VermSpawner
   def wait_for_stop
     return unless @verm_child_pid
     Process.wait(@verm_child_pid)
-    raise "process terminated unsuccessfully: #{$?.inspect}" unless $?.success?
+    @verm_exit_status = $?
     @verm_child_pid = nil
   end
 
-  def stop_verm
+  def check_exit_status!
+    if @verm_exit_status && !@verm_exit_status.success?
+      raise "process terminated unsuccessfully: #{$?.inspect} #{stderr_output}"
+    end
+  end
+
+  def stop_verm(check_result = true)
     request_stop
     wait_for_stop
+    check_exit_status! if check_result
   end
 
   def stdout_output

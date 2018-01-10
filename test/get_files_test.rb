@@ -158,7 +158,7 @@ class GetFilesTest < Verm::TestCase
       response.read_body do |chunk|
         bytes_read += chunk.length
         iterations += 1
-        VERM_SPAWNER.request_stop
+        spawners.each(&:request_stop)
         sleep 0.001
       end
     end
@@ -169,19 +169,19 @@ class GetFilesTest < Verm::TestCase
   end
 
   def test_logs_request
-    VERM_SPAWNER.teardown
-    VERM_SPAWNER.setup(:no_quiet => true)
+    teardown_verm
+    spawn_verm(:quiet => false)
     copy_arbitrary_file_to('somefiles', nil)
     get :path => @location
-    VERM_SPAWNER.teardown
-    stdout = VERM_SPAWNER.stdout_output
+    default_verm_spawner.stop_verm
+    stdout = default_verm_spawner.stdout_output
     assert stdout.include?("\"GET #{@location} HTTP/1.1\" 200 256"), "Request was not logged in #{stdout.inspect}"
   end
 
   def test_no_logs_in_quiet_mode
     copy_arbitrary_file_to('somefiles', nil)
     get :path => @location
-    VERM_SPAWNER.teardown
-    assert_equal "", VERM_SPAWNER.stdout_output
+    default_verm_spawner.stop_verm
+    assert_equal "", spawners.first.stdout_output
   end
 end

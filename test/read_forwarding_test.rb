@@ -1,20 +1,23 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
 class ReadReplicationTest < Verm::TestCase
-  def port_for(instance_n)
-    VERM_SPAWNER.port + 2 + instance_n
+  def setup
+    # don't bother starting the standard verm instance
   end
 
-  def replicas(range)
-    range.collect do |n|
-      replicate_to = range.collect {|rn| "#{VERM_SPAWNER.hostname}:#{port_for(rn)}" unless rn == n}.compact
-      VermSpawner.new(VERM_SPAWNER.verm_binary, "#{VERM_SPAWNER.verm_data}_replica#{n}", :port => port_for(n), :replicate_to => replicate_to)
+  def port_for(instance_n)
+    DEFAULT_VERM_SPAWNER_OPTIONS[:port] + instance_n
+  end
+
+  def setup_replicas(range)
+   range.each do |n|
+      replicate_to = range.collect {|rn| "localhost:#{port_for(rn)}" unless rn == n}.compact
+      spawn_verm(:verm_data => "#{DEFAULT_VERM_SPAWNER_OPTIONS[:verm_data]}_replica#{n}", :port => port_for(n), :replicate_to => replicate_to)
     end
   end
 
   def test_reads_missing_files_with_extensions_from_other_replicas
-    spawners = replicas(0..2)
-    spawners.each(&:setup)
+    setup_replicas(0..2)
 
     copy_arbitrary_file_to('somefiles', 'jpg', spawner: spawners[1])
 
@@ -49,13 +52,10 @@ class ReadReplicationTest < Verm::TestCase
     ] do
       get get_options.merge(:verm => spawners[2])
     end
-  ensure
-    spawners.each(&:teardown) if spawners
   end
 
   def test_reads_missing_files_without_extensions_from_other_replicas
-    spawners = replicas(0..1)
-    spawners.each(&:setup)
+    setup_replicas(0..1)
 
     copy_arbitrary_file_to('somefiles', nil, spawner: spawners[1])
 
@@ -80,13 +80,10 @@ class ReadReplicationTest < Verm::TestCase
     ] do
       get get_options.merge(:verm => spawners[1])
     end
-  ensure
-    spawners.each(&:teardown) if spawners
   end
 
   def test_reads_compressed_missing_files_from_other_replicas
-    spawners = replicas(0..1)
-    spawners.each(&:setup)
+    setup_replicas(0..1)
 
     copy_arbitrary_file_to('somefiles', 'jpg', compressed: true, spawner: spawners[1])
 
@@ -111,13 +108,10 @@ class ReadReplicationTest < Verm::TestCase
     ] do
       get get_options.merge(:verm => spawners[1])
     end
-  ensure
-    spawners.each(&:teardown) if spawners
   end
 
   def test_no_need_to_forward_requests_to_invalid_paths
-    spawners = replicas(0..1)
-    spawners.each(&:setup)
+    setup_replicas(0..1)
 
     filename = 'IF/P8unS2JIuR6_UZI5pZ0lxWHhfvR2ocOcRAma_lEiA'
 
@@ -139,7 +133,5 @@ class ReadReplicationTest < Verm::TestCase
         get :path => path, :expected_response_code => 404, :verm => spawners[0]
       end
     end
-  ensure
-    spawners.each(&:teardown) if spawners
   end
 end

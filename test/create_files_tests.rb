@@ -78,8 +78,8 @@ module CreateFilesSharedTests
   end
 
   def test_saves_files_with_configured_extension_if_forced
-    VERM_SPAWNER.teardown
-    VERM_SPAWNER.setup("no-default-mime-types" => "")
+    teardown_verm
+    spawn_verm "no-default-mime-types" => ""
 
     post_file :path => '/foo',
               :file => 'simple_text_file',
@@ -184,8 +184,8 @@ module CreateFilesSharedTests
 
   def test_cleans_tempfiles_on_abort
     path = "/abort-test"
-    dir = File.join(VERM_SPAWNER.verm_data, path)
-    socket = TCPSocket.new(VERM_SPAWNER.hostname, VERM_SPAWNER.port)
+    dir = File.join(default_verm_spawner.verm_data, path)
+    socket = TCPSocket.new(default_verm_spawner.hostname, default_verm_spawner.port)
     socket.puts "POST #{path} HTTP/1.0"
     socket.puts "Content-Length: 100000"
     socket.puts ""
@@ -198,14 +198,14 @@ module CreateFilesSharedTests
 
   def test_cleans_tempfiles_on_shutdown
     path = "/abort-test"
-    dir = File.join(VERM_SPAWNER.verm_data, path)
-    socket = TCPSocket.new(VERM_SPAWNER.hostname, VERM_SPAWNER.port)
+    dir = File.join(default_verm_spawner.verm_data, path)
+    socket = TCPSocket.new(default_verm_spawner.hostname, default_verm_spawner.port)
     socket.puts "POST #{path} HTTP/1.0"
     socket.puts "Content-Length: 100000"
     socket.puts ""
     socket.puts "foo"
     repeatedly_wait_until { count_tempfiles_in(dir) > 0 }
-    VERM_SPAWNER.stop_verm
+    default_verm_spawner.stop_verm
     assert_equal 0, count_tempfiles_in(dir)
     assert_equal [], Dir["#{dir}/*"]
   end

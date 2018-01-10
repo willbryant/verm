@@ -1,8 +1,12 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
 class ReplicationTopologyTest < Verm::TestCase
+  def setup
+    # don't bother starting the standard verm instance
+  end
+
   def port_for(instance_n)
-    VERM_SPAWNER.port + 2 + instance_n
+    DEFAULT_VERM_SPAWNER_OPTIONS[:port] + instance_n
   end
 
   def post_something_to(verm)
@@ -25,12 +29,10 @@ class ReplicationTopologyTest < Verm::TestCase
   end
 
   def test_propagates_around_open_loop
-    spawners = (0..2).collect do |n|
-      replicate_to = n.zero? ? nil : "#{VERM_SPAWNER.hostname}:#{port_for(n - 1)}"
-      VermSpawner.new(VERM_SPAWNER.verm_binary, "#{VERM_SPAWNER.verm_data}_replica#{n}", :port => port_for(n), :replicate_to => replicate_to)
+    0.upto(2) do |n|
+      replicate_to = n.zero? ? nil : "localhost:#{port_for(n - 1)}"
+      spawn_verm(:verm_data => "#{DEFAULT_VERM_SPAWNER_OPTIONS[:verm_data]}_replica#{n}", :port => port_for(n), :replicate_to => replicate_to)
     end
-
-    spawners.each(&:setup)
 
     before = spawners.collect {|spawner| get_statistics(:verm => spawner)}
 
@@ -50,17 +52,13 @@ class ReplicationTopologyTest < Verm::TestCase
       {:get_requests => 1, :put_requests => 1, :put_requests_new_file_stored => 1, :replication_push_attempts => 1},
       {:get_requests => 1, :post_requests => 1, :post_requests_new_file_stored => 1, :replication_push_attempts => 1},
     ], changes)
-  ensure
-    spawners.each(&:teardown) if spawners
   end
 
   def test_propagates_around_closed_loop
-    spawners = (0..2).collect do |n|
-      replicate_to = n.zero? ? "#{VERM_SPAWNER.hostname}:#{port_for(2)}" : "#{VERM_SPAWNER.hostname}:#{port_for(n - 1)}"
-      VermSpawner.new(VERM_SPAWNER.verm_binary, "#{VERM_SPAWNER.verm_data}_replica#{n}", :port => port_for(n), :replicate_to => replicate_to)
+    0.upto(2) do |n|
+      replicate_to = n.zero? ? "localhost:#{port_for(2)}" : "localhost:#{port_for(n - 1)}"
+      spawn_verm(:verm_data => "#{DEFAULT_VERM_SPAWNER_OPTIONS[:verm_data]}_replica#{n}", :port => port_for(n), :replicate_to => replicate_to)
     end
-
-    spawners.each(&:setup)
 
     before = spawners.collect {|spawner| get_statistics(:verm => spawner)}
 
@@ -80,17 +78,13 @@ class ReplicationTopologyTest < Verm::TestCase
       {:get_requests => 1, :put_requests => 1, :put_requests_new_file_stored => 1, :replication_push_attempts => 1},
       {:get_requests => 1, :post_requests => 1, :post_requests_new_file_stored => 1, :replication_push_attempts => 1, :put_requests => 1, :put_requests_missing_file_checks => 1},
     ], changes)
-  ensure
-    spawners.each(&:teardown) if spawners
   end
 
   def test_propagates_over_redundant_mesh
-    spawners = (0..2).collect do |n|
-      replicate_to = (0..2).collect {|rn| "#{VERM_SPAWNER.hostname}:#{port_for(rn)}" unless rn == n}.compact
-      VermSpawner.new(VERM_SPAWNER.verm_binary, "#{VERM_SPAWNER.verm_data}_replica#{n}", :port => port_for(n), :replicate_to => replicate_to)
+    0.upto(2) do |n|
+      replicate_to = (0..2).collect {|rn| "localhost:#{port_for(rn)}" unless rn == n}.compact
+      spawn_verm(:verm_data => "#{DEFAULT_VERM_SPAWNER_OPTIONS[:verm_data]}_replica#{n}", :port => port_for(n), :replicate_to => replicate_to)
     end
-
-    spawners.each(&:setup)
 
     before = spawners.collect {|spawner| get_statistics(:verm => spawner)}
 
@@ -110,7 +104,5 @@ class ReplicationTopologyTest < Verm::TestCase
       {:get_requests => 1, :put_requests => 2, :put_requests_new_file_stored => 1, :put_requests_missing_file_checks => 1},
       {:get_requests => 1, :post_requests => 1, :post_requests_new_file_stored => 1, :put_requests => 2, :put_requests_missing_file_checks => 2, :replication_push_attempts => 2},
     ], changes)
-  ensure
-    spawners.each(&:teardown) if spawners
   end
 end

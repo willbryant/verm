@@ -1,10 +1,11 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
 class HealthCheckTest < Verm::TestCase
-  def extra_spawner_options
-    { :health_check_path => health_check_path,
+  def setup
+    spawn_verm(
+      :health_check_path => health_check_path,
       :healthy_if_file => healthy_file,
-      :healthy_unless_file => unhealthy_file }
+      :healthy_unless_file => unhealthy_file)
   end
 
   def health_check_path
