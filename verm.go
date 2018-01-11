@@ -71,18 +71,27 @@ func main() {
 	server := VermServer(listener, rootDataDirectory, &replicationTargets, statistics, quiet)
 	replicationTargets.Start(rootDataDirectory, statistics, replicationWorkers)
 	replicationTargets.EnqueueResync()
-	go waitForSignals(&server, &replicationTargets)
+	done := make(chan interface{})
+	go waitForSignals(&server, &replicationTargets, done)
 
 	if healthCheckPath != "" {
 		http.Handle(AddRoot(healthCheckPath), HealthCheckServer(healthyIfFile, healthyUnlessFile))
 	}
 	http.Handle("/", server)
 
-	server.Serve()
+	err = server.Serve()
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unexpected error: %s\n", err.Error())
-		os.Exit(1)
+	// emulate the solution used by go 1.8+ to return ErrServerClosed
+	select {
+	case <-done:
+		// ignore the error, as we always get 'accept tcp <host and port>: use of closed network connection'
+
+	default:
+		// Serve returned without waitForSignals signalling us, so there's a real error condition
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unexpected error: %s\n", err.Error())
+			os.Exit(1)
+		}
 	}
 
 	server.Tracker.Shutdown(ShutdownResponseTimeout * time.Second)
@@ -90,12 +99,13 @@ func main() {
 	os.Exit(0)
 }
 
-func waitForSignals(server *vermServer, targets *ReplicationTargets) {
+func waitForSignals(server *vermServer, targets *ReplicationTargets, done chan interface{}) {
 	signals := make(chan os.Signal, 4)
 	signal.Notify(signals, syscall.SIGINT)
 	signal.Notify(signals, syscall.SIGTERM)
 	signal.Notify(signals, syscall.SIGUSR1)
 	signal.Notify(signals, syscall.SIGUSR2)
+	closed := false
 	for {
 		switch <-signals {
 		case syscall.SIGUSR1:
@@ -110,7 +120,11 @@ func waitForSignals(server *vermServer, targets *ReplicationTargets) {
 			if !server.Quiet {
 				fmt.Fprintf(os.Stdout, "Verm shutting down by request\n")
 			}
-			server.Shutdown()
+			if !closed {
+				closed = true
+				close(done)
+				server.Shutdown()
+			}
 		}
 	}
 }
