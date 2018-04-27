@@ -58,7 +58,7 @@ func main() {
 
 	mimeext.LoadMimeFile(mimeTypesFile, mimeTypesClear)
 
-	listener, err := net.Listen("tcp", listenAddress + ":" + port)
+	listener, err := net.Listen("tcp", listenAddress+":"+port)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Couldn't listen on %s:%s: %s\n", listenAddress, port, err.Error())
@@ -67,7 +67,7 @@ func main() {
 		fmt.Fprintf(os.Stdout, "%s listening on http://%s:%s, data in %s\n", banner(), listenAddress, port, rootDataDirectory)
 	}
 
-	statistics := &LogStatistics{}
+	statistics := NewLogStatistics()
 	server := VermServer(listener, rootDataDirectory, &replicationTargets, statistics, quiet)
 	replicationTargets.Start(rootDataDirectory, statistics, replicationWorkers)
 	replicationTargets.EnqueueResync()

@@ -7,7 +7,6 @@ import "net/http"
 import "os"
 import "path"
 import "path/filepath"
-import "sync/atomic"
 import "github.com/willbryant/verm/mimeext"
 
 type vermServer struct {
@@ -23,27 +22,27 @@ type vermServer struct {
 
 func VermServer(listener net.Listener, rootDataDirectory string, replicationTargets *ReplicationTargets, statistics *LogStatistics, quiet bool) vermServer {
 	return vermServer{
-		Listener: listener,
-		Tracker: NewConnectionTracker(),
+		Listener:    listener,
+		Tracker:     NewConnectionTracker(),
 		RootDataDir: rootDataDirectory,
 		RootHttpDir: http.Dir(rootDataDirectory),
-		Targets: replicationTargets,
-		Statistics: statistics,
-		Quiet: quiet,
+		Targets:     replicationTargets,
+		Statistics:  statistics,
+		Quiet:       quiet,
 	}
 }
 
 func (server vermServer) serveRoot(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w,
-		"<!DOCTYPE html><html><head><title>Verm - Upload</title></head><body>" +
-		"<!-- this form will let you test out verm manually.  don't emulate it in API clients - it's simpler to use raw posts.  you should also insist on posting to an application-specific directory name. -->" +
-		"<form method='post' enctype='multipart/form-data'>" +
-		"<input type='hidden' name='redirect' value='1'/>" /* redirect instead of returning 201 (as APIs want) */ +
-		"<input type='file' name='uploaded_file'/>" +
-		"<input type='submit' value='Upload'/>" +
-		"</form>" +
-		"</body></html>\n")
+		"<!DOCTYPE html><html><head><title>Verm - Upload</title></head><body>"+
+			"<!-- this form will let you test out verm manually.  don't emulate it in API clients - it's simpler to use raw posts.  you should also insist on posting to an application-specific directory name. -->"+
+			"<form method='post' enctype='multipart/form-data'>"+
+			"<input type='hidden' name='redirect' value='1'/>" /* redirect instead of returning 201 (as APIs want) */ +
+			"<input type='file' name='uploaded_file'/>"+
+			"<input type='submit' value='Upload'/>"+
+			"</form>"+
+			"</body></html>\n")
 }
 
 func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
@@ -58,18 +57,18 @@ func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
 		storedCompressed = true
 	}
 	if err != nil && server.shouldForwardRead(req) && server.forwardRead(w, req) {
-		atomic.AddUint64(&server.Statistics.get_requests, 1)
-		atomic.AddUint64(&server.Statistics.get_requests_found_on_replica, 1)
+		server.Statistics.GetRequests.Add(1)
+		server.Statistics.GetRequestsFoundOnReplica.Add(1)
 		return
 	}
 	if err != nil {
-		atomic.AddUint64(&server.Statistics.get_requests, 1)
-		atomic.AddUint64(&server.Statistics.get_requests_not_found, 1)
+		server.Statistics.GetRequests.Add(1)
+		server.Statistics.GetRequestsNotFound.Add(1)
 		http.NotFound(w, req)
 		return
 	}
 	defer file.Close()
-	defer atomic.AddUint64(&server.Statistics.get_requests, 1)
+	defer server.Statistics.GetRequests.Add(1)
 
 	// if the client supplied cache-checking header, test them
 	// because verm files are immutable, we can use the path as a constant etag for the file
@@ -147,7 +146,7 @@ func (server vermServer) serveHTTPGetOrHead(w http.ResponseWriter, req *http.Req
 }
 
 func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request) {
-	defer atomic.AddUint64(&server.Statistics.post_requests, 1)
+	defer server.Statistics.PostRequests.Add(1)
 
 	location, newFile, err := server.UploadFile(w, req, false)
 	if err != nil {
@@ -158,7 +157,7 @@ func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request)
 		return
 	}
 	if newFile {
-		atomic.AddUint64(&server.Statistics.post_requests_new_file_stored, 1)
+		server.Statistics.PostRequestsNewFileStored.Add(1)
 	}
 
 	w.Header().Set("Location", location)
@@ -170,17 +169,17 @@ func (server vermServer) serveHTTPPost(w http.ResponseWriter, req *http.Request)
 }
 
 func (server vermServer) serveHTTPPut(w http.ResponseWriter, req *http.Request) {
-	defer atomic.AddUint64(&server.Statistics.put_requests, 1)
+	defer server.Statistics.PutRequests.Add(1)
 
 	if req.URL.Path == ReplicationMissingFilesPath {
 		server.serveMissing(w, req)
-		atomic.AddUint64(&server.Statistics.put_requests_missing_file_checks, 1)
+		server.Statistics.PutRequestsMissingFileChecks.Add(1)
 		return
 	}
 
 	location, newFile, err := server.UploadFile(w, req, true)
 	if err != nil {
-		atomic.AddUint64(&server.Statistics.put_requests_failed, 1)
+		server.Statistics.PutRequestsFailed.Add(1)
 		switch err.(type) {
 		case *WrongLocationError:
 			http.Error(w, err.Error(), 422)
@@ -193,7 +192,7 @@ func (server vermServer) serveHTTPPut(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 	if newFile {
-		atomic.AddUint64(&server.Statistics.put_requests_new_file_stored, 1)
+		server.Statistics.PutRequestsNewFileStored.Add(1)
 	}
 
 	w.Header().Set("Location", location)
@@ -201,8 +200,8 @@ func (server vermServer) serveHTTPPut(w http.ResponseWriter, req *http.Request) 
 }
 
 func (server vermServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	atomic.AddUint64(&server.Statistics.connections_current, 1)
-	defer atomic.AddUint64(&server.Statistics.connections_current, ^uint64(0))
+	server.Statistics.ConnectionsCurrent.Add(1)
+	defer server.Statistics.ConnectionsCurrent.Add(-1)
 
 	// we need to keep track of the response code and count the bytes so we can log them below
 	logger := &responseLogger{w: w, req: req}
