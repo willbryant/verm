@@ -136,7 +136,7 @@ class ReplicationPropagationTest < Verm::TestCase
     }, changes)
 
     unless ENV['VALGRIND'] || ENV['NO_CAPTURE_STDERR'].to_i > 0
-      assert_match(/#{@slave.port}:( getsockopt:)? connection refused/,
+      assert_match(/#{@slave.port}:( (connect|getsockopt):)? connection refused/,
         @master.stderr_output.downcase,
         "replication error was not logged")
     end
