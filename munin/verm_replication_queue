@@ -27,7 +27,8 @@ if [ "$1" = "autoconf" ]; then
 	fi
 fi
 
-data=`echo -e "GET /_statistics HTTP/1.0\n" | nc localhost 3404 | grep queue_length`
+data=`echo -e "GET /_statistics HTTP/1.0\n" | nc localhost 3404 | grep queue_length | grep -v "#"`
+data=`echo "$data" | sed -E 's/verm_replication_queue_length\{target="(.*):([0-9]+)"\}/replication_\1_\2_queue_length/g'`
 
 if [ "$1" = "config" ]; then
 	echo 'graph_title Verm replication queue length'

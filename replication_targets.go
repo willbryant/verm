@@ -54,11 +54,16 @@ func (targets *ReplicationTargets) EnqueueResync() {
 }
 
 func (targets *ReplicationTargets) StatisticsString() string {
-	result := ""
+	if len(targets.targets) <= 0 {
+		return ""
+	}
+	metricName := "verm_replication_queue_length"
+	result := fmt.Sprintf("# HELP %s Number of files in the queue to be replicated to each configured replica.\n", metricName)
+	result = fmt.Sprintf("%s# TYPE %s gauge\n", result, metricName)
 	for _, target := range targets.targets {
 		result = fmt.Sprintf(
-			"%sreplication_%s_%s_queue_length %d\n",
-			result,
+			"%s%s{target=\"%s:%s\"} %d\n",
+			result, metricName,
 			target.hostname, target.port, target.queueLength())
 	}
 	return result

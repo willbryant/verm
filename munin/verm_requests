@@ -27,7 +27,7 @@ if [ "$1" = "autoconf" ]; then
 	fi
 fi
 
-data=`echo -e "GET /_statistics HTTP/1.0\n" | nc localhost 3404 | grep _ | grep -v connections_current | grep -v queue_length`
+data=`echo -e "GET /_statistics HTTP/1.0\n" | nc localhost 3404 | grep _ | grep -v connections_current | grep -v queue_length | grep -v "#" | sed -E 's/verm_|_total//g'`
 
 if [ "$1" = "config" ]; then
 	echo 'graph_title Verm requests'

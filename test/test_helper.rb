@@ -246,6 +246,13 @@ module Verm
       while true
         response = get(options.merge(:path => "/_statistics", :expected_response_code => 200))
         lines = response.body.split(/\n/)
+        # Ignore new Prometheus comment lines
+        lines.reject! { |line| line[0] == "#" }
+        # Rewrite the new Prometheus format of replication_queue_length to something the tests understand
+        lines.each do |line|
+          line.gsub!(/replication_queue_length{target="(\w+):(\d+)"} (\d+)/, 'replication_\1_\2_queue_length \3')
+          line.gsub!(/verm_|_total/, '')
+        end
         results = lines.inject({}) {|res, line| name, value = line.split(/ /); res[name.to_sym] = value.to_i; res}
 
         # all our ruby test code is single-threaded, so if there's more than one connection active in the
