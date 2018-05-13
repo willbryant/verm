@@ -98,12 +98,11 @@ func (server vermServer) serveFile(w http.ResponseWriter, req *http.Request) {
 			w.Header().Set("Content-Encoding", "gzip")
 			serveContent(w, req, stat.Size(), file)
 
-		} else {
+		} else if req.Method == "HEAD" {
 			w.WriteHeader(http.StatusOK)
 
-			if req.Method != "HEAD" {
-				unpackAndServeContent(w, file)
-			}
+		} else {
+			unpackAndServeContent(w, req, file)
 		}
 	}
 }

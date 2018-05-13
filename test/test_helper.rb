@@ -93,13 +93,19 @@ module Verm
     end
 
     def copy_arbitrary_file_to(directory, extension, compressed: false, spawner: default_verm_spawner)
-      @arbitrary_file = 'binary_file'
-      @arbitrary_file += '.gz' if compressed
-      copy_fixture_file_to(directory, extension, @arbitrary_file, 'IF', 'P8unS2JIuR6_UZI5pZ0lxWHhfvR2ocOcRAma_lEiA', compressed: compressed, spawner: spawner)
+      filename = 'binary_file'
+      filename += '.gz' if compressed
+      copy_fixture_file_to(directory, extension, filename, 'IF', 'P8unS2JIuR6_UZI5pZ0lxWHhfvR2ocOcRAma_lEiA', compressed: compressed, spawner: spawner)
     end
 
     def copy_zeros_file_to(directory, extension, spawner: default_verm_spawner)
       copy_fixture_file_to(directory, extension, 'zeros.gz', 'Ky', 'H8F7BiViUfTKHTut4j6OWoF0Lq3wbcfESzrfpsx7u', compressed: true, spawner: spawner)
+    end
+
+    def copy_compressible_file_to(directory, extension, compressed: false, spawner: default_verm_spawner)
+      filename = 'compressible_file'
+      filename += '.gz' if compressed
+      copy_fixture_file_to(directory, extension, filename, 'Ji', 'INTnAqomBtpYxwk2Qw5-Utzm-LKa6rLtnzrjNl9G7', compressed: compressed, spawner: spawner)
     end
 
     def copy_fixture_file_to(directory, extension, fixture_filename, subdirectory, filename, compressed: false, spawner: default_verm_spawner)

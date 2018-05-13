@@ -138,6 +138,53 @@ class GetFilesTest < Verm::TestCase
     end
   end
 
+  def test_serves_fragments_of_decompressed_files_if_client_does_not_accept_gzip_and_file_is_compressed
+    copy_compressible_file_to('somefiles', 'vermtest1', compressed: true)
+    File.open(@original_file.gsub('.gz', ''), 'rb') do |f|
+      size = f.stat.size
+
+      # absolute start and end
+      offset = rand(size - 1)
+      length = rand(size - offset)
+      f.seek(offset, :SET)
+      content = f.read(length)
+
+      get :path => @location,
+          :headers => {'Range' => "bytes=#{offset}-#{offset + length - 1}"},
+          :accept_encoding => 'none',
+          :expected_response_code => 206,
+          :expected_content_encoding => nil,
+          :expected_content_type => 'application/verm-test-file',
+          :expected_content => content
+
+      # absolute start
+      offset = rand(size - 1)
+      f.seek(offset, :SET)
+      content = f.read
+
+      get :path => @location,
+          :headers => {'Range' => "bytes=#{offset}-"},
+          :accept_encoding => 'none',
+          :expected_response_code => 206,
+          :expected_content_encoding => nil,
+          :expected_content_type => 'application/verm-test-file',
+          :expected_content => content
+
+      # relative end
+      offset = rand(size - 1) + 1
+      f.seek(-offset, :END)
+      content = f.read
+
+      get :path => @location,
+          :headers => {'Range' => "bytes=-#{offset}"},
+          :accept_encoding => 'none',
+          :expected_response_code => 206,
+          :expected_content_encoding => nil,
+          :expected_content_type => 'application/verm-test-file',
+          :expected_content => content
+    end
+  end
+
   def test_serves_files_compressed_if_client_requests_gz
     copy_arbitrary_file_to('somefiles', 'vermtest1', compressed: true)
     File.open(@original_file, 'rb') do |f|
