@@ -104,7 +104,6 @@ func (server vermServer) serveStatistics(w http.ResponseWriter, req *http.Reques
 
 type PrometheusMetric interface {
 	Add(int64)
-	Value() int64
 	PrintStatistics(w http.ResponseWriter)
 }
 
@@ -126,11 +125,7 @@ func NewPrometheusMetric(options *promMetricOptions) PrometheusMetric {
 func (pi *promMetric) PrintStatistics(w http.ResponseWriter) {
 	fmt.Fprintf(w, "# HELP %s %s\n", pi.options.name, pi.options.description)
 	fmt.Fprintf(w, "# TYPE %s %s\n", pi.options.name, pi.options.metricType)
-	fmt.Fprintf(w, "%s %d\n", pi.options.name, pi.metric.Value())
-}
-
-func (pi *promMetric) Value() int64 {
-	return pi.metric.Value()
+	fmt.Fprintf(w, "%s %s\n", pi.options.name, pi.metric.String())
 }
 
 func (pi *promMetric) Add(val int64) {

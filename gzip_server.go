@@ -38,7 +38,7 @@ func NewGzipSeeker(compressed io.ReadSeeker, uncompressed *gzip.Reader) (seeker 
 		return
 	}
 
-	_, err = compressed.Seek(0, io.SeekStart)
+	_, err = compressed.Seek(0, 0) // second arg = io.SeekStart
 	if err == nil {
 		err = uncompressed.Reset(compressed)
 	}
@@ -53,10 +53,10 @@ func (seeker *gzipSeeker) Read(p []byte) (n int, err error) {
 
 func (seeker *gzipSeeker) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
-	case io.SeekStart:
+	case 0: // io.SeekStart
 		if offset < seeker.position {
 			seeker.position = 0
-			_, err := seeker.compressed.Seek(0, io.SeekStart)
+			_, err := seeker.compressed.Seek(0, 0) // second arg = io.SeekStart
 			if err == nil {
 				err = seeker.uncompressed.Reset(seeker.compressed)
 			}
@@ -77,11 +77,11 @@ func (seeker *gzipSeeker) Seek(offset int64, whence int) (int64, error) {
 		}
 		return seeker.position, nil
 
-	case io.SeekCurrent:
-		return seeker.Seek(seeker.position + offset, io.SeekStart)
+	case 1: // io.SeekCurrent
+		return seeker.Seek(seeker.position + offset, 0) // second arg = io.SeekStart
 
-	case io.SeekEnd:
-		return seeker.Seek(seeker.size + offset, io.SeekStart)
+	case 2: // io.SeekEnd
+		return seeker.Seek(seeker.size + offset, 0) // second arg = io.SeekStart
 
 	default:
 		return seeker.position, errors.New("invalid whence value")
